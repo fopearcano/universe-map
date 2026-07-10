@@ -50,10 +50,12 @@ function renderStar(s) {
 }
 
 function renderCosmos(o) {
-  const isQ = o.kind === 'quasar', isLG = o.kind === 'localgalaxy';
-  const swatch = isQ ? '#c86bff' : isLG ? '#9fe8ff' : '#7fd4ff';
+  const isQ = o.kind === 'quasar' || (o.kind === 'procedural' && o.pType === 'quasar');
+  const isLG = o.kind === 'localgalaxy';
+  const isProc = o.kind === 'procedural';
+  const swatch = isProc ? '#4fe06a' : isQ ? '#c86bff' : isLG ? '#9fe8ff' : '#7fd4ff';
   const rows = [];
-  rows.push(['Type', o.sub || o.kind]);
+  rows.push(['Type', isProc ? o.type : (o.sub || o.kind)]);
   if (o.z != null) rows.push(['Redshift z', fmtZ(o.z), 'hl']);
   rows.push(['Comoving dist', fmtCosmoDist(o.comovingMpc), 'hl']);
   rows.push(['', fmtMpc(o.comovingMpc)]);
@@ -61,7 +63,11 @@ function renderCosmos(o) {
   else rows.push(['Distance', `${(o.distLy / 1e6).toFixed(2)} Mly`]);
   rows.push(['Right ascension', fmtRA(o.ra)]);
   rows.push(['Declination', fmtDec(o.dec)]);
-  rows.push(['Survey', o.survey]);
+  rows.push(['Catalogue', o.survey]);
+  if (isProc) {
+    const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
+    return head('✦ ' + o.name, o.sub, swatch) + grid(rows) + facts + actions({});
+  }
   const note = (o.kind === 'galaxy' || isLG)
     ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud (procedural — real per-star data exists only for the Milky Way).</div>' : '';
   return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({ simbad: o.kind === 'localgalaxy' }) + note;

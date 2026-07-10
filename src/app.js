@@ -663,7 +663,8 @@ export class App {
   // NOT catalogue data (only the Milky Way has real per-star data).
   _maybeBloom(info) {
     this._clearBloom();
-    if (info.kind !== 'galaxy' && info.kind !== 'localgalaxy') return;
+    const bloomable = info.kind === 'galaxy' || info.kind === 'localgalaxy' || (info.kind === 'procedural' && info.pType === 'galaxy');
+    if (!bloomable) return;
     const center = info.worldPos, N = 3600;
     const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
     let seed = Math.floor(Math.abs(center.x * 733.1 + center.y * 977.7 + center.z * 613.3)) % 2147483647 || 12345;
@@ -902,7 +903,9 @@ export class App {
       const key = 'star' + i;
       if (key !== this._hover.key) { this._hover.key = key; this.emit('hover', i >= 0 ? { text: hoverStar(this.catalog.star(i)), x: this._hover.x, y: this._hover.y } : null); }
     } else {
-      const hit = this.cosmos.pick(this._ray);
+      // exclude the (huge) procedural layer from hover picking to keep it smooth;
+      // it stays fully selectable on click.
+      const hit = this.cosmos.pick(this._ray, { includeProcedural: false });
       const key = hit ? `${hit.kind}${hit.layer || ''}${hit.i}` : '';
       if (key !== this._hover.key) {
         this._hover.key = key;
@@ -959,6 +962,7 @@ function fmtLy(ly) {
 function hoverStar(s) { return `${esc(s.name)} · ${esc(s.spect)} · ${s.distLy.toFixed(1)} ly`; }
 function hoverCosmos(o) {
   if (o.kind === 'localgalaxy') return `${esc(o.name)} · ${(o.distLy / 1e6).toFixed(1)} Mly`;
+  if (o.kind === 'procedural') return `✦ ${esc(o.name)} · z=${o.z.toFixed(3)} · imagined`;
   return `${o.kind === 'quasar' ? 'Quasar' : 'Galaxy'} · z=${o.z.toFixed(3)} · ${(o.comovingMpc * 3.2615638e6 / 1e9).toFixed(2)} Gly`;
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

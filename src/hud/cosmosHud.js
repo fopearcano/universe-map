@@ -111,7 +111,12 @@ export function buildCosmosLayers(app) {
   const proc = root.querySelector('[data-l="procedural"]');
   const procColor = root.querySelector('#c-proc-color');
   const procNote = root.querySelector('#c-proc-note');
-  const setNote = () => { procNote.textContent = proc.classList.contains('on') ? `${fmt(app.cosmos.proceduralCount())} synthetic galaxies filling survey gaps (not real data)` : ''; };
+  const setNote = () => {
+    if (!proc.classList.contains('on')) { procNote.textContent = ''; return; }
+    const frac = app.cosmos.proceduralFraction();
+    const dens = frac >= 0.99 ? 'at full survey density' : `at ${Math.round(frac * 100)}% of peak survey density`;
+    procNote.textContent = `${fmt(app.cosmos.proceduralCount())} imagined objects completing the universe ${dens} · selectable & route-able (not real data)`;
+  };
   setNote();
   proc.onclick = () => {
     proc.classList.toggle('on');

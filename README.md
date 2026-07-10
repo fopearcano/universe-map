@@ -82,12 +82,19 @@ The map is drawn like an annotated chart, not a uniform dot-field:
   shapes as you approach** — a spiral/elliptical/irregular disc from the galaxy's
   Hubble type, a dense sphere for a globular, a loose scatter for an open cluster —
   fading back to a single icon as you pull away. GPU-driven, so it's one draw call.
-- **Procedural fill (imagined).** Toggle **Procedural fill** to seed a synthetic
-  galaxy field into the **survey-incompleteness gaps** — the Zone of Avoidance
-  behind the Milky Way and the unsurveyed sky — thinned where the real catalogues
-  are already dense and kept **out of catalogued voids** (Boötes, the Local Void…).
-  It's clearly synthetic: tinted **green** by default, with a **green ↔ match-data**
-  switch, and never counted as real objects nor selectable.
+- **Procedural fill — a "known universe" (imagined).** Toggle **Procedural fill**
+  to complete the map into a fully-charted universe for storytelling. Every
+  direction is brought **up to the peak surface density of the best-surveyed real
+  regions** (≈650k synthetic objects), so the sky reads as completely mapped —
+  filling the Zone of Avoidance behind the Milky Way and the unsurveyed hemisphere
+  — while **catalogued voids stay empty** (Boötes, the Local Void…). Crucially,
+  these objects are **usable exactly like real data**: each is placed at a true
+  distance (from a sampled redshift), is **selectable**, carries a generated
+  **imagined identity** (a name + `KUC J…` designation, a morphology, distance and
+  a lore line), and can be **added to a route** with correct relativistic travel
+  times. It's clearly imagined — tinted **green** by default with a **green ↔
+  match-data** switch (match makes it read as a real, complete survey). Selectable
+  on click (kept out of the hover scan for smoothness at ~650k points).
 
 ## The Cosmic Atlas (knowledge base)
 

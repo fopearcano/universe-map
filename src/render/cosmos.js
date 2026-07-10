@@ -35,62 +35,108 @@ export class CosmosWorld {
     this._buildCMB();
   }
 
-  // ---- procedural fill: a synthetic galaxy field that fills survey-incompleteness
-  // gaps (the Zone of Avoidance behind the Milky Way + unsurveyed sky), thinned
-  // where the real catalogues are already dense and kept OUT of catalogued voids.
-  // Clearly synthetic — tinted green by default. Not counted as real objects and
-  // not selectable. ----
+  // ---- procedural fill: a synthetic, fully-catalogued universe.
+  // A "known universe" for storytelling — every direction is brought UP TO the
+  // peak surface density of the best-surveyed real regions, so the sky reads as
+  // completely mapped. Catalogued voids stay empty. Each object is real enough to
+  // use: it is placed with a true distance (from a sampled redshift), is
+  // selectable, carries a generated (imagined) identity, and can be added to a
+  // route exactly like a real galaxy. Clearly imagined — green by default. ----
   _buildProcedural(voids = []) {
-    const N = 40000;
+    const MAX = 700000;                 // hard cap for GPU + pick performance
+    const NB = 72, MB = 36;             // angular cells (lon × lat)
     let seed = 20240711;
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 
-    // coarse angular coverage of the REAL catalogues, so the fill flows into gaps
-    const cov = this._coverageGrid();
-    // galactic north pole in equatorial cartesian (for the Zone of Avoidance)
-    const gpRa = 192.859508 * Math.PI / 180, gpDec = 27.128336 * Math.PI / 180;
-    const nGP = [Math.cos(gpDec) * Math.cos(gpRa), Math.cos(gpDec) * Math.sin(gpRa), Math.sin(gpDec)];
-    // a few random 3-D waves → smooth web-like clumping (filaments, not static)
-    const waves = [];
-    for (let i = 0; i < 6; i++) waves.push({ kx: (rnd() - 0.5) * 2.2, ky: (rnd() - 0.5) * 2.2, kz: (rnd() - 0.5) * 2.2, ph: rnd() * 6.2832, a: 0.5 + rnd() * 0.6 });
-    const web = (x, y, z) => { let s = 0, w = 0; for (const q of waves) { s += q.a * Math.sin(q.kx * x + q.ky * y + q.kz * z + q.ph); w += q.a; } return 0.5 + 0.5 * s / w; };
+    // 1) real angular coverage + a redshift CDF, so the fill matches how a
+    //    complete survey would actually look (same depth distribution).
+    const grid = new Uint32Array(NB * MB);
+    const ZBINS = 240; const zh = new Float64Array(ZBINS); let zHi = 0.05;
+    for (const key of ['twomrs', 'sdssGal', 'sdssQso']) {
+      const L = this.data.layers[key]; if (!L) continue;
+      zHi = Math.max(zHi, L.zmax ?? 0.05);
+    }
+    for (const key of ['twomrs', 'sdssGal', 'sdssQso']) {
+      const L = this.data.layers[key]; if (!L) continue;
+      const d = L.data;
+      for (let i = 0; i < L.count; i++) {
+        const x = d[i * 4], y = d[i * 4 + 1], zc = d[i * 4 + 2], zr = d[i * 4 + 3];
+        const bi = Math.min(NB - 1, Math.floor(((Math.atan2(y, x) + Math.PI) / (2 * Math.PI)) * NB));
+        const bj = Math.min(MB - 1, Math.floor((Math.asin(Math.max(-1, Math.min(1, zc))) / Math.PI + 0.5) * MB));
+        grid[bj * NB + bi]++;
+        zh[Math.min(ZBINS - 1, Math.max(0, Math.floor((zr / zHi) * ZBINS)))]++;
+      }
+    }
+    // redshift inverse-CDF sampler
+    let zsum = 0; for (let i = 0; i < ZBINS; i++) zsum += zh[i];
+    const zcdf = new Float64Array(ZBINS); let acc = 0;
+    for (let i = 0; i < ZBINS; i++) { acc += zh[i] / zsum; zcdf[i] = acc; }
+    const sampleZ = () => {
+      const u = rnd(); let lo = 0, hi = ZBINS - 1;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (zcdf[m] < u) lo = m + 1; else hi = m; }
+      return Math.max(0.004, ((lo + rnd()) / ZBINS) * zHi);
+    };
+
+    // 2) target = peak real surface density, scaled per cell by solid angle so the
+    //    completed sky has uniform density (not polar clumping). Fill each cell's
+    //    deficit to that target.
+    const counts = Array.from(grid).sort((a, b) => a - b);
+    const peak = counts[Math.floor(counts.length * 0.9)] || 1; // robust "densest region"
+    const cellDeficit = new Float64Array(NB * MB);
+    let ideal = 0;
+    for (let bj = 0; bj < MB; bj++) {
+      const latC = ((bj + 0.5) / MB) * Math.PI - Math.PI / 2;
+      const area = Math.max(0.06, Math.cos(latC));
+      for (let bi = 0; bi < NB; bi++) {
+        const def = Math.max(0, peak * area - grid[bj * NB + bi]);
+        cellDeficit[bj * NB + bi] = def; ideal += def;
+      }
+    }
+    const scale = ideal > MAX ? MAX / ideal : 1;
+    this._procFraction = scale; // <1 means we hit the cap (density = scale × peak)
+
     // void exclusion zones (angular + radial band around each catalogued void)
     const voidZ = voids.map((v) => ({ dir: v.dir, r: v.displayR }));
-
-    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), zs = new Float32Array(N), sz = new Float32Array(N);
-    let k = 0, tries = 0;
-    const maxTries = N * 12;
-    while (k < N && tries < maxTries) {
-      tries++;
-      const u = rnd() * 2 - 1, ph = rnd() * Math.PI * 2, s = Math.sqrt(Math.max(0, 1 - u * u));
-      const dir = [s * Math.cos(ph), s * Math.sin(ph), u];
-      const z = 0.012 + Math.pow(rnd(), 1.5) * 1.35;
-      const mpc = comovingMpc(z), r = displayRadiusFromMpc(mpc, this.decadeUnit);
-      // 1) thin where the real surveys are dense (fill the gaps)
-      const c = cov.lookup(dir);
-      const covFactor = c > 45 ? 0.12 : c > 12 ? 0.4 : c > 2 ? 0.8 : 1.0;
-      // 2) boost the Zone of Avoidance (|galactic b| < ~12°, blocked by the disc)
-      const sinb = dir[0] * nGP[0] + dir[1] * nGP[1] + dir[2] * nGP[2];
-      const zoa = Math.abs(sinb) < 0.21 ? 1.15 : 0.7;
-      // 3) web clumping
-      const n = web(dir[0] * r * 0.4, dir[1] * r * 0.4, dir[2] * r * 0.4);
-      const p = covFactor * zoa * smoothstep(0.42, 0.8, n);
-      if (rnd() > p) continue;
-      // 4) never fill inside a catalogued void
-      let inV = false;
+    const inVoid = (dir, r) => {
       for (const v of voidZ) {
         const dot = dir[0] * v.dir[0] + dir[1] * v.dir[1] + dir[2] * v.dir[2];
-        if (dot > 0.945 && Math.abs(r - v.r) < 2.2) { inV = true; break; }
+        if (dot > 0.945 && Math.abs(r - v.r) < 2.2) return true;
       }
-      if (inV) continue;
+      return false;
+    };
 
-      pos[k * 3] = dir[0] * r; pos[k * 3 + 1] = dir[1] * r; pos[k * 3 + 2] = dir[2] * r;
-      const [cr, cg, cb] = distanceColor(r / this.cmbR);
-      col[k * 3] = cr; col[k * 3 + 1] = cg; col[k * 3 + 2] = cb;
-      zs[k] = z; sz[k] = 0.85;
-      k++;
+    // 3) place points cell by cell
+    const cap = Math.min(MAX, Math.ceil(ideal * scale) + NB * MB);
+    const pos = new Float32Array(cap * 3), col = new Float32Array(cap * 3);
+    const zs = new Float32Array(cap), sz = new Float32Array(cap);
+    this.procData = new Float32Array(cap * 4);     // [dx,dy,dz,z] per object (for pick/describe)
+    this.procType = new Uint8Array(cap);           // 0 galaxy · 1 quasar
+    let k = 0;
+    for (let bj = 0; bj < MB && k < cap; bj++) {
+      for (let bi = 0; bi < NB && k < cap; bi++) {
+        let n = Math.floor(cellDeficit[bj * NB + bi] * scale);
+        while (n-- > 0 && k < cap) {
+          // uniform direction within this lon/lat cell
+          const lon = ((bi + rnd()) / NB) * 2 * Math.PI - Math.PI;
+          const v = ((bj + rnd()) / MB) * 2 - 1;                  // uniform in sin(lat)
+          const dec = Math.asin(v), cd = Math.cos(dec);
+          const dir = [cd * Math.cos(lon), cd * Math.sin(lon), Math.sin(dec)];
+          const z = sampleZ();
+          const r = displayRadiusFromMpc(comovingMpc(z), this.decadeUnit);
+          if (inVoid(dir, r)) continue;
+          pos[k * 3] = dir[0] * r; pos[k * 3 + 1] = dir[1] * r; pos[k * 3 + 2] = dir[2] * r;
+          const [cr, cg, cb] = distanceColor(r / this.cmbR);
+          col[k * 3] = cr; col[k * 3 + 1] = cg; col[k * 3 + 2] = cb;
+          zs[k] = z; sz[k] = 0.85 + (z > zHi * 0.5 ? 0.15 : 0);
+          this.procData[k * 4] = dir[0]; this.procData[k * 4 + 1] = dir[1]; this.procData[k * 4 + 2] = dir[2]; this.procData[k * 4 + 3] = z;
+          this.procType[k] = (z > 0.5 && rnd() < 0.22) ? 1 : 0;
+          k++;
+        }
+      }
     }
     this._procCount = k;
+    this.procWorld = pos.subarray(0, k * 3); // world positions for picking
+
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, k * 3), 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(col.subarray(0, k * 3), 3));
@@ -105,37 +151,13 @@ export class CosmosWorld {
     this.group.add(this.procPoints);
   }
 
-  // Low-res angular histogram of where the real galaxy catalogues actually have data.
-  _coverageGrid() {
-    const NB = 72, MB = 36;
-    const grid = new Uint16Array(NB * MB);
-    for (const key of ['twomrs', 'sdssGal']) {
-      const L = this.data.layers[key]; if (!L) continue;
-      const d = L.data;
-      for (let i = 0; i < L.count; i++) {
-        const x = d[i * 4], y = d[i * 4 + 1], z = d[i * 4 + 2];
-        const lon = (Math.atan2(y, x) + Math.PI) / (2 * Math.PI);
-        const lat = Math.asin(Math.max(-1, Math.min(1, z))) / Math.PI + 0.5;
-        const bi = Math.min(NB - 1, Math.floor(lon * NB)), bj = Math.min(MB - 1, Math.floor(lat * MB));
-        if (grid[bj * NB + bi] < 65535) grid[bj * NB + bi]++;
-      }
-    }
-    return {
-      lookup: (dir) => {
-        const lon = (Math.atan2(dir[1], dir[0]) + Math.PI) / (2 * Math.PI);
-        const lat = Math.asin(Math.max(-1, Math.min(1, dir[2]))) / Math.PI + 0.5;
-        const bi = Math.min(NB - 1, Math.floor(lon * NB)), bj = Math.min(MB - 1, Math.floor(lat * MB));
-        return grid[bj * NB + bi];
-      },
-    };
-  }
-
   // Instant green ↔ distance-colour toggle for the procedural fill.
   setProceduralColor(mode) {
     this.procMode = mode;
     if (this.procMat) this.procMat.uniforms.uProc.value = mode === 'green' ? 1 : 0;
   }
   proceduralCount() { return this._procCount || 0; }
+  proceduralFraction() { return this._procFraction ?? 1; }
 
   // ---- our galaxy's stars, log-radialised into a central core ----
   _buildStarCore() {
@@ -337,13 +359,21 @@ export class CosmosWorld {
       n += c;
     }
     if (s.show.localGroup) n += this.data.localGroup.length;
+    if (s.show.procedural && this.procData) {
+      const pd = this.procData; let c = 0;
+      for (let i = 0; i < this._procCount; i++) if (pd[i * 4 + 3] <= s.zMax) c++;
+      n += c;
+    }
     this._visibleCount = n;
   }
 
   visibleCount() { return this._visibleCount ?? this.data.totalCount?.() ?? 0; }
 
   // ---- picking (nearest ray across galaxy/quasar/local-group layers) ----
-  pick(raycaster) {
+  // The procedural "known-universe" layer can be ~650k points, so scanning it is
+  // ~25ms — fine for a one-off click, too heavy for the 10Hz hover. Callers pass
+  // includeProcedural:false on hover to keep it smooth; click/route pass true.
+  pick(raycaster, { includeProcedural = true } = {}) {
     const ray = raycaster.ray, origin = ray.origin, dir = ray.direction;
     const fovY = (raycaster.camera?.fov || 60) * Math.PI / 180;
     const maxAng = 14 * (fovY / window.innerHeight);
@@ -373,11 +403,26 @@ export class CosmosWorld {
       this.localGroupPos.forEach((v, i) =>
         consider(v.x, v.y, v.z, () => ({ kind: 'localgalaxy', i })));
     }
+    if (includeProcedural && s.show.procedural && this.procData) {
+      const wp = this.procWorld, pd = this.procData;
+      for (let i = 0; i < this._procCount; i++) {
+        if (pd[i * 4 + 3] > s.zMax) continue;
+        consider(wp[i * 3], wp[i * 3 + 1], wp[i * 3 + 2], () => ({ kind: 'procedural', i }));
+      }
+    }
     return best;
   }
 
   // ---- describe a picked object for the info panel ----
   describe(hit) {
+    if (hit.kind === 'procedural') {
+      const i = hit.i, pd = this.procData;
+      const dir = [pd[i * 4], pd[i * 4 + 1], pd[i * 4 + 2]], z = pd[i * 4 + 3];
+      const mpc = comovingMpc(z);
+      const v = new THREE.Vector3(this.procWorld[i * 3], this.procWorld[i * 3 + 1], this.procWorld[i * 3 + 2]);
+      const { ra, dec } = dirToRaDec(dir);
+      return procIdentity(i, this.procType[i], ra, dec, z, mpc, v, dir);
+    }
     if (hit.kind === 'localgalaxy') {
       const g = this.data.localGroup[hit.i];
       const v = this.localGroupPos[hit.i];
@@ -441,6 +486,37 @@ function jCoord(raH, decD) {
   const rh = Math.floor(raH), rm = Math.floor((raH - rh) * 60), rs = ((raH - rh) * 60 - rm) * 60;
   const sign = decD < 0 ? '−' : '+', ad = Math.abs(decD), dd = Math.floor(ad), dm = Math.floor((ad - dd) * 60), ds = ((ad - dd) * 60 - dm) * 60;
   return `J${p2(rh)}${p2(rm)}${rs.toFixed(1).padStart(4, '0')}${sign}${p2(dd)}${p2(dm)}${p2(Math.floor(ds))}`;
+}
+// short Jhhmm±ddmm designation
+function jShort(raH, decD) {
+  const p2 = (n) => String(Math.floor(n)).padStart(2, '0');
+  const rh = Math.floor(raH), rm = Math.floor((raH - rh) * 60);
+  const sign = decD < 0 ? '−' : '+', ad = Math.abs(decD), dd = Math.floor(ad), dm = Math.floor((ad - dd) * 60);
+  return `J${p2(rh)}${p2(rm)}${sign}${p2(dd)}${p2(dm)}`;
+}
+
+// ---- imagined identity for a procedural object (deterministic per index) ----
+const PROC_A = ['Ae', 'Vor', 'Xel', 'Cy', 'Nyx', 'Tha', 'Or', 'Zu', 'Ka', 'Lyr', 'Men', 'Qua', 'Ser', 'Ith', 'Ob', 'Rha', 'Vel', 'Un', 'Es', 'Wor', 'Ael', 'Sol', 'Bel', 'Cor', 'Dre', 'Eph', 'Fen', 'Gal', 'Hel', 'Ios', 'Jor', 'Kae'];
+const PROC_B = ['ra', 'lex', 'mos', 'tha', 'na', 'vi', 'ric', 'dor', 'sa', 'pel', 'tia', 'xis', 'une', 'bar', 'gon', 'mir', 'wei', 'los', 'cha', 'dis', 'mun', 'ket', 'nul', 'pha', 'rae', 'tul'];
+const PROC_C = ['', '', '', ' Prime', ' Major', ' Minor', ' A', ' B', ' Nexus', ' Reach', ' Veil'];
+const GAL_TYPES = ['grand-design spiral', 'barred spiral', 'flocculent spiral', 'lenticular galaxy', 'elliptical galaxy', 'dwarf spheroidal', 'irregular galaxy', 'ring galaxy', 'starburst galaxy', 'interacting pair'];
+const QSO_TYPES = ['radio-loud quasar', 'optically-bright QSO', 'blazar', 'type-II quasar', 'broad-line AGN'];
+function procRng(i) { let a = (i * 2654435761 + 40503) >>> 0; return () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return a / 0x7fffffff; }; }
+function procIdentity(i, pType, ra, dec, z, mpc, worldPos, dir) {
+  const rnd = procRng(i + 1);
+  const isQ = pType === 1;
+  const name = PROC_A[Math.floor(rnd() * PROC_A.length)] + PROC_B[Math.floor(rnd() * PROC_B.length)] + PROC_C[Math.floor(rnd() * PROC_C.length)];
+  const desig = 'KUC ' + jShort(ra, dec);
+  const type = (isQ ? QSO_TYPES : GAL_TYPES)[Math.floor(rnd() * (isQ ? QSO_TYPES : GAL_TYPES).length)];
+  const distLy = mpc * 3.2615638e6;
+  const distTxt = distLy >= 1e9 ? `${(distLy / 1e9).toFixed(2)} Gly` : `${(distLy / 1e6).toFixed(1)} Mly`;
+  const facts = `Imagined ${isQ ? 'active galactic nucleus' : 'galaxy'} — a ${type} charted in the fully-mapped era, ${distTxt} out at redshift z=${z.toFixed(3)}. Catalogue ${desig}. Procedurally generated to complete the known universe (not an observed object).`;
+  return {
+    kind: 'procedural', pType: isQ ? 'quasar' : 'galaxy', imagined: true,
+    name: `${name} · ${desig}`, designation: desig, sub: `imagined ${type}`,
+    worldPos, dir, ra, dec, z, comovingMpc: mpc, distLy,
+    survey: 'Known-Universe Catalogue · procedural', type, facts,
+  };
 }
 function makeRingTexture() {
   const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;
