@@ -717,9 +717,17 @@ export class App {
   // ================= navigation: autopilot flythrough =================
   engageRoute() {
     if (this.route.length < 2) return;
+    this.stopCruise(); this.stopVoyage();   // only one guided mode drives the camera
     this.clearSelection();
     this.autopilot = { seg: 0, t: 0, paused: false, speed: 0.11, descended: new Set(), atGalaxy: null };
-    this.scene.controls.enabled = false;
+    // initial follow offset: behind & above the first leg. Controls stay enabled
+    // so you can orbit / zoom around the ship while it flies.
+    const a = this.route[0].worldPos, b = this.route[1].worldPos;
+    const fwd = b.clone().sub(a); const segLen = fwd.length() || 1; fwd.normalize();
+    const up = new THREE.Vector3(0, 0, 1);
+    const back = Math.max(0.5, segLen * 0.28);
+    this.scene.setView(a.clone().addScaledVector(fwd, -back).addScaledVector(up, back * 0.5), a.clone());
+    this.scene.controls.enabled = true;
     this.emit('nav', this._navReadout());
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
@@ -766,7 +774,7 @@ export class App {
     const ap = this.autopilot; if (!ap || !ap.atGalaxy) return;
     ap.atGalaxy = null;
     this.exitGalaxy({ keepRoute: true });                // restores cosmos + camera to the waypoint
-    this.scene.controls.enabled = false;
+    this.scene.controls.enabled = true;                  // keep orbit/zoom during flight
     ap.paused = false;
     this.emit('nav', this._navReadout());
   }
@@ -793,12 +801,12 @@ export class App {
     }
     const a = pts[ap.seg], b = pts[ap.seg + 1];
     const cur = a.clone().lerp(b, ap.t);
-    const fwd = b.clone().sub(a); const segLen = fwd.length() || 1; fwd.normalize();
-    const up = new THREE.Vector3(0, 0, 1);
-    const back = Math.max(0.4, segLen * 0.22);
-    const camPos = cur.clone().addScaledVector(fwd, -back).addScaledVector(up, back * 0.4);
-    this.scene.camera.position.copy(camPos);
-    this.scene.camera.lookAt(cur.clone().addScaledVector(fwd, back));
+    // follow-cam: shift the camera by exactly how far the target advanced this
+    // frame, preserving whatever orbit/zoom offset the user has set. Controls stay
+    // enabled, so drag/scroll works while the ship flies. (scene.update() calls
+    // controls.update() right after this.)
+    const delta = cur.clone().sub(this.scene.controls.target);
+    this.scene.camera.position.add(delta);
     this.scene.controls.target.copy(cur);
   }
 
@@ -885,6 +893,7 @@ export class App {
   loadExpedition(exp) {
     if (typeof exp === 'string') exp = this.expeditions.find((e) => e.id === exp);
     if (!exp) return { ok: false };
+    this.stopCruise();          // tracing supersedes any running cruise
     if (this._inGalaxy) this.exitGalaxy();
     const scale = exp.scale === 'local' ? 'local' : 'cosmos';
     if (this.mode !== scale) this.setMode(scale);
@@ -1101,7 +1110,7 @@ export class App {
   startVoyageLocal(id) {
     const v = this.catalog.voyages.find((x) => x.id === id);
     if (!v) return;
-    this.stopCruise();
+    this.stopCruise(); if (this.autopilot) this.stopRoute();
     this.voyage = { source: 'local', def: v, index: 0 };
     this.voyageLayer.setVoyage(v);
     this.voyageLayer.setVisible(true);
@@ -1114,7 +1123,7 @@ export class App {
   startVoyageCosmos(id) {
     const v = this.cosmosData.voyages.find((x) => x.id === id);
     if (!v) return;
-    this.stopCruise();
+    this.stopCruise(); if (this.autopilot) this.stopRoute();
     this.voyage = { source: 'cosmos', def: v, index: 0 };
     this.voyageGoto(0);
   }
