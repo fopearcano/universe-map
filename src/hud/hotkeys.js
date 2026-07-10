@@ -27,6 +27,7 @@ export function initHotkeys(app) {
       case 's': case 'S': app.setSectorGrid(!app.showSectorGrid); break;
       case 'b': case 'B': app.setGalaxyImagery(!app.showGalaxyImagery); break;
       case 'v': case 'V': app.setResolveStructures(!app.resolveStructures); break;
+      case 't': case 'T': app.setTrackPanel(!app.showTrackPanel); break;
       case ' ': e.preventDefault(); engageOrPause(app); break;
       case '[': step(app, -1); break;
       case ']': step(app, 1); break;

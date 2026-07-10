@@ -19,6 +19,7 @@ const KEYS = [
   ['S', 'Toggle the sector grid'],
   ['B', 'Toggle galaxy imagery (billboards)'],
   ['V', 'Toggle resolve-structures (galaxy/cluster shapes)'],
+  ['T', 'Toggle the tracking panel (live flight telemetry)'],
   ['Esc', 'Close overlay · exit galaxy · disengage · clear selection'],
 ];
 
@@ -36,7 +37,7 @@ const SECTIONS = [
   ['Navigate & route', [
     ['Plot a course', 'toggle ◉ plot (P) and click to drop waypoints, or select an object and ＋ route (R).'],
     ['NAV COMPUTER', 'shows each leg\'s distance, heading and travel time; pick a cruise speed for the mission & relativistic ship time.'],
-    ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
+    ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. A blinking reticle marks the tracked point; ▤ track (or T) opens a live panel with its position, heading, speed and route progress. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
     ['Save / load', 'name routes (persisted), reload, and import/export as JSON.'],
   ]],
   ['Expeditions', [

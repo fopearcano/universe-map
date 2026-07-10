@@ -284,6 +284,21 @@ export function makeSparkleTexture(color = '#ffffff') {
   const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
 }
 
+// A targeting reticle (ring + crosshair ticks + centre dot) for the route tracker.
+export function makeReticleTexture(color = '#7bf0a0') {
+  const s = 96, cv = document.createElement('canvas'); cv.width = cv.height = s;
+  const ctx = cv.getContext('2d'); const c = s / 2;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineCap = 'round';
+  ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c, c, 28, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 3;
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2, dx = Math.cos(a), dy = Math.sin(a);
+    ctx.beginPath(); ctx.moveTo(c + dx * 12, c + dy * 12); ctx.lineTo(c + dx * 40, c + dy * 40); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(c, c, 4, 0, Math.PI * 2); ctx.fill();
+  const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
+}
+
 export function makeRingTexture(color = '#ffffff', dot = false) {
   const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;
   const ctx = cv.getContext('2d');

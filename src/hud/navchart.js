@@ -143,12 +143,43 @@ export function initNavChart(app) {
         <button class="btn sm" id="nh-prev">◀</button>
         <button class="btn sm" id="nh-pause">${n.paused ? '⏵ resume' : '❚❚ hold'}</button>
         <button class="btn sm" id="nh-next">▶</button>
+        <button class="btn sm ${app.showTrackPanel ? 'on' : ''}" id="nh-track" title="tracking panel (T)">▤ track</button>
         <button class="btn sm" id="nh-stop">■ disengage</button>
       </div>`;
     hud.querySelector('#nh-prev').onclick = () => app.navStep(-1);
     hud.querySelector('#nh-next').onclick = () => app.navStep(1);
     hud.querySelector('#nh-pause').onclick = () => app.pauseRoute();
+    hud.querySelector('#nh-track').onclick = () => app.setTrackPanel(!app.showTrackPanel);
     hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
+  });
+
+  initTrackPanel(app);
+}
+
+// The linked, transparent tracking panel — live telemetry of the tracked point.
+function initTrackPanel(app) {
+  const panel = el('div', 'trackpanel'); panel.hidden = true; document.body.appendChild(panel);
+  app.on('track', (t) => {
+    if (!t) { panel.hidden = true; panel.innerHTML = ''; return; }
+    panel.hidden = false;
+    if (t.idle) {
+      panel.innerHTML = `<div class="tp-h">◎ TRACKING</div><div class="tp-idle muted">engage a route to begin tracking</div>`;
+      return;
+    }
+    const kms = (t.cruiseC * 299792.458);
+    panel.innerHTML = `
+      <div class="tp-h">◎ TRACKING <span class="tp-leg">${t.paused ? '❚❚ ' : ''}LEG ${t.seg}/${t.total}</span></div>
+      <div class="tp-route">${esc(t.from)} <span class="muted">→</span> <b>${esc(t.to)}</b></div>
+      <div class="tp-bar"><i style="width:${Math.round(t.progress * 100)}%"></i></div>
+      <dl class="tp-dl">
+        <dt>position</dt><dd>${fmtRA(t.posRa)} ${fmtDec(t.posDec)}</dd>
+        <dt></dt><dd class="muted">${fmtLy(t.distLy)} from Sol</dd>
+        <dt>heading</dt><dd>${fmtRA(t.hdgRa)} ${fmtDec(t.hdgDec)}</dd>
+        <dt>speed</dt><dd>${fmtC(t.cruiseC)} <span class="muted">· ${kms >= 1e6 ? (kms / 1e6).toFixed(0) + 'M' : Math.round(kms).toLocaleString('en-US')} km/s</span></dd>
+        <dt>to next</dt><dd>${fmtLy(t.legRemainLy)} · ${fmtYr(t.etaLeg.years)}</dd>
+        <dt>travelled</dt><dd>${fmtLy(t.doneLy)} <span class="muted">/ ${fmtLy(t.totalLy)}</span></dd>
+        <dt>remaining</dt><dd>${fmtLy(t.remainLy)} · ${fmtYr(t.etaTotal.years)} <span class="muted">(ship ${t.cruiseC >= 1 ? '0' : fmtYr(t.etaTotal.shipYears)})</span></dd>
+      </dl>`;
   });
 }
 

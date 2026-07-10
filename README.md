@@ -287,8 +287,14 @@ preset voyages — you can plot arbitrary routes:
   light speed). Each leg then shows its **distance, heading (RA/Dec) and travel
   time**, and the totals show the **mission time** *and* the **relativistic ship
   (proper) time** — at 0.99 c a 700-year crossing is only ~100 years for the crew.
-- **⏵ ENGAGE autopilot**: a chase-cam flies the plotted course with a live nav HUD
-  (current leg, heading, range to next, ETA, ship time); hold / step / disengage.
+- **⏵ ENGAGE autopilot**: flies the plotted course with a live nav HUD (current
+  leg, heading, range to next, ETA, ship time); hold / step / disengage. You can
+  **orbit and zoom freely** while it flies, and a **blinking reticle** marks the
+  tracked point on the route.
+- **▤ track panel** (or `T`): a linked, transparent panel with live telemetry of
+  the tracked point — its **position** (RA/Dec + distance from Sol), **heading**,
+  **speed** (c and km/s), current **leg & progress**, and route **travelled /
+  remaining** with ETA and ship time.
 - **Save / load**: name and save routes (persisted in localStorage), reload them,
   and import/export the whole set as JSON.
 
@@ -331,7 +337,7 @@ full hotkey reference. The shortcuts:
 | `?` `F1` | open manual | | `V` | resolve structures |
 | `F` | focus on selection | | `G` | enter / exit galaxy |
 | `R` | add selection to route | | `P` | plot course |
-| `Esc` | close · exit galaxy · disengage · clear | | | |
+| `T` | tracking panel | | `Esc` | close · exit · disengage · clear |
 
 Hotkeys are inert while a text field is focused or an overlay is open.
 

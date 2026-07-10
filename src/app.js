@@ -5,7 +5,7 @@ import { Picker } from './render/picking.js';
 import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
-import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
+import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
@@ -84,6 +84,7 @@ export class App {
     this._buildGalaxyBillboards();
     this._buildRouteLayer();
     this._buildSectorGrid();
+    this._buildTracker();
     this._rebuildCustom();
     this._applyLocalLabels();
     this._bindPointer(canvas);
@@ -449,6 +450,55 @@ export class App {
   }
   setSectorGrid(on) { this.showSectorGrid = !!on; if (this.sectorGridGroup) this.sectorGridGroup.visible = this.showSectorGrid; }
 
+  // A blinking targeting reticle that rides the tracked point while flying a route.
+  _buildTracker() {
+    this.showTrackPanel = false; this._blinkT = 0;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+    const mat = new THREE.PointsMaterial({
+      size: 42, map: makeReticleTexture('#7bf0a0'), sizeAttenuation: false, transparent: true,
+      color: 0x9dfcc0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 1,
+    });
+    this._tracker = new THREE.Points(geo, mat);
+    this._tracker.frustumCulled = false; this._tracker.visible = false; this._tracker.renderOrder = 999;
+    this.scene.scene.add(this._tracker);
+  }
+  _updateTracker(dt) {
+    const t = this._tracker; if (!t) return;
+    const on = !!this.autopilot && !this.autopilot.atGalaxy;
+    if (t.visible !== on) t.visible = on;
+    if (!on) return;
+    const p = this.scene.controls.target, a = t.geometry.attributes.position;
+    a.setXYZ(0, p.x, p.y, p.z); a.needsUpdate = true;
+    this._blinkT += dt;
+    t.material.opacity = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(this._blinkT * 6));
+  }
+
+  setTrackPanel(on) {
+    this.showTrackPanel = !!on;
+    this.emit('track', this.showTrackPanel ? (this.autopilot ? this._trackReadout() : { idle: true }) : null);
+  }
+  // Live telemetry of the tracked point for the tracking panel.
+  _trackReadout() {
+    const ap = this.autopilot; if (!ap) return { idle: true };
+    const i = ap.seg, R = this.route;
+    const truePos = this._worldToTrue(this.scene.controls.target);
+    const { ra, dec, r } = cartesianToRaDec(truePos.x, truePos.y, truePos.z);
+    const legVec = new THREE.Vector3().subVectors(R[i + 1].truePos, R[i].truePos);
+    const h = cartesianToRaDec(legVec.x, legVec.y, legVec.z);
+    const legLy = legVec.length() * PC_TO_LY;
+    const legRemainLy = legLy * (1 - ap.t);
+    let doneLy = legLy * ap.t, remainLy = legRemainLy;
+    for (let k = 0; k < i; k++) doneLy += new THREE.Vector3().subVectors(R[k + 1].truePos, R[k].truePos).length() * PC_TO_LY;
+    for (let k = i + 1; k < R.length - 1; k++) remainLy += new THREE.Vector3().subVectors(R[k + 1].truePos, R[k].truePos).length() * PC_TO_LY;
+    return {
+      from: R[i].label, to: R[i + 1].label, seg: i + 1, total: R.length - 1, progress: ap.t, paused: ap.paused,
+      posRa: ra, posDec: dec, distLy: r * PC_TO_LY, hdgRa: h.ra, hdgDec: h.dec,
+      cruiseC: this.cruiseSpeed, legRemainLy, doneLy, remainLy, totalLy: doneLy + remainLy,
+      etaLeg: this._legTimes(legRemainLy), etaTotal: this._legTimes(remainLy),
+    };
+  }
+
   on(evt, cb) { (this._listeners[evt] ||= []).push(cb); return this; }
   emit(evt, ...a) { (this._listeners[evt] || []).forEach((cb) => cb(...a)); }
 
@@ -744,6 +794,7 @@ export class App {
     this.scene.controls.enabled = true;
     this.scene.controls.update();
     this.emit('nav', null);
+    if (this.showTrackPanel) this.emit('track', { idle: true });
     return wasDescended;
   }
 
@@ -1215,8 +1266,17 @@ export class App {
   start() {
     const tick = () => {
       const dt = Math.min(0.05, this._clock.getDelta());
-      if (this.autopilot) { this._updateAutopilot(dt); this._navAcc = (this._navAcc || 0) + dt; if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) this.emit('nav', this._navReadout()); } }
+      if (this.autopilot) {
+        this._updateAutopilot(dt);
+        this._navAcc = (this._navAcc || 0) + dt;
+        if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) this.emit('nav', this._navReadout()); }
+        if (this.showTrackPanel && this.autopilot && !this.autopilot.atGalaxy) {
+          this._trackAcc = (this._trackAcc || 0) + dt;
+          if (this._trackAcc > 0.1) { this._trackAcc = 0; this.emit('track', this._trackReadout()); }
+        }
+      }
       this.scene.update(dt);
+      this._updateTracker(dt);
       if (this.mode === 'cosmos') {
         this.cosmos.update(this.scene.camera);
         if (this.resolveStructures && this.structureShapes) this.structureShapes.update(this.scene.camera);
