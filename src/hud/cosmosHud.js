@@ -63,6 +63,7 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
     <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
+    <div class="toggle" data-l="sector"><span>Sector grid <span class="muted">· map</span></span><span class="sw"></span></div>
     <div class="toggle on" data-l="resolve"><span>Resolve structures (shapes)</span><span class="sw"></span></div>
     <div class="toggle" data-l="imagery"><span>Galaxy imagery <span class="muted">· HiPS</span></span><span class="sw"></span></div>
     <div class="toggle ${app.cosmos.state.show.procedural ? 'on' : ''}" data-l="procedural"><span>Procedural fill <span class="muted">· imagined</span></span><span class="sw"></span></div>
@@ -105,6 +106,9 @@ export function buildCosmosLayers(app) {
   const cus = root.querySelector('[data-l="custom"]');
   cus.onclick = () => { cus.classList.toggle('on'); app.setLayerVisible('custom', cus.classList.contains('on')); };
   // Resolve structures: procedural galaxy/cluster shapes on approach (LOD)
+  const sector = root.querySelector('[data-l="sector"]');
+  sector.classList.toggle('on', !!app.showSectorGrid);
+  sector.onclick = () => { sector.classList.toggle('on'); app.setSectorGrid(sector.classList.contains('on')); };
   const res = root.querySelector('[data-l="resolve"]');
   res.classList.toggle('on', !!app.resolveStructures);
   res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };

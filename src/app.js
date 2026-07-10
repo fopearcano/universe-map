@@ -42,6 +42,7 @@ export class App {
     this.catalog = catalog;
     this.cosmosData = cosmosData;
     this.extras = extras;
+    this.expeditions = (extras.expeditions && extras.expeditions.expeditions) || [];
     this.scene = new Scene(canvas);
     this.mode = 'local';
 
@@ -82,6 +83,7 @@ export class App {
     this._buildStructureShapes();
     this._buildGalaxyBillboards();
     this._buildRouteLayer();
+    this._buildSectorGrid();
     this._rebuildCustom();
     this._applyLocalLabels();
     this._bindPointer(canvas);
@@ -417,6 +419,29 @@ export class App {
     this.scene.scene.add(this.routeGroup);
     this._routeRing = makeRingTexture('#7bf0a0', true);
   }
+
+  // A polar "sector" grid: radial spokes at each 2h of RA on the equatorial plane
+  // + the celestial polar axis. Reads like a spaceship map graticule; toggleable.
+  _buildSectorGrid() {
+    this.showSectorGrid = false;
+    const g = new THREE.Group();
+    const L = 1e5;
+    const mkLine = (a, b, col, op) => {
+      const m = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op });
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), m);
+      l.frustumCulled = false; g.add(l);
+    };
+    for (let h = 0; h < 24; h += 2) {
+      const a = h / 24 * Math.PI * 2, cardinal = h % 6 === 0;
+      mkLine(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * L, Math.sin(a) * L, 0),
+        cardinal ? 0x3f7fa0 : 0x24506a, cardinal ? 0.5 : 0.28);
+    }
+    mkLine(new THREE.Vector3(0, 0, -L), new THREE.Vector3(0, 0, L), 0x3f7fa0, 0.4); // polar axis
+    g.visible = false;
+    this.sectorGridGroup = g;
+    this.scene.scene.add(g);
+  }
+  setSectorGrid(on) { this.showSectorGrid = !!on; if (this.sectorGridGroup) this.sectorGridGroup.visible = this.showSectorGrid; }
 
   on(evt, cb) { (this._listeners[evt] ||= []).push(cb); return this; }
   emit(evt, ...a) { (this._listeners[evt] || []).forEach((cb) => cb(...a)); }
@@ -778,6 +803,83 @@ export class App {
     });
     this._redrawRoute(); this.emit('route', this._routeSummary());
   }
+  // ================= preset expeditions (story routes) =================
+  // Resolve an expedition stop {star|obj|ra/dec/distLy} to { label, ra(h), dec, distLy }.
+  _resolveWaypoint(w) {
+    if (w.ra != null && w.dec != null) return { label: w.label || 'waypoint', ra: w.ra, dec: w.dec, distLy: w.distLy || 0, note: w.note };
+    if (w.star) {
+      const q = String(w.star).toLowerCase();
+      if (q === 'sol' || q === 'sun') return { label: w.label || 'Sol', ra: 0, dec: 0, distLy: 0, note: w.note };
+      const list = this.catalog.search || [];
+      const e = list.find((s) => (s.name || '').toLowerCase() === q) || list.find((s) => (s.name || '').toLowerCase().includes(q));
+      if (e) { const i = e.i, x = this.catalog.x(i), y = this.catalog.y(i), z = this.catalog.z(i); const { ra, dec, r } = cartesianToRaDec(x, y, z); return { label: w.label || e.name, ra, dec, distLy: r * PC_TO_LY, note: w.note }; }
+      return null;
+    }
+    if (w.obj) {
+      const q = String(w.obj).toLowerCase();
+      const find = (arr) => arr.find((o) => (o.name || '').toLowerCase() === q) || arr.find((o) => (o.name || '').toLowerCase().includes(q));
+      let o = find(this.atlas);
+      if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: o.distLy, note: w.note };
+      o = find(this.cosmosData.localGroup || []);
+      if (o) return { label: w.label || o.name, ra: o.ra / 15, dec: o.dec, distLy: o.distLy, note: w.note }; // localgroup ra in degrees
+      o = find(this.extras.structures || []);
+      if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: o.distGly != null ? o.distGly * 1e9 : (o.distMpc || 0) * 3.2615638e6, note: w.note };
+      o = find(this.extras.clusters || []);
+      if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: o.distLy, note: w.note };
+      return null;
+    }
+    return null;
+  }
+
+  // Load a preset expedition into the route (mode-aware), ready to ENGAGE.
+  loadExpedition(exp) {
+    if (typeof exp === 'string') exp = this.expeditions.find((e) => e.id === exp);
+    if (!exp) return { ok: false };
+    if (this._inGalaxy) this.exitGalaxy();
+    const scale = exp.scale === 'local' ? 'local' : 'cosmos';
+    if (this.mode !== scale) this.setMode(scale);
+    if (this.autopilot) this.stopRoute();
+    this.clearSelection(); this.clearRoute();
+    this.cruiseSpeed = exp.cruiseC || this.cruiseSpeed;
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    const wps = (exp.stops || []).map((w) => this._resolveWaypoint(w)).filter(Boolean);
+    this.route = wps.map((w, i) => {
+      const distPc = Math.max((w.distLy || 0) / PC_TO_LY, 0);
+      const ra = w.ra * 15 * Math.PI / 180, dec = w.dec * Math.PI / 180, cd = Math.cos(dec);
+      const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
+      const truePos = dir.clone().multiplyScalar(distPc);
+      const worldPos = this.mode === 'cosmos' ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
+      return { worldPos, truePos, label: w.label || `stop ${i + 1}`, kind: 'expedition' };
+    });
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+    this._activeExpedition = { id: exp.id, title: exp.title, premise: exp.premise, scale, length: exp.length, stops: wps.map((w) => ({ label: w.label, note: w.note })) };
+    this.emit('expedition', this._activeExpedition);
+    this._fitRouteView();
+    return { ok: true, stops: this.route.length };
+  }
+
+  // Frame the whole route in view.
+  _fitRouteView() {
+    if (!this.route.length) return;
+    const box = new THREE.Box3();
+    for (const r of this.route) box.expandByPoint(r.worldPos);
+    const c = box.getCenter(new THREE.Vector3());
+    const radius = Math.max(1.5, box.getSize(new THREE.Vector3()).length() * 0.5);
+    const camPos = c.clone().add(new THREE.Vector3(0.5, 0.35, 1).setLength(radius * 2.4 + 3));
+    this.scene.flyTo(c, { camPos, dur: 1.5 });
+  }
+
+  // Map / sector coordinate of a look direction + distance — a spaceship-map grid cell.
+  sectorCode(dir, distLy) {
+    const { ra, dec } = cartesianToRaDec(dir.x, dir.y, dir.z); // ra hours, dec deg
+    const col = 'ABCDEFGHJKLMNPQRSTUVWX'[Math.min(21, Math.floor(ra / 24 * 22))]; // 22 RA columns
+    const row = Math.min(17, Math.max(0, Math.floor((dec + 90) / 10)));           // 18 Dec rows (10°)
+    let tier = 0;
+    if (this._inGalaxy) tier = distLy > 0 ? Math.max(1, Math.ceil(Math.log10(distLy + 1))) : 0;
+    else if (distLy > 0) tier = Math.max(1, Math.min(11, Math.floor(Math.log10(distLy)) + 1)); // ~decades of ly
+    return `${col}${String(row).padStart(2, '0')}·${tier}`;
+  }
+
   deleteRoute(id) { this.routeStore.remove(id); this.emit('routes', this.routeStore.all()); }
   exportRoutes() { return this.routeStore.export(); }
   importRoutes(json) { const r = this.routeStore.import(json); this.emit('routes', this.routeStore.all()); return r; }
@@ -1073,11 +1175,16 @@ export class App {
     this._telAcc = 0;
     const cam = this.scene.camera;
     const dir = this.scene.controls.target.clone().sub(cam.position);
+    let sectorDistLy;
+    if (this._inGalaxy) sectorDistLy = cam.position.length() * this.interior.pcPerUnit * PC_TO_LY;
+    else if (this.mode === 'cosmos') sectorDistLy = Math.pow(10, Math.min(cam.position.length(), this.cosmos.cmbR) / this.cosmos.decadeUnit) * PC_TO_LY;
+    else sectorDistLy = cam.position.length() * PC_TO_LY;
     this.emit('frame', {
       mode: this._inGalaxy ? 'galaxy' : this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
       visible: this.mode === 'local' ? this.starfield.visibleCount : this.cosmos.visibleCount(),
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
       focus: this.focus ? this.focus.label : null,
+      sector: this.sectorCode(dir.lengthSq() > 1e-9 ? dir : new THREE.Vector3(1, 0, 0), sectorDistLy),
       galaxy: this._inGalaxy ? { name: this.interior.name, stars: this.interior.count, rangeLy: cam.position.length() * this.interior.pcPerUnit * PC_TO_LY } : null,
     });
   }

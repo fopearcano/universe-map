@@ -1,0 +1,209 @@
+{
+  "meta": { "title": "Expedition Log", "subtitle": "Twenty charted voyages — an Odyssey across the stars and the deep universe" },
+  "expeditions": [
+    {
+      "id": "first-crossing", "title": "The First Crossing", "scale": "local", "length": "short", "cruiseC": 0.1,
+      "premise": "Every odyssey begins with leaving harbour. The shortest possible voyage between suns — and still four years at a tenth of light.",
+      "stops": [
+        { "star": "Sol", "note": "Home port. Cast off." },
+        { "star": "Proxima Centauri", "note": "The nearest star of all — a faint red ember with a world in its warmth." },
+        { "star": "Rigil Kentaurus", "note": "Alpha Centauri, the bright twin next door. The far shore of the first crossing." }
+      ]
+    },
+    {
+      "id": "sirian-run", "title": "The Sirian Run", "scale": "local", "length": "short", "cruiseC": 0.2,
+      "premise": "A trader's dash to the brightest star in the sky and back along the Dog's track.",
+      "stops": [
+        { "star": "Sol", "note": "Departure." },
+        { "star": "Sirius", "note": "The Dog Star — blue-white and blinding, with a white-dwarf companion." },
+        { "star": "Procyon", "note": "The Little Dog. A short reach completes the run." }
+      ]
+    },
+    {
+      "id": "winter-beacons", "title": "The Winter Beacons", "scale": "local", "length": "short", "cruiseC": 0.2,
+      "premise": "Navigate by the great winter lights, the beacons sailors have steered by for ten thousand years.",
+      "stops": [
+        { "star": "Sirius", "note": "First beacon." },
+        { "star": "Procyon", "note": "Second beacon." },
+        { "star": "Pollux", "note": "The Twin's head." },
+        { "star": "Capella", "note": "The She-Goat, a golden lantern to close the circuit." }
+      ]
+    },
+    {
+      "id": "red-giant-errand", "title": "Errand of the Red Giants", "scale": "local", "length": "medium", "cruiseC": 0.3,
+      "premise": "An old captain's pilgrimage to the swollen suns — stars near the end of their lives, burning orange and vast.",
+      "stops": [
+        { "star": "Sol", "note": "Set out." },
+        { "star": "Aldebaran", "note": "The Bull's fiery eye." },
+        { "star": "Pollux", "note": "A giant with a planet, quietly." },
+        { "star": "Arcturus", "note": "The Bear-Watcher, racing through the halo of the galaxy." }
+      ]
+    },
+    {
+      "id": "summer-triangle", "title": "The Lantern Circuit", "scale": "local", "length": "short", "cruiseC": 0.2,
+      "premise": "Chart the Summer Triangle — three lanterns that ride the Milky Way's river of light.",
+      "stops": [
+        { "star": "Vega", "note": "The Harp Star, once and future pole star." },
+        { "star": "Altair", "note": "The Eagle, spinning so fast it bulges at the waist." },
+        { "star": "Fomalhaut", "note": "The Lonely One of the south, ringed with debris. A wide tack home." }
+      ]
+    },
+    {
+      "id": "galactic-heart", "title": "Voyage to the Galactic Heart", "scale": "cosmos", "length": "medium", "cruiseC": 0.6,
+      "premise": "Inward, past the glowing nurseries of the Milky Way, to the monster that anchors it all.",
+      "stops": [
+        { "ra": 0, "dec": 0, "distLy": 0, "label": "Sol", "note": "Leave the harbour of home." },
+        { "obj": "Orion Nebula (M42)", "note": "A stellar nursery — stars being born in the dark." },
+        { "obj": "Lagoon Nebula (M8)", "note": "Toward the crowded core, clouds lit from within." },
+        { "obj": "Sagittarius A*", "note": "The heart: four million suns of black hole, silent at the centre." }
+      ]
+    },
+    {
+      "id": "nebula-pilgrimage", "title": "The Nebula Pilgrimage", "scale": "cosmos", "length": "medium", "cruiseC": 0.7,
+      "premise": "A slow tour of the great clouds — where stars are made and where they are unmade.",
+      "stops": [
+        { "obj": "Orion Nebula (M42)", "note": "The nursery of Orion's sword." },
+        { "obj": "Eagle Nebula (M16)", "note": "The Pillars of Creation stand here." },
+        { "obj": "Carina Nebula", "note": "A vast southern furnace around a doomed star." },
+        { "obj": "Ring Nebula (M57)", "note": "A dying sun's smoke ring — a glimpse of the Sun's own future." }
+      ]
+    },
+    {
+      "id": "graveyard-of-giants", "title": "Graveyard of Giants", "scale": "cosmos", "length": "medium", "cruiseC": 0.7,
+      "premise": "Sail the wrecks of exploded stars — supernova remnants still expanding centuries after the blast.",
+      "stops": [
+        { "obj": "Crab Nebula (M1)", "note": "The wreck of a star seen to explode in 1054 AD." },
+        { "obj": "Vela SNR", "note": "An older ruin, sheets of glowing filament." },
+        { "obj": "Cassiopeia A", "note": "The youngest remnant in the galaxy, still ringing." },
+        { "obj": "Tycho's SNR (SN 1572)", "note": "The star Tycho Brahe watched blaze and fade." }
+      ]
+    },
+    {
+      "id": "lighthouse-keepers", "title": "The Lighthouse Keepers", "scale": "cosmos", "length": "medium", "cruiseC": 0.8,
+      "premise": "Among the pulsars — neutron stars sweeping the void with beams, the most precise clocks in nature.",
+      "stops": [
+        { "obj": "Crab Pulsar", "note": "Spinning thirty times a second inside the Crab." },
+        { "obj": "Vela Pulsar", "note": "A younger lighthouse, glitching as it slows." },
+        { "obj": "Geminga", "note": "A silent gamma-ray beacon, radio-quiet." },
+        { "obj": "PSR B1919+21", "note": "The first pulsar ever found — once nicknamed LGM-1." }
+      ]
+    },
+    {
+      "id": "sirens-of-the-deep", "title": "Sirens of the Deep", "scale": "cosmos", "length": "epic", "cruiseC": 0.9,
+      "premise": "Heed the sirens and live: a run past black holes, from a stellar-mass killer to the titan in another galaxy.",
+      "stops": [
+        { "obj": "Cygnus X-1", "note": "The first black hole ever confirmed, feeding on a blue giant." },
+        { "obj": "V404 Cygni", "note": "A restless X-ray nova, flaring without warning." },
+        { "obj": "Sagittarius A*", "note": "Our galaxy's central engine." },
+        { "obj": "M87* (Pōwehi)", "note": "The first black hole ever imaged — six billion suns, in another galaxy entirely." }
+      ]
+    },
+    {
+      "id": "andromeda-passage", "title": "The Andromeda Passage", "scale": "cosmos", "length": "medium", "cruiseC": 0.95,
+      "premise": "Leave the Milky Way behind. Cross the dark between galaxies to our great neighbour and its court.",
+      "stops": [
+        { "ra": 0, "dec": 0, "distLy": 0, "label": "Milky Way", "note": "Our own island of stars." },
+        { "obj": "Large Magellanic Cloud", "note": "A ragged companion galaxy, close astern." },
+        { "obj": "Small Magellanic Cloud", "note": "Its smaller twin, streaming a bridge of gas." },
+        { "obj": "Andromeda Galaxy (M31)", "note": "The great spiral, on a collision course with home — in four billion years." }
+      ]
+    },
+    {
+      "id": "island-universes", "title": "Grand Tour of the Island Universes", "scale": "cosmos", "length": "epic", "cruiseC": 0.99,
+      "premise": "The old name for galaxies was island universes. Visit the most beautiful islands in the nearby sea.",
+      "stops": [
+        { "obj": "Whirlpool Galaxy (M51)", "note": "A grand-design spiral, dancing with a small companion." },
+        { "obj": "Sombrero Galaxy (M104)", "note": "Edge-on, a brim of dust across a glowing bulge." },
+        { "obj": "Pinwheel Galaxy (M101)", "note": "A vast, near-perfect face-on pinwheel." },
+        { "obj": "M87 (Virgo A)", "note": "A giant elliptical shooting a jet thousands of light-years long." },
+        { "obj": "Cartwheel Galaxy", "note": "A ring of fire — a galaxy struck dead-centre and left ringing." }
+      ]
+    },
+    {
+      "id": "local-group-odyssey", "title": "The Local Group Odyssey", "scale": "cosmos", "length": "epic", "cruiseC": 0.99,
+      "premise": "Round the whole Local Group — every major galaxy bound to ours by gravity across three million light-years.",
+      "stops": [
+        { "obj": "Large Magellanic Cloud", "note": "Companion." },
+        { "obj": "Andromeda Galaxy (M31)", "note": "The great spiral." },
+        { "obj": "Triangulum Galaxy (M33)", "note": "The third-largest of the group." },
+        { "obj": "M81 (Bode)", "note": "Just past the edge — a grand spiral and its starburst partner." },
+        { "obj": "Centaurus A (NGC 5128)", "note": "A warped elliptical with a dust lane, a black hole roaring at its core." }
+      ]
+    },
+    {
+      "id": "sculptor-wall", "title": "Wanderers of the Sculptor Wall", "scale": "cosmos", "length": "medium", "cruiseC": 0.98,
+      "premise": "South, along the thin bridge of galaxies in Sculptor — the nearest filament of the cosmic web.",
+      "stops": [
+        { "obj": "NGC 253 (Sculptor)", "note": "A bright, dusty starburst spiral." },
+        { "obj": "NGC 300", "note": "A delicate, flocculent spiral nearby." },
+        { "obj": "Sculptor Dwarf", "note": "A faint dwarf orbiting the Milky Way." },
+        { "obj": "Fornax Cluster", "note": "The next town on the web — a small cluster of galaxies." }
+      ]
+    },
+    {
+      "id": "great-attractor", "title": "Climb to the Great Attractor", "scale": "cosmos", "length": "epic", "cruiseC": 0.995,
+      "premise": "Everything nearby is falling one way. Follow the current up the ladder of clusters toward what pulls us.",
+      "stops": [
+        { "obj": "Virgo Cluster", "note": "The heart of our own supercluster, a thousand galaxies." },
+        { "obj": "Centaurus Cluster", "note": "A rich cluster on the road down the slope." },
+        { "obj": "Norma Cluster · Great Attractor", "note": "The gravitational lowpoint we are all falling toward." },
+        { "obj": "Laniakea Supercluster", "note": "Our home supercluster — 'immense heaven' — and its watershed." }
+      ]
+    },
+    {
+      "id": "shapley-expedition", "title": "The Shapley Expedition", "scale": "cosmos", "length": "epic", "cruiseC": 0.997,
+      "premise": "Beyond the Attractor lies something greater still — the largest concentration of mass in the nearby universe.",
+      "stops": [
+        { "obj": "Coma Cluster", "note": "A dense, round cluster — where dark matter was first inferred." },
+        { "obj": "Hercules Supercluster", "note": "A chain of clusters strung along the web." },
+        { "obj": "Shapley Supercluster", "note": "The great overdensity — the destination the current has been pointing to." }
+      ]
+    },
+    {
+      "id": "sloan-great-wall", "title": "Along the Sloan Great Wall", "scale": "cosmos", "length": "epic", "cruiseC": 0.998,
+      "premise": "Sail the largest structures ever mapped — walls of galaxies over a billion light-years long, and the emptiness beside them.",
+      "stops": [
+        { "obj": "Coma Cluster", "note": "The near end of the walls." },
+        { "obj": "CfA2 Great Wall", "note": "The first 'great wall' discovered — a sheet of galaxies." },
+        { "obj": "Sloan Great Wall", "note": "Even larger — 1.4 billion light-years of galaxies." },
+        { "obj": "Boötes Void", "note": "And beside it, the Great Nothing — a bubble almost empty of galaxies." }
+      ]
+    },
+    {
+      "id": "quasar-age", "title": "Into the Quasar Age", "scale": "cosmos", "length": "epic", "cruiseC": 0.999,
+      "premise": "Look outward and you look backward. Sail toward the quasars — young galaxies blazing in the early universe.",
+      "stops": [
+        { "obj": "3C 273", "note": "The first quasar identified — brilliant across two billion light-years." },
+        { "obj": "3C 279", "note": "A blazar, its jet aimed almost straight at us." },
+        { "obj": "APM 08279+5255", "note": "A gravitationally-lensed beacon in the deep field." },
+        { "obj": "ULAS J1342+0928", "note": "A quasar from when the universe was young — a supermassive black hole that shouldn't yet exist." }
+      ]
+    },
+    {
+      "id": "edge-of-observable", "title": "To the Edge of the Observable", "scale": "cosmos", "length": "epic", "cruiseC": 0.9999,
+      "premise": "The longest voyage of all — outward through every scale until the map itself ends at the first light of the Big Bang.",
+      "stops": [
+        { "ra": 0, "dec": 0, "distLy": 0, "label": "Sol", "note": "Home, at the centre of all we can see." },
+        { "obj": "Andromeda Galaxy (M31)", "note": "The nearest great galaxy." },
+        { "obj": "Virgo Cluster", "note": "The nearest great cluster." },
+        { "obj": "Laniakea Supercluster", "note": "The nearest great supercluster." },
+        { "obj": "Sloan Great Wall", "note": "The largest wall of galaxies." },
+        { "obj": "ULAS J1342+0928", "note": "A quasar near the dawn of galaxies." },
+        { "ra": 12, "dec": 0, "distLy": 45400000000, "label": "CMB horizon", "note": "The edge: the microwave glow of the Big Bang, the farthest we can ever see." }
+      ]
+    },
+    {
+      "id": "ulysses-circuit", "title": "The Ulysses Circuit", "scale": "cosmos", "length": "epic", "cruiseC": 0.9999,
+      "premise": "Like Ulysses, wander far and come home changed. A grand loop through the landmarks of the deep — and back to the heart of the Milky Way.",
+      "stops": [
+        { "obj": "Sagittarius A*", "note": "Cast off from the galactic heart." },
+        { "obj": "Andromeda Galaxy (M31)", "note": "Cross to the neighbour spiral." },
+        { "obj": "Whirlpool Galaxy (M51)", "note": "Round a distant, beautiful island." },
+        { "obj": "Virgo Cluster", "note": "Climb into the great cluster." },
+        { "obj": "Norma Cluster · Great Attractor", "note": "Ride the current to the Attractor." },
+        { "obj": "3C 273", "note": "Glimpse a quasar's fire at the turn of the voyage." },
+        { "obj": "Sagittarius A*", "note": "And home at last — the long way round." }
+      ]
+    }
+  ]
+}

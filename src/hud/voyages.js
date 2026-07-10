@@ -3,18 +3,24 @@
 
 const LOCAL_KIND = { survey: 'survey traverse', probe: 'real spacecraft', myth: 'narrative odyssey' };
 
+const EXP_LEN = { short: 'short hop', medium: 'passage', epic: 'epic' };
+
 export function buildLocalVoyageList(app) {
   const list = document.getElementById('tab-voyages');
   list.innerHTML = `<div class="muted" style="margin-bottom:10px">Track a story-voyage across the star field — a route of waypoints with a narrative at each stop, like a chart of Ulysses' or Darwin's journey.</div>` +
-    app.catalog.voyages.map((v) => card(v.id, LOCAL_KIND[v.kind] || v.kind, v.waypoints.length, v.title, v.subtitle)).join('');
+    app.catalog.voyages.map((v) => card(v.id, LOCAL_KIND[v.kind] || v.kind, v.waypoints.length, v.title, v.subtitle)).join('') +
+    expeditionsBlock(app);
   wire(list, (id) => app.startVoyageLocal(id));
+  wireExpeditions(list, app);
 }
 
 export function buildCosmosVoyageList(app) {
   const list = document.getElementById('tab-voyages');
   list.innerHTML = `<div class="muted" style="margin-bottom:10px">Ride the logarithmic scale ladder outward — from the Sun to the edge of the observable universe.</div>` +
-    app.cosmosData.voyages.map((v) => card(v.id, 'scale ladder', v.stops.length, v.title, v.subtitle)).join('');
+    app.cosmosData.voyages.map((v) => card(v.id, 'scale ladder', v.stops.length, v.title, v.subtitle)).join('') +
+    expeditionsBlock(app);
   wire(list, (id) => app.startVoyageCosmos(id));
+  wireExpeditions(list, app);
 }
 
 function card(id, kind, n, title, subtitle) {
@@ -23,6 +29,28 @@ function card(id, kind, n, title, subtitle) {
 }
 function wire(list, start) {
   list.querySelectorAll('.voyage-card').forEach((el) => { el.onclick = () => start(el.dataset.id); });
+}
+
+// ---- preset expeditions (story routes → NAV COMPUTER) ----
+function expeditionsBlock(app) {
+  const exps = app.expeditions || [];
+  if (!exps.length) return '';
+  const cards = exps.map((e) => `
+    <div class="exp-card" data-eid="${esc(e.id)}">
+      <div class="exp-k"><span class="exp-scale ${e.scale}">${e.scale}</span><span>${EXP_LEN[e.length] || e.length} · ${(e.stops || []).length} stops</span></div>
+      <h4>${esc(e.title)}</h4><p>${esc(e.premise)}</p>
+      <button class="btn sm exp-trace">◈ trace route</button>
+    </div>`).join('');
+  return `<div class="hr"></div>
+    <div class="exp-h">◈ EXPEDITION LOG <span class="muted">· ${exps.length} charted voyages</span></div>
+    <div class="muted" style="margin:2px 0 8px">Preset story-routes across the galaxy and the deep universe. Trace one into the NAV COMPUTER, then ⏵ ENGAGE to fly it.</div>
+    ${cards}`;
+}
+function wireExpeditions(list, app) {
+  list.querySelectorAll('.exp-card').forEach((el) => {
+    const b = el.querySelector('.exp-trace');
+    if (b) b.onclick = (e) => { e.stopPropagation(); app.loadExpedition(el.dataset.eid); };
+  });
 }
 
 // ---- shared player ----

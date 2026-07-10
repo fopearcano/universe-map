@@ -80,6 +80,7 @@ function buildLocalLayers(app) {
     <div class="muted" style="margin-bottom:10px">Reference infographics and overlays.</div>
     <div class="toggle on" data-l="grid"><span>Reference grid</span><span class="sw"></span></div>
     <div class="toggle on" data-l="rings"><span>Distance rings (ly)</span><span class="sw"></span></div>
+    <div class="toggle" data-l="sector"><span>Sector grid <span class="muted">· map</span></span><span class="sw"></span></div>
     <div class="toggle on" data-l="axes"><span>Celestial axes</span><span class="sw"></span></div>
     <div class="toggle on" data-l="labels"><span>Star name labels</span><span class="sw"></span></div>
     <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
@@ -91,12 +92,14 @@ function buildLocalLayers(app) {
   const handlers = {
     grid: (on) => app.scene.setReferenceVisible(on),
     rings: (on) => app.scene.setRingsVisible(on),
+    sector: (on) => app.setSectorGrid(on),
     axes: (on) => app.scene.setAxesVisible(on),
     labels: (on) => app.labels.setStarsVisible(on),
     clusters: (on) => app.setLayerVisible('clusters', on),
     atlas: (on) => app.setLayerVisible('atlas', on),
     custom: (on) => app.setLayerVisible('custom', on),
   };
+  root.querySelectorAll('.toggle').forEach((el) => { if (el.dataset.l === 'sector') el.classList.toggle('on', !!app.showSectorGrid); });
   root.querySelectorAll('.toggle').forEach((el) => {
     el.onclick = () => { el.classList.toggle('on'); handlers[el.dataset.l](el.classList.contains('on')); };
   });
@@ -108,27 +111,28 @@ function initTelemetry(app) {
   app.on('frame', (f) => {
     const { ra, dec } = cartesianToRaDec(f.dir.x, f.dir.y, f.dir.z);
     const focus = f.focus ? cell('FOCUS', esc(f.focus)) : '';
+    const sec = f.sector ? cell('SECTOR', f.sector) : '';
     if (f.mode === 'galaxy' && f.galaxy) {
       const ly = f.galaxy.rangeLy;
       const rng = ly >= 1e3 ? `${(ly / 1e3).toFixed(1)} kly` : `${ly.toFixed(0)} ly`;
       el.innerHTML = [
         cell('INSIDE', esc(f.galaxy.name)),
         cell('STARS', fmtNum(f.galaxy.stars)),
-        cell('RANGE', rng),
+        cell('RANGE', rng), sec,
         cell('HDG', `${fmtRA(ra)} ${fmtDec(dec)}`),
         cell('FOV', `${f.fov.toFixed(0)}°`), focus,
       ].join('');
     } else if (f.mode === 'cosmos') {
       el.innerHTML = [
         cell('OBJECTS', fmtNum(f.visible)),
-        cell('SCALE', scaleAt(Math.min(f.camRadius, f.cmbR), f.decadeUnit)),
+        cell('SCALE', scaleAt(Math.min(f.camRadius, f.cmbR), f.decadeUnit)), sec,
         cell('HDG', `${fmtRA(ra)} ${fmtDec(dec)}`),
         cell('FOV', `${f.fov.toFixed(0)}°`), focus,
       ].join('');
     } else {
       el.innerHTML = [
         cell('STARS', `${fmtNum(f.visible)}/100k`),
-        cell('RANGE', fmtRange(f.camRadius)),
+        cell('RANGE', fmtRange(f.camRadius)), sec,
         cell('HDG', `${fmtRA(ra)} ${fmtDec(dec)}`),
         cell('FOV', `${f.fov.toFixed(0)}°`), focus,
       ].join('');

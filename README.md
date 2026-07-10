@@ -229,6 +229,34 @@ traced across the map, the way Ulysses' or Darwin's voyages are charted.
   the Milky Way, Local Group, supercluster, cosmic web and quasar era to the CMB,
   progressively revealing more distant objects at each stop.
 
+### The Expedition Log — 20 preset routes
+
+The VOYAGES tab also carries an **Expedition Log**: twenty charted, Odyssey-style
+routes of varying length, from a four-light-year hop to a 47-Gly haul to the edge
+of the observable universe. Each stop is a real object resolved from the
+catalogues, so **◈ trace route** loads it straight into the NAV COMPUTER (below)
+with true leg distances, headings and relativistic travel times — then **⏵ ENGAGE**
+flies it. Tracing an expedition switches to the right scale automatically.
+
+> *The First Crossing* · *The Sirian Run* · *Errand of the Red Giants* · *Voyage to
+> the Galactic Heart* · *The Nebula Pilgrimage* · *Graveyard of Giants* · *The
+> Lighthouse Keepers* · *Sirens of the Deep* · *The Andromeda Passage* · *Grand Tour
+> of the Island Universes* · *The Local Group Odyssey* · *Climb to the Great
+> Attractor* · *The Shapley Expedition* · *Along the Sloan Great Wall* · *Into the
+> Quasar Age* · *To the Edge of the Observable* · *The Ulysses Circuit* · …
+
+Edit `public/data/expeditions.json` to add your own — each stop is `{ "star": name }`,
+`{ "obj": name }` (atlas / Local Group / cluster / structure), or an explicit
+`{ "ra", "dec", "distLy", "label" }`.
+
+### Sector grid (map HUD)
+
+The Layers panel has a **Sector grid · map** toggle that overlays a polar
+graticule — radial spokes at each 2ʰ of right ascension plus the celestial polar
+axis — turning the view into a spaceship-style navigation chart. The telemetry bar
+always shows the current **SECTOR** code (an RA-column / Dec-row / distance-tier
+cell, e.g. `N04·10`) alongside heading and scale.
+
 ## Navigation — plot & fly a course
 
 The map doubles as a **spaceship navigation computer**. You are not limited to the

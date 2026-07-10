@@ -18,9 +18,11 @@ export function initNavChart(app) {
   plotBanner.innerHTML = '◉ PLOT COURSE — click the map to drop waypoints';
   document.body.appendChild(plotBanner);
   let summary = null;
+  let expedition = null;
 
   app.on('mode', () => { focusChip.hidden = true; hud.hidden = true; });
   app.on('plot', (on) => { plotBanner.hidden = !on; render(); });
+  app.on('expedition', (e) => { expedition = e; render(); });
 
   app.on('focus', (f) => {
     if (!f) { focusChip.hidden = true; return; }
@@ -34,8 +36,9 @@ export function initNavChart(app) {
 
   function render() {
     const s = summary;
-    if (!s || !s.points.length) { panel.hidden = true; panel.innerHTML = ''; return; }
+    if (!s || !s.points.length) { panel.hidden = true; panel.innerHTML = ''; expedition = null; return; }
     panel.hidden = false;
+    const expHdr = expedition ? `<div class="rp-exped"><div class="rp-exped-t">◈ ${esc(expedition.title)}</div><div class="rp-exped-p">${esc(expedition.premise)}</div></div>` : '';
     const beta = s.cruiseC, gamma = beta >= 1 ? Infinity : 1 / Math.sqrt(1 - beta * beta);
     const wpRows = s.points.map((p, i) => {
       const leg = i > 0 ? s.legs[i - 1] : null;
@@ -54,6 +57,7 @@ export function initNavChart(app) {
         <div class="rp-title">◈ NAV COMPUTER · <b>${s.points.length}</b> wp</div>
         <button class="rp-x" title="clear route">✕</button>
       </div>
+      ${expHdr}
       <div class="rp-tools">
         <button class="btn sm ${app.plotCourse ? 'on' : ''}" id="rp-plot" title="click the map to drop waypoints">◉ plot</button>
         <button class="btn sm" id="rp-viewpt" title="drop a free-space waypoint where you're looking">＋ pt</button>

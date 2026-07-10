@@ -173,6 +173,22 @@ select:focus { outline: none; border-color: var(--cyan); }
 .voyage-card .vk { color: var(--amber); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; }
 .voyage-card p { margin: 6px 0 0; color: var(--dim); font-size: 10px; line-height: 1.5; }
 
+/* expedition log (preset story routes) */
+.exp-h { color: var(--green); font-size: 10px; letter-spacing: 0.16em; margin-bottom: 2px; }
+.exp-card { border: 1px solid var(--line); border-left: 2px solid var(--green); border-radius: 6px; padding: 9px 10px; margin-bottom: 9px; }
+.exp-card h4 { margin: 4px 0 3px; color: var(--ink); font-size: 12px; letter-spacing: 0.03em; }
+.exp-card p { margin: 0 0 8px; color: var(--dim); font-size: 10px; line-height: 1.5; }
+.exp-k { display: flex; gap: 8px; align-items: center; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.exp-scale { padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line-strong); color: var(--dim); }
+.exp-scale.cosmos { color: #c9a6ff; border-color: rgba(180,140,255,0.5); }
+.exp-scale.local { color: var(--cyan); border-color: rgba(92,225,255,0.5); }
+.exp-trace { width: auto; color: var(--green); border-color: rgba(123,240,160,0.5); }
+.exp-trace:hover { border-color: var(--green); background: rgba(123,240,160,0.08); }
+/* expedition premise inside the nav computer */
+.rp-exped { margin: 6px 0; padding: 6px 9px; border-left: 2px solid var(--green); background: rgba(123,240,160,0.05); border-radius: 4px; }
+.rp-exped-t { color: var(--green); font-size: 11px; margin-bottom: 3px; }
+.rp-exped-p { color: var(--dim); font-size: 10px; line-height: 1.45; }
+
 #voyageplayer {
   position: fixed; bottom: 34px; left: 50%; transform: translateX(-50%); z-index: 14;
   width: min(560px, 92vw); background: var(--panel-solid); border: 1px solid var(--line-strong);
