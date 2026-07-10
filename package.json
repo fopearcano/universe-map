@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Interactive 3D navigable HUD map of the known stellar neighbourhood, with story-voyage tracking.",
+  "description": "Interactive 3D navigable HUD map of the universe — from nearby stars to the CMB — with story-voyage tracking.",
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
     "build:cosmos": "node scripts/build-cosmos.mjs",
@@ -16,6 +16,6 @@
     "three": "^0.169.0"
   },
   "devDependencies": {
-    "vite": "^5.4.0"
+    "vite": "^8.1.4"
   }
 }
