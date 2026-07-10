@@ -5,7 +5,9 @@ import { Picker } from './render/picking.js';
 import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
-import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture } from './render/markers.js';
+import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
+import { StructureShapes } from './render/structures.js';
+import { morphFromType, seedFromVec } from './render/morphology.js';
 import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
 import { RouteStore } from './data/routeStore.js';
@@ -17,6 +19,17 @@ const MARK_COLOR = {
   cluster: [1.0, 0.45, 0.85], supercluster: [1.0, 0.62, 0.32], attractor: [1.0, 0.42, 0.42],
   wall: [0.55, 1.0, 0.66], void: [0.62, 0.66, 0.78],
 };
+
+// Icon glyph per class. Atlas categories, cluster types and structure types each
+// map to a distinct glyph so the map reads like an annotated chart.
+const CAT_GLYPH = {
+  smbh: 'blackhole', sbh: 'blackhole', pulsar: 'pulsar', supernova: 'supernova',
+  nebula: 'nebula', exoplanet: 'exoplanet', galaxy: 'galaxy', quasar: 'quasar',
+  transient: 'transient', hyperstar: 'hyperstar',
+};
+const STRUCT_GLYPH = { cluster: 'supercluster', supercluster: 'supercluster', attractor: 'attractor', wall: 'wall', void: 'void' };
+// Resolve a glyph name to { glyph index, scale } for a marker item.
+const glyphSpec = (name) => ({ glyph: GLYPH[name] ?? GLYPH.ring, scale: GLYPH_SCALE[name] ?? 1 });
 
 // Central application state. Two modes share one renderer/camera/HUD chrome:
 //   local  — the true-scale stellar neighbourhood (parsecs, Sol at origin)
@@ -36,7 +49,7 @@ export class App {
     this.voyageLayer = new VoyageLayer(this.scene.scene);
 
     // cosmos world
-    this.cosmos = cosmosData ? new CosmosWorld(this.scene.scene, cosmosData, catalog) : null;
+    this.cosmos = cosmosData ? new CosmosWorld(this.scene.scene, cosmosData, catalog, extras) : null;
 
     this.labels = new Labels(document.body);
     this.selection = null;      // { kind, worldPos, starIndex?, info }
@@ -58,10 +71,12 @@ export class App {
 
     this.userStore = new UserStore();
     this._sparkle = makeSparkleTexture('#ffffff');
+    this._glyphAtlas = makeGlyphAtlas(); // shared icon atlas for every marker layer
     this.showCustom = true;
     this.localCustom = null; this.cosmosCustom = null;
 
     this._buildMarkers();
+    this._buildStructureShapes();
     this._buildRouteLayer();
     this._rebuildCustom();
     this._applyLocalLabels();
@@ -84,16 +99,19 @@ export class App {
     const objs = this.userStore.all();
     const localMax = this.catalog.meta.bounds.maxRadiusPc;
     const colorFor = (o) => o.kind === 'imagined' ? [1.0, 0.36, 0.94] : (this.atlasCategories[o.category]?.color || [0.5, 1.0, 0.62]);
+    // imagined objects keep the sparkle; live-discovered ones get their class icon.
+    const glyphFor = (o) => o.kind === 'imagined' ? glyphSpec('sparkle') : glyphSpec(CAT_GLYPH[o.category] || 'star');
+    const atlas = this._glyphAtlas;
     const localItems = [], cosmosItems = [];
     for (const o of objs) {
       const g = this._customGeom(o);
-      const color = colorFor(o);
-      cosmosItems.push({ pos: new THREE.Vector3(...g.dir).multiplyScalar(g.displayR), color, label: o.name, data: { id: o.id } });
+      const color = colorFor(o), gs = glyphFor(o);
+      cosmosItems.push({ pos: new THREE.Vector3(...g.dir).multiplyScalar(g.displayR), color, label: o.name, data: { id: o.id }, ...gs });
       if (Math.hypot(g.pos[0], g.pos[1], g.pos[2]) <= localMax * 1.02)
-        localItems.push({ pos: new THREE.Vector3(g.pos[0], g.pos[1], g.pos[2]), color, label: o.name, data: { id: o.id } });
+        localItems.push({ pos: new THREE.Vector3(g.pos[0], g.pos[1], g.pos[2]), color, label: o.name, data: { id: o.id }, ...gs });
     }
-    this.localCustom = new MarkerLayer(localItems, { size: 14, ring: this._sparkle });
-    this.cosmosCustom = new MarkerLayer(cosmosItems, { size: 14, ring: this._sparkle });
+    this.localCustom = new MarkerLayer(localItems, { size: 15, atlas });
+    this.cosmosCustom = new MarkerLayer(cosmosItems, { size: 15, atlas });
     this.scene.scene.add(this.localCustom.points);
     if (this.cosmos) this.cosmos.group.add(this.cosmosCustom.points);
     this.localCustom.setVisible(this.showCustom && this.mode === 'local');
@@ -189,41 +207,70 @@ export class App {
 
   // ---- clusters & large-scale structures ----
   _buildMarkers() {
-    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
     const localMax = this.catalog.meta.bounds.maxRadiusPc;
-    const ringOpen = makeRingTexture('#ffffff', true);
-    const mk = (it, pos, color, prio) => ({ pos, color, label: it.name, prio, data: it });
+    const atlas = this._glyphAtlas;
+    const mk = (it, pos, color, prio, glyphName) => ({ pos, color, label: it.name, prio, data: it, ...glyphSpec(glyphName) });
 
     // LOCAL: clusters within the true-scale range, placed by real parsec position
     const localItems = this.extras.clusters.filter((c) => c.distPc <= localMax * 1.02)
-      .map((c) => mk(c, new THREE.Vector3(c.pos[0], c.pos[1], c.pos[2]), MARK_COLOR[c.type] || [1, 1, 1], 8));
-    this.localClusters = new MarkerLayer(localItems, { size: 12, ring: ringOpen });
+      .map((c) => mk(c, new THREE.Vector3(c.pos[0], c.pos[1], c.pos[2]), MARK_COLOR[c.type] || [1, 1, 1], 8, c.type));
+    this.localClusters = new MarkerLayer(localItems, { size: 13, atlas });
     this.scene.scene.add(this.localClusters.points);
     this.localClusters.setVisible(true);
 
     // COSMOS: all clusters + structures, placed on the log-radial scale
-    const cItems = this.extras.clusters.map((c) => mk(c, new THREE.Vector3(...c.dir).multiplyScalar(c.displayR), MARK_COLOR[c.type] || [1, 1, 1], 6));
-    this.cosmosClusters = new MarkerLayer(cItems, { size: 11, ring: ringOpen });
-    const sItems = this.extras.structures.map((s) => mk(s, new THREE.Vector3(...s.dir).multiplyScalar(s.displayR), MARK_COLOR[s.type] || [1, 1, 1], 9));
-    this.cosmosStructures = new MarkerLayer(sItems, { size: 18, ring: makeRingTexture('#ffffff', false) });
+    const cItems = this.extras.clusters.map((c) => mk(c, new THREE.Vector3(...c.dir).multiplyScalar(c.displayR), MARK_COLOR[c.type] || [1, 1, 1], 6, c.type));
+    this.cosmosClusters = new MarkerLayer(cItems, { size: 12, atlas });
+    const sItems = this.extras.structures.map((s) => mk(s, new THREE.Vector3(...s.dir).multiplyScalar(s.displayR), MARK_COLOR[s.type] || [1, 1, 1], 9, STRUCT_GLYPH[s.type]));
+    this.cosmosStructures = new MarkerLayer(sItems, { size: 15, atlas });
     if (this.cosmos) { this.cosmos.group.add(this.cosmosClusters.points); this.cosmos.group.add(this.cosmosStructures.points); }
     this.showClusters = true; this.showStructures = true;
 
-    // Cosmic Atlas — curated knowledge-base objects, coloured by category
+    // Cosmic Atlas — curated knowledge-base objects, coloured & iconed by category
     this.atlas = (this.extras.atlas && this.extras.atlas.objects) || [];
     this.atlasCategories = (this.extras.atlas && this.extras.atlas.categories) || {};
-    const atlasRing = makeRingTexture('#ffffff', true);
     const localAtlasItems = [];
     this.atlas.forEach((o, i) => {
       if (Math.hypot(o.pos[0], o.pos[1], o.pos[2]) <= localMax * 1.02)
-        localAtlasItems.push({ pos: new THREE.Vector3(o.pos[0], o.pos[1], o.pos[2]), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i } });
+        localAtlasItems.push({ pos: new THREE.Vector3(o.pos[0], o.pos[1], o.pos[2]), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i }, ...glyphSpec(CAT_GLYPH[o.category]) });
     });
-    this.localAtlas = new MarkerLayer(localAtlasItems, { size: 11, ring: atlasRing });
+    this.localAtlas = new MarkerLayer(localAtlasItems, { size: 13, atlas });
     this.scene.scene.add(this.localAtlas.points);
-    const cosmosAtlasItems = this.atlas.map((o, i) => ({ pos: new THREE.Vector3(...o.dir).multiplyScalar(o.displayR), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i } }));
-    this.cosmosAtlas = new MarkerLayer(cosmosAtlasItems, { size: 11, ring: atlasRing });
+    const cosmosAtlasItems = this.atlas.map((o, i) => ({ pos: new THREE.Vector3(...o.dir).multiplyScalar(o.displayR), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i }, ...glyphSpec(CAT_GLYPH[o.category]) }));
+    this.cosmosAtlas = new MarkerLayer(cosmosAtlasItems, { size: 13, atlas });
     if (this.cosmos) this.cosmos.group.add(this.cosmosAtlas.points);
     this.showAtlas = true;
+  }
+
+  // Resolve structures: a level-of-detail overlay that blooms clusters, Local
+  // Group galaxies and notable atlas galaxies into their illustrative shapes as
+  // the camera approaches (spiral/elliptical/irregular from the type string;
+  // globular = dense sphere, open = loose scatter). Cosmos-mode only.
+  _buildStructureShapes() {
+    this.resolveStructures = false;
+    if (!this.cosmos) { this.structureShapes = null; return; }
+    const V = (dir, r) => new THREE.Vector3(dir[0] * r, dir[1] * r, dir[2] * r);
+    const targets = [];
+    for (const c of this.extras.clusters || []) {
+      const center = V(c.dir, c.displayR);
+      targets.push({ center, morph: morphFromType(c.type), R: c.type === 'globular' ? 0.22 : 0.3, seed: seedFromVec(center) });
+    }
+    for (const g of this.cosmosData.localGroup || []) {
+      const center = V(g.dir, g.displayR);
+      targets.push({ center, morph: morphFromType(g.type), R: 0.36, seed: seedFromVec(center) });
+    }
+    for (const o of this.atlas) {
+      if (o.category !== 'galaxy') continue;
+      const center = V(o.dir, o.displayR);
+      targets.push({ center, morph: morphFromType(o.type), R: 0.34, seed: seedFromVec(center) });
+    }
+    this.structureShapes = new StructureShapes(targets, { near: 1.2, far: 4.5, size: 2.4 });
+    this.cosmos.group.add(this.structureShapes.points);
+  }
+
+  setResolveStructures(on) {
+    this.resolveStructures = !!on;
+    if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
   }
 
   _buildRouteLayer() {
@@ -777,7 +824,10 @@ export class App {
       const dt = Math.min(0.05, this._clock.getDelta());
       if (this.autopilot) { this._updateAutopilot(dt); this._navAcc = (this._navAcc || 0) + dt; if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) this.emit('nav', this._navReadout()); } }
       this.scene.update(dt);
-      if (this.mode === 'cosmos') this.cosmos.update(this.scene.camera);
+      if (this.mode === 'cosmos') {
+        this.cosmos.update(this.scene.camera);
+        if (this.resolveStructures && this.structureShapes) this.structureShapes.update(this.scene.camera);
+      }
       this.labels.update(this.scene.camera);
       this._updateSelMark();
       this._updateHover();

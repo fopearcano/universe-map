@@ -63,6 +63,32 @@ elliptical or irregular morphology grown from the object's own coordinates,
 clearly labelled as a representation, not a catalogue — to convey that galaxies
 are made of stars while staying honest that no catalogue resolves them.
 
+### Reading the chart — icons, sizes, resolved structures & procedural fill
+
+The map is drawn like an annotated chart, not a uniform dot-field:
+
+- **Class icons.** Every named object carries a **distinct glyph** drawn from an
+  icon atlas — a black-hole accretion ring, a pulsar's twin beams, a supernova
+  burst, a nebula cloud, a ringed exoplanet, a galaxy spiral, a quasar with jets,
+  a transient flash, a star, an open-cluster scatter, a globular ball, a
+  supercluster web-node, a wall, a dashed void, an attractor target, and the ✦
+  sparkle for your own imagined objects.
+- **Sizes by class.** Icons scale by class (a galaxy or supercluster reads bigger
+  than a pulsar or exoplanet); local stars scale by apparent magnitude; and the
+  327k-point cosmic cloud sizes each point by proximity so the nearer cosmic web
+  reads with depth.
+- **Resolve structures (LOD).** Toggle **Resolve structures** (Layers) and fly in:
+  clusters, Local Group galaxies and notable atlas galaxies **bloom into their
+  shapes as you approach** — a spiral/elliptical/irregular disc from the galaxy's
+  Hubble type, a dense sphere for a globular, a loose scatter for an open cluster —
+  fading back to a single icon as you pull away. GPU-driven, so it's one draw call.
+- **Procedural fill (imagined).** Toggle **Procedural fill** to seed a synthetic
+  galaxy field into the **survey-incompleteness gaps** — the Zone of Avoidance
+  behind the Milky Way and the unsurveyed sky — thinned where the real catalogues
+  are already dense and kept **out of catalogued voids** (Boötes, the Local Void…).
+  It's clearly synthetic: tinted **green** by default, with a **green ↔ match-data**
+  switch, and never counted as real objects nor selectable.
+
 ## The Cosmic Atlas (knowledge base)
 
 A dedicated **ATLAS** tab and a set of typed markers overlay a curated knowledge

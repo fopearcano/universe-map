@@ -6,7 +6,7 @@ import { comovingMpc, displayRadius, displayRadiusFromMpc, distanceColor, MPC_TO
 // whole observable universe (~93 Gly across) fits one navigable scene centred on
 // the Sun. Objects keep their true sky direction; only the radius is compressed.
 export class CosmosWorld {
-  constructor(scene, cosmosData, starCatalog) {
+  constructor(scene, cosmosData, starCatalog, extras = {}) {
     this.scene = scene;
     this.data = cosmosData;
     this.catalog = starCatalog;
@@ -18,8 +18,9 @@ export class CosmosWorld {
 
     this.state = {
       zMax: 6, sizeScale: 1,
-      show: { twomrs: true, sdssGal: true, sdssQso: true, localGroup: true, starCore: true, cmb: true },
+      show: { twomrs: true, sdssGal: true, sdssQso: true, localGroup: true, starCore: true, cmb: true, procedural: false },
     };
+    this.procMode = 'green'; // 'green' | 'match'
 
     this.pointLayers = []; // { key, kind, count, data, points, worldPos:Float32 }
     this.ringTex = makeRingTexture();
@@ -28,10 +29,113 @@ export class CosmosWorld {
     this._buildLayer('twomrs', 'galaxy', 2.4);
     this._buildLayer('sdssGal', 'galaxy', 2.1);
     this._buildLayer('sdssQso', 'quasar', 2.7);
+    this._buildProcedural((extras.structures || []).filter((s) => s.type === 'void'));
     this._buildLocalGroup();
     this._buildRings();
     this._buildCMB();
   }
+
+  // ---- procedural fill: a synthetic galaxy field that fills survey-incompleteness
+  // gaps (the Zone of Avoidance behind the Milky Way + unsurveyed sky), thinned
+  // where the real catalogues are already dense and kept OUT of catalogued voids.
+  // Clearly synthetic — tinted green by default. Not counted as real objects and
+  // not selectable. ----
+  _buildProcedural(voids = []) {
+    const N = 40000;
+    let seed = 20240711;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+
+    // coarse angular coverage of the REAL catalogues, so the fill flows into gaps
+    const cov = this._coverageGrid();
+    // galactic north pole in equatorial cartesian (for the Zone of Avoidance)
+    const gpRa = 192.859508 * Math.PI / 180, gpDec = 27.128336 * Math.PI / 180;
+    const nGP = [Math.cos(gpDec) * Math.cos(gpRa), Math.cos(gpDec) * Math.sin(gpRa), Math.sin(gpDec)];
+    // a few random 3-D waves → smooth web-like clumping (filaments, not static)
+    const waves = [];
+    for (let i = 0; i < 6; i++) waves.push({ kx: (rnd() - 0.5) * 2.2, ky: (rnd() - 0.5) * 2.2, kz: (rnd() - 0.5) * 2.2, ph: rnd() * 6.2832, a: 0.5 + rnd() * 0.6 });
+    const web = (x, y, z) => { let s = 0, w = 0; for (const q of waves) { s += q.a * Math.sin(q.kx * x + q.ky * y + q.kz * z + q.ph); w += q.a; } return 0.5 + 0.5 * s / w; };
+    // void exclusion zones (angular + radial band around each catalogued void)
+    const voidZ = voids.map((v) => ({ dir: v.dir, r: v.displayR }));
+
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), zs = new Float32Array(N), sz = new Float32Array(N);
+    let k = 0, tries = 0;
+    const maxTries = N * 12;
+    while (k < N && tries < maxTries) {
+      tries++;
+      const u = rnd() * 2 - 1, ph = rnd() * Math.PI * 2, s = Math.sqrt(Math.max(0, 1 - u * u));
+      const dir = [s * Math.cos(ph), s * Math.sin(ph), u];
+      const z = 0.012 + Math.pow(rnd(), 1.5) * 1.35;
+      const mpc = comovingMpc(z), r = displayRadiusFromMpc(mpc, this.decadeUnit);
+      // 1) thin where the real surveys are dense (fill the gaps)
+      const c = cov.lookup(dir);
+      const covFactor = c > 45 ? 0.12 : c > 12 ? 0.4 : c > 2 ? 0.8 : 1.0;
+      // 2) boost the Zone of Avoidance (|galactic b| < ~12°, blocked by the disc)
+      const sinb = dir[0] * nGP[0] + dir[1] * nGP[1] + dir[2] * nGP[2];
+      const zoa = Math.abs(sinb) < 0.21 ? 1.15 : 0.7;
+      // 3) web clumping
+      const n = web(dir[0] * r * 0.4, dir[1] * r * 0.4, dir[2] * r * 0.4);
+      const p = covFactor * zoa * smoothstep(0.42, 0.8, n);
+      if (rnd() > p) continue;
+      // 4) never fill inside a catalogued void
+      let inV = false;
+      for (const v of voidZ) {
+        const dot = dir[0] * v.dir[0] + dir[1] * v.dir[1] + dir[2] * v.dir[2];
+        if (dot > 0.945 && Math.abs(r - v.r) < 2.2) { inV = true; break; }
+      }
+      if (inV) continue;
+
+      pos[k * 3] = dir[0] * r; pos[k * 3 + 1] = dir[1] * r; pos[k * 3 + 2] = dir[2] * r;
+      const [cr, cg, cb] = distanceColor(r / this.cmbR);
+      col[k * 3] = cr; col[k * 3 + 1] = cg; col[k * 3 + 2] = cb;
+      zs[k] = z; sz[k] = 0.85;
+      k++;
+    }
+    this._procCount = k;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, k * 3), 3));
+    geo.setAttribute('aColor', new THREE.BufferAttribute(col.subarray(0, k * 3), 3));
+    geo.setAttribute('aZ', new THREE.BufferAttribute(zs.subarray(0, k), 1));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(sz.subarray(0, k), 1));
+    const mat = this._pointMaterial(2.3);
+    mat.uniforms.uProc.value = 1; // green by default
+    this.procMat = mat;
+    this.procPoints = new THREE.Points(geo, mat);
+    this.procPoints.frustumCulled = false;
+    this.procPoints.visible = this.state.show.procedural;
+    this.group.add(this.procPoints);
+  }
+
+  // Low-res angular histogram of where the real galaxy catalogues actually have data.
+  _coverageGrid() {
+    const NB = 72, MB = 36;
+    const grid = new Uint16Array(NB * MB);
+    for (const key of ['twomrs', 'sdssGal']) {
+      const L = this.data.layers[key]; if (!L) continue;
+      const d = L.data;
+      for (let i = 0; i < L.count; i++) {
+        const x = d[i * 4], y = d[i * 4 + 1], z = d[i * 4 + 2];
+        const lon = (Math.atan2(y, x) + Math.PI) / (2 * Math.PI);
+        const lat = Math.asin(Math.max(-1, Math.min(1, z))) / Math.PI + 0.5;
+        const bi = Math.min(NB - 1, Math.floor(lon * NB)), bj = Math.min(MB - 1, Math.floor(lat * MB));
+        if (grid[bj * NB + bi] < 65535) grid[bj * NB + bi]++;
+      }
+    }
+    return {
+      lookup: (dir) => {
+        const lon = (Math.atan2(dir[1], dir[0]) + Math.PI) / (2 * Math.PI);
+        const lat = Math.asin(Math.max(-1, Math.min(1, dir[2]))) / Math.PI + 0.5;
+        const bi = Math.min(NB - 1, Math.floor(lon * NB)), bj = Math.min(MB - 1, Math.floor(lat * MB));
+        return grid[bj * NB + bi];
+      },
+    };
+  }
+
+  // Instant green ↔ distance-colour toggle for the procedural fill.
+  setProceduralColor(mode) {
+    this.procMode = mode;
+    if (this.procMat) this.procMat.uniforms.uProc.value = mode === 'green' ? 1 : 0;
+  }
+  proceduralCount() { return this._procCount || 0; }
 
   // ---- our galaxy's stars, log-radialised into a central core ----
   _buildStarCore() {
@@ -51,6 +155,7 @@ export class CosmosWorld {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(constColor(N, [0.85, 0.86, 0.7]), 3));
     geo.setAttribute('aZ', new THREE.BufferAttribute(new Float32Array(N), 1)); // z=0, always shown
+    geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(N).fill(1), 1));
     const mat = this._pointMaterial(1.5);
     this.starCore = new THREE.Points(geo, mat);
     this.starCore.frustumCulled = false;
@@ -64,6 +169,9 @@ export class CosmosWorld {
     const pos = new Float32Array(N * 3);
     const col = new Float32Array(N * 3);
     const zs = new Float32Array(N);
+    const sz = new Float32Array(N);
+    // per-layer redshift span, so nearer objects in each shell read a touch bigger
+    const zLo = layer.zmin ?? 0, zHi = Math.max(layer.zmax ?? 1, zLo + 1e-6);
     for (let i = 0; i < N; i++) {
       const dx = src[i * 4], dy = src[i * 4 + 1], dz = src[i * 4 + 2], z = src[i * 4 + 3];
       const mpc = comovingMpc(z);
@@ -72,11 +180,15 @@ export class CosmosWorld {
       const [cr, cg, cb] = distanceColor(r / this.cmbR);
       col[i * 3] = cr; col[i * 3 + 1] = cg; col[i * 3 + 2] = cb;
       zs[i] = z;
+      // proximity cue: nearest in the shell ≈1.35×, farthest ≈0.8× the base size
+      const f = Math.min(1, Math.max(0, (z - zLo) / (zHi - zLo)));
+      sz[i] = 1.35 - 0.55 * f;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
     geo.setAttribute('aZ', new THREE.BufferAttribute(zs, 1));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(sz, 1));
     const mat = this._pointMaterial(size);
     const points = new THREE.Points(geo, mat);
     points.frustumCulled = false;
@@ -91,16 +203,19 @@ export class CosmosWorld {
         uSizeScale: { value: 1 },
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
         uZMax: { value: 6 },
+        uProc: { value: 0 },                       // 1 = tint uniform green (procedural fill)
+        uProcColor: { value: new THREE.Color(0.32, 1.0, 0.45) },
       },
       vertexShader: /* glsl */`
-        attribute vec3 aColor; attribute float aZ;
-        uniform float uSize, uSizeScale, uPixelRatio, uZMax;
+        attribute vec3 aColor; attribute float aZ; attribute float aSize;
+        uniform float uSize, uSizeScale, uPixelRatio, uZMax, uProc;
+        uniform vec3 uProcColor;
         varying vec3 vColor; varying float vHide;
         void main(){
-          vColor = aColor;
+          vColor = mix(aColor, uProcColor, uProc);
           vHide = aZ > uZMax ? 1.0 : 0.0;
           vec4 mv = modelViewMatrix * vec4(position,1.0);
-          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * uSizeScale * uPixelRatio);
+          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * aSize * uSizeScale * uPixelRatio);
           gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: /* glsl */`
@@ -202,6 +317,11 @@ export class CosmosWorld {
       L.mat.uniforms.uSizeScale.value = s.sizeScale;
     }
     if (this.starCore) { this.starCore.visible = s.show.starCore; this.starCore.material.uniforms.uSizeScale.value = s.sizeScale; }
+    if (this.procPoints) {
+      this.procPoints.visible = !!s.show.procedural;
+      this.procMat.uniforms.uZMax.value = s.zMax;
+      this.procMat.uniforms.uSizeScale.value = s.sizeScale;
+    }
     if (this.localGroupPoints) this.localGroupPoints.visible = s.show.localGroup;
     if (this.cmb) this.cmb.visible = s.show.cmb;
     this.rings.visible = true;
@@ -299,6 +419,7 @@ export class CosmosWorld {
 }
 
 // ---- helpers ----
+function smoothstep(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
 function constColor(n, rgb) {
   const a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { a[i * 3] = rgb[0]; a[i * 3 + 1] = rgb[1]; a[i * 3 + 2] = rgb[2]; }

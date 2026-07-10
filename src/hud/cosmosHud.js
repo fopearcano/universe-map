@@ -63,6 +63,13 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
     <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
+    <div class="toggle on" data-l="resolve"><span>Resolve structures (shapes)</span><span class="sw"></span></div>
+    <div class="toggle ${app.cosmos.state.show.procedural ? 'on' : ''}" data-l="procedural"><span>Procedural fill <span class="muted">· imagined</span></span><span class="sw"></span></div>
+    <div class="seg" id="c-proc-color" ${app.cosmos.state.show.procedural ? '' : 'hidden'}>
+      <button class="segbtn ${app.cosmos.procMode === 'green' ? 'on' : ''}" data-pc="green">green</button>
+      <button class="segbtn ${app.cosmos.procMode === 'match' ? 'on' : ''}" data-pc="match">match data</button>
+    </div>
+    <div class="muted" id="c-proc-note" style="margin:-2px 0 6px"></div>
     <div class="toggle on" data-l="cmb"><span>CMB boundary shell</span><span class="sw"></span></div>
     <div class="ctl" style="margin-top:10px">
       <label>CMB radiation opacity <span class="val" id="c-cmb-v">auto</span></label>
@@ -96,6 +103,25 @@ export function buildCosmosLayers(app) {
   atl.onclick = () => { atl.classList.toggle('on'); app.setLayerVisible('atlas', atl.classList.contains('on')); };
   const cus = root.querySelector('[data-l="custom"]');
   cus.onclick = () => { cus.classList.toggle('on'); app.setLayerVisible('custom', cus.classList.contains('on')); };
+  // Resolve structures: procedural galaxy/cluster shapes on approach (LOD)
+  const res = root.querySelector('[data-l="resolve"]');
+  res.classList.toggle('on', !!app.resolveStructures);
+  res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };
+  // Procedural fill + its colour switch
+  const proc = root.querySelector('[data-l="procedural"]');
+  const procColor = root.querySelector('#c-proc-color');
+  const procNote = root.querySelector('#c-proc-note');
+  const setNote = () => { procNote.textContent = proc.classList.contains('on') ? `${fmt(app.cosmos.proceduralCount())} synthetic galaxies filling survey gaps (not real data)` : ''; };
+  setNote();
+  proc.onclick = () => {
+    proc.classList.toggle('on');
+    const on = proc.classList.contains('on');
+    app.setCosmosFilter({ show: { procedural: on } });
+    procColor.hidden = !on; setNote();
+  };
+  procColor.querySelectorAll('[data-pc]').forEach((b) => {
+    b.onclick = () => { procColor.querySelectorAll('[data-pc]').forEach((x) => x.classList.toggle('on', x === b)); app.cosmos.setProceduralColor(b.dataset.pc); };
+  });
   const op = root.querySelector('#c-cmb-op'), opv = root.querySelector('#c-cmb-v');
   op.oninput = () => {
     const val = +op.value;
