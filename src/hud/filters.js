@@ -1,8 +1,8 @@
 import { SPECTRAL_CLASSES } from '../util/color.js';
 import { fmtNum } from '../util/astro.js';
 
-// Builds the FILTERS panel. Everything funnels through app.setFilter().
-export function initFilters(app) {
+// Builds the local FILTERS panel. Everything funnels through app.setFilter().
+export function buildLocalFilters(app) {
   const root = document.getElementById('tab-filters');
   const cons = app.catalog.meta.constellations; // [ [abbr, full], ... ] index-aligned
 

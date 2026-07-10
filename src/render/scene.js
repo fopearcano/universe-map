@@ -89,16 +89,29 @@ export class Scene {
   setRingsVisible(v) { this.reference.rings.visible = v; }
   setAxesVisible(v) { this.reference.axes.visible = v; }
 
+  // Instantly place the camera (used on mode switches).
+  setView(pos, target) {
+    this._tween = null;
+    this.camera.position.copy(pos);
+    this.controls.target.copy(target);
+    this.controls.update();
+  }
+
   // ---- camera flight ----
   flyTo(targetVec, opts = {}) {
     const target = targetVec.clone();
     const distFromSol = target.length();
-    const approach = opts.approach ?? clamp(0.06 * distFromSol, 1.4, 30);
-    // approach from the Sun-facing side so Sol stays in context, lifted a little.
-    let dir;
-    if (distFromSol < 1e-4) dir = new THREE.Vector3(0.6, 0.4, 0.8).normalize();
-    else dir = target.clone().normalize().multiplyScalar(-0.85).add(new THREE.Vector3(0, 0, 0.5)).normalize();
-    const camPos = target.clone().add(dir.multiplyScalar(approach));
+    let camPos;
+    if (opts.camPos) {
+      camPos = opts.camPos.clone();
+    } else {
+      const approach = opts.approach ?? clamp(0.06 * distFromSol, 1.4, 30);
+      // approach from the Sun-facing side so Sol stays in context, lifted a little.
+      let dir;
+      if (distFromSol < 1e-4) dir = new THREE.Vector3(0.6, 0.4, 0.8).normalize();
+      else dir = target.clone().normalize().multiplyScalar(-0.85).add(new THREE.Vector3(0, 0, 0.5)).normalize();
+      camPos = target.clone().add(dir.multiplyScalar(approach));
+    }
     this._tween = {
       fromPos: this.camera.position.clone(), toPos: camPos,
       fromTarget: this.controls.target.clone(), toTarget: target,

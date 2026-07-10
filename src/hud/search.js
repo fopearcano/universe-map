@@ -1,5 +1,5 @@
-// Search over the named/bright-star index, plus direct HIP/HD number lookup and
-// constellation jumps. Selecting a result flies the camera to it.
+// Search. In local mode: stars by name / Bayer-Flamsteed / HIP / HD / constellation.
+// In cosmos mode: named Local Group galaxies. Selecting a result flies to it.
 export function initSearch(app) {
   const input = document.getElementById('search');
   const box = document.getElementById('search-results');
@@ -8,39 +8,50 @@ export function initSearch(app) {
 
   const conByName = cat.meta.constellations.map((c, i) => ({ i, full: c[1], abbr: c[0] }));
 
-  function query(qRaw) {
-    const q = qRaw.trim().toLowerCase();
-    if (q.length < 1) return [];
-    const out = [];
+  app.on('mode', (m) => {
+    input.value = ''; results = []; box.classList.remove('open');
+    input.placeholder = m === 'cosmos'
+      ? '◈ search  ·  Andromeda, Triangulum, LMC…'
+      : '◈ search  ·  name, HIP 32349, HD 48915, constellation…';
+  });
 
-    // direct HIP / HD number
-    const mHip = q.match(/^hip\s*(\d+)$/); const mHd = q.match(/^hd\s*(\d+)$/);
+  function queryCosmos(q) {
+    return app.cosmos.data.localGroup
+      .map((g, i) => ({ g, i }))
+      .filter(({ g }) => g.name.toLowerCase().includes(q))
+      .slice(0, 20)
+      .map(({ g, i }) => ({ cosmos: true, i, name: g.name, sub: `${g.type} · ${(g.distMpc * 3.2615638).toFixed(2)} Mly` }));
+  }
+
+  function queryLocal(q) {
+    const out = [];
+    const mHip = q.match(/^hip\s*(\d+)$/), mHd = q.match(/^hd\s*(\d+)$/);
     if (mHip || mHd) {
-      const arr = mHip ? cat.hip : cat.hd; const num = +(mHip ? mHip[1] : mHd[1]);
+      const arr = mHip ? cat.hip : cat.hd, num = +(mHip ? mHip[1] : mHd[1]);
       for (let i = 0; i < cat.count; i++) if (arr[i] === num) { out.push(entry(i)); break; }
     }
-
-    // named index
     for (const e of cat.search) {
       if (out.length > 40) break;
       const hay = `${e.name} ${e.bf || ''} ${e.gl || ''} ${e.hip ? 'hip ' + e.hip : ''} ${e.hd ? 'hd ' + e.hd : ''}`.toLowerCase();
       if (hay.includes(q)) out.push({ i: e.i, name: e.name, sub: subFor(e) });
     }
-
-    // constellation -> jump to its brightest star (guard: whole-catalogue scan,
-    // so only for reasonably specific queries)
     if (q.length >= 3) {
       for (const c of conByName) {
         if (out.length > 44) break;
         if (c.full.toLowerCase().includes(q) || c.abbr.toLowerCase() === q) {
           const bi = brightestIn(c.i);
-          if (bi >= 0) out.push({ i: bi, name: `${c.full}`, sub: `constellation · brightest star`, con: true });
+          if (bi >= 0) out.push({ i: bi, name: c.full, sub: 'constellation · brightest star' });
         }
       }
     }
-    // de-dup by index, cap
     const seen = new Set();
     return out.filter((o) => (seen.has(o.i) ? false : (seen.add(o.i), true))).slice(0, 30);
+  }
+
+  function query(qRaw) {
+    const q = qRaw.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return app.mode === 'cosmos' ? queryCosmos(q) : queryLocal(q);
   }
 
   function entry(i) { const s = cat.star(i); return { i, name: s.name, sub: `${s.spect} · ${s.distLy.toFixed(1)} ly` }; }
@@ -60,19 +71,16 @@ export function initSearch(app) {
   function render() {
     if (!results.length) { box.classList.remove('open'); box.innerHTML = ''; return; }
     box.innerHTML = results.map((r, k) =>
-      `<div class="sr-item ${k === active ? 'active' : ''}" data-k="${k}">
-        <span class="sr-name">${escapeHtml(r.name)}</span><span class="sr-sub">${escapeHtml(r.sub)}</span>
-      </div>`).join('');
+      `<div class="sr-item ${k === active ? 'active' : ''}" data-k="${k}"><span class="sr-name">${esc(r.name)}</span><span class="sr-sub">${esc(r.sub)}</span></div>`).join('');
     box.classList.add('open');
-    box.querySelectorAll('.sr-item').forEach((el) => {
-      el.onclick = () => choose(+el.dataset.k);
-    });
+    box.querySelectorAll('.sr-item').forEach((el) => { el.onclick = () => choose(+el.dataset.k); });
   }
 
   function choose(k) {
     const r = results[k]; if (!r) return;
     box.classList.remove('open'); input.blur();
-    app.select(r.i, { fly: true });
+    if (r.cosmos) app.selectObject({ kind: 'localgalaxy', i: r.i }, { fly: true });
+    else app.selectStar(r.i, { fly: true });
   }
 
   input.addEventListener('input', () => { results = query(input.value); active = results.length ? 0 : -1; render(); });
@@ -86,4 +94,4 @@ export function initSearch(app) {
   document.addEventListener('click', (e) => { if (!e.target.closest('#searchwrap')) box.classList.remove('open'); });
 }
 
-function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

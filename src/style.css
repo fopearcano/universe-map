@@ -64,9 +64,13 @@ b { color: var(--ink); font-weight: 600; }
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 0 14px; background: linear-gradient(180deg, rgba(4,9,15,0.92), rgba(4,9,15,0));
 }
-.brand { display: flex; align-items: center; gap: 10px; letter-spacing: 0.28em; font-size: 13px; }
+.brand { display: flex; align-items: center; gap: 12px; letter-spacing: 0.28em; font-size: 13px; }
 .brand .logo { color: var(--cyan); text-shadow: 0 0 12px var(--cyan); }
 .brand .tag { color: var(--dim); letter-spacing: 0.12em; font-size: 10px; }
+.modeswitch { display: flex; border: 1px solid var(--line-strong); border-radius: 5px; overflow: hidden; letter-spacing: 0.12em; }
+.modeswitch .ms { background: none; border: 0; color: var(--dim); padding: 3px 12px; font-family: var(--mono); font-size: 10px; cursor: pointer; letter-spacing: 0.14em; }
+.modeswitch .ms.active { background: var(--cyan); color: #001018; font-weight: 600; }
+.modeswitch .ms:not(.active):hover { color: var(--cyan); }
 .telemetry { display: flex; gap: 16px; flex-wrap: wrap; justify-content: flex-end; color: var(--dim); font-size: 11px; }
 .telemetry .k { color: var(--dim); }
 .telemetry .v { color: var(--cyan); }
