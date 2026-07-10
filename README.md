@@ -317,6 +317,24 @@ Void and more.
 | Search / jump | top search box |
 | Recenter on Sol | Layers ▸ recenter · focus chip ✕ |
 
+### Manual & hotkeys
+
+The **❔ MANUAL** button (top bar, or press `?` / `F1`) opens an in-app guide with a
+full hotkey reference. The shortcuts:
+
+| Key | Action | | Key | Action |
+| --- | --- | --- | --- | --- |
+| `1` `2` | LOCAL / COSMOS | | `Space` | engage / pause autopilot |
+| `H` | home (recenter on Sol) | | `[` `]` | prev / next stop (cruise·voyage·autopilot) |
+| `/` | focus search | | `S` | sector grid |
+| `C` | open CODEX | | `B` | galaxy imagery |
+| `?` `F1` | open manual | | `V` | resolve structures |
+| `F` | focus on selection | | `G` | enter / exit galaxy |
+| `R` | add selection to route | | `P` | plot course |
+| `Esc` | close · exit galaxy · disengage · clear | | | |
+
+Hotkeys are inert while a text field is focused or an overlay is open.
+
 Dev/preview server runs on **port 5333** (`npm run dev`).
 
 ### Deferred (by request)
