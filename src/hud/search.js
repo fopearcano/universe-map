@@ -48,10 +48,18 @@ export function initSearch(app) {
     return out.filter((o) => (seen.has(o.i) ? false : (seen.add(o.i), true))).slice(0, 30);
   }
 
+  function queryAtlas(q) {
+    return (app.atlas || []).map((o, i) => ({ o, i }))
+      .filter(({ o }) => (o.name + ' ' + o.type + ' ' + (app.atlasCategories?.[o.category]?.label || '')).toLowerCase().includes(q))
+      .slice(0, 12)
+      .map(({ o, i }) => ({ atlas: true, i, name: o.name, sub: `${o.type} · ${fmtLy(o.distLy)}` }));
+  }
+
   function query(qRaw) {
     const q = qRaw.trim().toLowerCase();
     if (q.length < 1) return [];
-    return app.mode === 'cosmos' ? queryCosmos(q) : queryLocal(q);
+    const base = app.mode === 'cosmos' ? queryCosmos(q) : queryLocal(q);
+    return [...queryAtlas(q), ...base].slice(0, 34);
   }
 
   function entry(i) { const s = cat.star(i); return { i, name: s.name, sub: `${s.spect} · ${s.distLy.toFixed(1)} ly` }; }
@@ -79,7 +87,8 @@ export function initSearch(app) {
   function choose(k) {
     const r = results[k]; if (!r) return;
     box.classList.remove('open'); input.blur();
-    if (r.cosmos) app.selectObject({ kind: 'localgalaxy', i: r.i }, { fly: true });
+    if (r.atlas) app.selectAtlas(r.i, { fly: true });
+    else if (r.cosmos) app.selectObject({ kind: 'localgalaxy', i: r.i }, { fly: true });
     else app.selectStar(r.i, { fly: true });
   }
 
@@ -94,4 +103,10 @@ export function initSearch(app) {
   document.addEventListener('click', (e) => { if (!e.target.closest('#searchwrap')) box.classList.remove('open'); });
 }
 
+function fmtLy(ly) {
+  if (ly >= 1e9) return `${(ly / 1e9).toFixed(1)} Gly`;
+  if (ly >= 1e6) return `${(ly / 1e6).toFixed(1)} Mly`;
+  if (ly >= 1e3) return `${(ly / 1e3).toFixed(1)} kly`;
+  return `${ly.toFixed(0)} ly`;
+}
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

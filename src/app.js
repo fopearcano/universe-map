@@ -77,6 +77,22 @@ export class App {
     this.cosmosStructures = new MarkerLayer(sItems, { size: 18, ring: makeRingTexture('#ffffff', false) });
     if (this.cosmos) { this.cosmos.group.add(this.cosmosClusters.points); this.cosmos.group.add(this.cosmosStructures.points); }
     this.showClusters = true; this.showStructures = true;
+
+    // Cosmic Atlas — curated knowledge-base objects, coloured by category
+    this.atlas = (this.extras.atlas && this.extras.atlas.objects) || [];
+    this.atlasCategories = (this.extras.atlas && this.extras.atlas.categories) || {};
+    const atlasRing = makeRingTexture('#ffffff', true);
+    const localAtlasItems = [];
+    this.atlas.forEach((o, i) => {
+      if (Math.hypot(o.pos[0], o.pos[1], o.pos[2]) <= localMax * 1.02)
+        localAtlasItems.push({ pos: new THREE.Vector3(o.pos[0], o.pos[1], o.pos[2]), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i } });
+    });
+    this.localAtlas = new MarkerLayer(localAtlasItems, { size: 11, ring: atlasRing });
+    this.scene.scene.add(this.localAtlas.points);
+    const cosmosAtlasItems = this.atlas.map((o, i) => ({ pos: new THREE.Vector3(...o.dir).multiplyScalar(o.displayR), color: o.color, label: o.name, prio: 7, data: { atlasIndex: i } }));
+    this.cosmosAtlas = new MarkerLayer(cosmosAtlasItems, { size: 11, ring: atlasRing });
+    if (this.cosmos) this.cosmos.group.add(this.cosmosAtlas.points);
+    this.showAtlas = true;
   }
 
   _buildRouteLayer() {
@@ -101,10 +117,12 @@ export class App {
       this.scene.setReferenceVisible(false);
       this.voyageLayer.setVisible(false);
       this.localClusters.setVisible(false);
+      this.localAtlas.setVisible(false);
       this.cosmos.setVisible(true);
       this.cosmos.applyFilter({});
       this.cosmosClusters.setVisible(this.showClusters);
       this.cosmosStructures.setVisible(this.showStructures);
+      this.cosmosAtlas.setVisible(this.showAtlas);
       this._applyCosmosLabels();
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
@@ -113,6 +131,7 @@ export class App {
       this.starfield.points.visible = true;
       this.scene.setReferenceVisible(true);
       this.localClusters.setVisible(this.showClusters);
+      this.localAtlas.setVisible(this.showAtlas);
       this._applyLocalLabels();
       this.scene.setView(new THREE.Vector3(14, 9, 17), new THREE.Vector3(0, 0, 0));
     }
@@ -128,6 +147,9 @@ export class App {
       this.showStructures = on;
       this.cosmosStructures.setVisible(on);
       this._refreshMarkerLabels();
+    } else if (key === 'atlas') {
+      this.showAtlas = on;
+      (this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas).setVisible(on);
     }
   }
 
@@ -181,6 +203,11 @@ export class App {
   }
 
   selectExtra(kind, i, { fly = false } = {}) {
+    if (kind === 'atlas') {
+      const layer = this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas;
+      const it = layer.items[i]; if (!it) return;
+      return this._selectAtlasObject(this.atlas[it.data.atlasIndex], it.pos.clone(), { fly });
+    }
     const it = (kind === 'cluster'
       ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters)
       : this.cosmosStructures).items[i];
@@ -192,6 +219,29 @@ export class App {
     const truePos = new THREE.Vector3(...d.dir).multiplyScalar(kind === 'cluster' ? d.distPc : d.distMpc * 1e6);
     this._setSelection({ kind: info.kind, worldPos: it.pos.clone(), truePos, info });
     if (fly) this.scene.flyTo(it.pos);
+  }
+
+  // select an atlas object by its global index (used by the atlas browser & search);
+  // hops to COSMOS if the object is too far for the true-scale LOCAL view.
+  selectAtlas(atlasIndex, { fly = true } = {}) {
+    const o = this.atlas[atlasIndex]; if (!o) return;
+    const fitsLocal = Math.hypot(o.pos[0], o.pos[1], o.pos[2]) <= this.catalog.meta.bounds.maxRadiusPc * 1.02;
+    if (this.mode === 'local' && !fitsLocal) this.setMode('cosmos');
+    const worldPos = this.mode === 'cosmos'
+      ? new THREE.Vector3(...o.dir).multiplyScalar(o.displayR)
+      : new THREE.Vector3(o.pos[0], o.pos[1], o.pos[2]);
+    this._selectAtlasObject(o, worldPos, { fly });
+  }
+
+  _selectAtlasObject(o, worldPos, { fly = false } = {}) {
+    const cat = this.atlasCategories[o.category];
+    const info = {
+      kind: 'atlas', name: o.name, category: o.category, categoryLabel: cat ? cat.label : o.category,
+      type: o.type, facts: o.facts, distLy: o.distLy, ra: o.ra, dec: o.dec, color: o.color,
+    };
+    const truePos = new THREE.Vector3(...o.dir).multiplyScalar(o.distLy / 3.2615638);
+    this._setSelection({ kind: 'atlas', worldPos: worldPos.clone(), truePos, info });
+    if (fly) this.scene.flyTo(worldPos);
   }
 
   _setSelection(sel) {
@@ -277,25 +327,44 @@ export class App {
   }
 
   // ================= galaxy LOD "bloom" (illustrative) =================
+  // Resolve a picked galaxy into a procedural star cloud so the "universe of
+  // galaxies" reads as explorable. Morphology (spiral / elliptical / irregular)
+  // is chosen deterministically from the object's own coordinates — illustrative,
+  // NOT catalogue data (only the Milky Way has real per-star data).
   _maybeBloom(info) {
     this._clearBloom();
     if (info.kind !== 'galaxy' && info.kind !== 'localgalaxy') return;
-    const center = info.worldPos, N = 2600;
-    const pos = new Float32Array(N * 3);
-    // seed a plausible disc+bulge from the object's own coordinates (deterministic)
-    let seed = Math.floor(Math.abs(center.x * 733 + center.y * 977 + center.z * 613)) % 2147483647 || 12345;
+    const center = info.worldPos, N = 3600;
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    let seed = Math.floor(Math.abs(center.x * 733.1 + center.y * 977.7 + center.z * 613.3)) % 2147483647 || 12345;
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    const R = 0.32, tilt = rnd() * Math.PI;
+    const morph = Math.floor(rnd() * 3); // 0 spiral, 1 elliptical, 2 irregular
+    const R = 0.34, arms = 2 + Math.floor(rnd() * 3), tilt = rnd() * Math.PI, roll = rnd() * Math.PI * 2;
+    const disk = [0.65, 0.78, 1.0], bulge = [1.0, 0.86, 0.62];
     for (let i = 0; i < N; i++) {
-      const bulge = rnd() < 0.3;
-      const r = bulge ? Math.pow(rnd(), 2) * R * 0.4 : Math.pow(rnd(), 0.6) * R;
-      const a = rnd() * Math.PI * 2 + r * 6;
-      let x = Math.cos(a) * r, y = Math.sin(a) * r, z = (rnd() - 0.5) * (bulge ? R * 0.3 : R * 0.06);
+      const isBulge = rnd() < (morph === 1 ? 0.75 : 0.28);
+      let r, a, z;
+      if (morph === 1) { // elliptical: smooth ellipsoid, redder
+        r = Math.pow(rnd(), 0.5) * R; a = rnd() * Math.PI * 2; z = (rnd() - 0.5) * R * 0.7 * (1 - r / R);
+      } else if (morph === 2) { // irregular: clumpy disc
+        r = Math.pow(rnd(), 0.5) * R; a = rnd() * Math.PI * 2 + Math.sin(r * 20 + seed) * 0.6; z = (rnd() - 0.5) * R * 0.12;
+      } else { // spiral: logarithmic arms + bulge
+        r = isBulge ? Math.pow(rnd(), 2) * R * 0.35 : Math.pow(rnd(), 0.6) * R;
+        const arm = Math.floor(rnd() * arms) * (Math.PI * 2 / arms);
+        a = arm + r * 7 + (rnd() - 0.5) * 0.5; z = (rnd() - 0.5) * (isBulge ? R * 0.28 : R * 0.05);
+      }
+      let x = Math.cos(a) * r, y = Math.sin(a) * r;
+      // roll in-plane then tilt
+      const xr = x * Math.cos(roll) - y * Math.sin(roll); y = x * Math.sin(roll) + y * Math.cos(roll); x = xr;
       const yt = y * Math.cos(tilt) - z * Math.sin(tilt); z = y * Math.sin(tilt) + z * Math.cos(tilt); y = yt;
       pos[i * 3] = center.x + x; pos[i * 3 + 1] = center.y + y; pos[i * 3 + 2] = center.z + z;
+      const c = isBulge || morph === 1 ? bulge : disk;
+      col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
     }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const m = new THREE.PointsMaterial({ size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0.7, color: 0xcfe0ff, depthWrite: false, blending: THREE.AdditiveBlending });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const m = new THREE.PointsMaterial({ size: 1.5, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
     this._bloom = new THREE.Points(g, m); this._bloom.frustumCulled = false;
     this.scene.scene.add(this._bloom);
   }
@@ -445,7 +514,11 @@ export class App {
     if (this.mode === 'cosmos') {
       check(this.cosmosStructures, 'structure', this.showStructures);
       check(this.cosmosClusters, 'cluster', this.showClusters);
-    } else check(this.localClusters, 'cluster', this.showClusters);
+      check(this.cosmosAtlas, 'atlas', this.showAtlas);
+    } else {
+      check(this.localClusters, 'cluster', this.showClusters);
+      check(this.localAtlas, 'atlas', this.showAtlas);
+    }
     return best;
   }
 
@@ -460,9 +533,16 @@ export class App {
       const key = `${ex.extra.kind}${ex.extra.i}`;
       if (key !== this._hover.key) {
         this._hover.key = key;
-        const layer = ex.extra.kind === 'cluster' ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters) : this.cosmosStructures;
-        const d = layer.items[ex.extra.i].data;
-        const text = ex.extra.kind === 'cluster' ? `${esc(d.name)} · ${esc(d.type)} cluster` : `${esc(d.name)} · ${esc(d.type)}`;
+        let text;
+        if (ex.extra.kind === 'atlas') {
+          const layer = this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas;
+          const o = this.atlas[layer.items[ex.extra.i].data.atlasIndex];
+          text = `${esc(o.name)} · ${esc(o.type)}`;
+        } else {
+          const layer = ex.extra.kind === 'cluster' ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters) : this.cosmosStructures;
+          const d = layer.items[ex.extra.i].data;
+          text = ex.extra.kind === 'cluster' ? `${esc(d.name)} · ${esc(d.type)} cluster` : `${esc(d.name)} · ${esc(d.type)}`;
+        }
         this.emit('hover', { text, x: this._hover.x, y: this._hover.y });
       }
       return;

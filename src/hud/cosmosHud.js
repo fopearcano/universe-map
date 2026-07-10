@@ -61,6 +61,7 @@ export function buildCosmosLayers(app) {
     <div class="muted" style="margin-bottom:10px">Structures, clusters & the cosmic microwave background.</div>
     <div class="toggle on" data-l="structures"><span>Large-scale structures</span><span class="sw"></span></div>
     <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
+    <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="cmb"><span>CMB boundary shell</span><span class="sw"></span></div>
     <div class="ctl" style="margin-top:10px">
       <label>CMB radiation opacity <span class="val" id="c-cmb-v">auto</span></label>
@@ -90,6 +91,8 @@ export function buildCosmosLayers(app) {
   structs.onclick = () => { structs.classList.toggle('on'); app.setLayerVisible('structures', structs.classList.contains('on')); };
   const clus = root.querySelector('[data-l="clusters"]');
   clus.onclick = () => { clus.classList.toggle('on'); app.setLayerVisible('clusters', clus.classList.contains('on')); };
+  const atl = root.querySelector('[data-l="atlas"]');
+  atl.onclick = () => { atl.classList.toggle('on'); app.setLayerVisible('atlas', atl.classList.contains('on')); };
   const op = root.querySelector('#c-cmb-op'), opv = root.querySelector('#c-cmb-v');
   op.oninput = () => {
     const val = +op.value;

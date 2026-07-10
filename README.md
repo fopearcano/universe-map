@@ -58,9 +58,28 @@ to "hundreds of billions": the observable universe holds ~10²² stars, and a
 browser GPU renders a few million points at most (tens of millions with heavy
 LOD). Just as importantly, **per-star data simply does not exist** for other
 galaxies — only for our own Milky Way (via Gaia). So selecting a galaxy blooms it
-into a **procedural, illustrative star cloud** (clearly labelled as a
-representation, not a catalogue) to convey that galaxies are made of stars —
-honest about the fact that no catalogue resolves them.
+into a **procedural, illustrative star cloud** — a deterministic spiral,
+elliptical or irregular morphology grown from the object's own coordinates,
+clearly labelled as a representation, not a catalogue — to convey that galaxies
+are made of stars while staying honest that no catalogue resolves them.
+
+## The Cosmic Atlas (knowledge base)
+
+A dedicated **ATLAS** tab and a set of typed markers overlay a curated knowledge
+base of the most significant real objects and events across **every major class**:
+
+> supermassive & stellar **black holes** · **neutron stars / pulsars / magnetars**
+> · **supernovae & remnants** · **nebulae** · **exoplanet systems** · notable
+> **galaxies** · **quasars & blazars** · **transient events** (gravitational-wave,
+> gamma-ray & fast-radio bursts) · **extreme stars**
+
+Each entry carries a real sky position, distance and a headline-astrophysics note
+(e.g. Sgr A*, M87*, TON 618, the Crab & Vela pulsars, SGR 1806-20, Cassiopeia A,
+the Pillars of Creation, TRAPPIST-1, GW170817, GRB 221009A, UY Scuti…). Browse by
+category, filter by text, and click to fly to it (hopping to COSMOS when the
+object is beyond the true-scale LOCAL view). It is deliberately **curated, not
+exhaustive** — the universe holds billions of catalogued objects — but it's a real,
+extensible foundation (the same pipeline, or live SIMBAD/NED retrieval, can grow it).
 
 ## Story voyages
 
@@ -109,6 +128,16 @@ Void and more.
 
 Dev/preview server runs on **port 5333** (`npm run dev`).
 
+### Deferred (by request)
+
+"Focus" re-centres the camera *pivot* on an object, but the coordinate origin
+stays at the Sun. A stronger **"re-origin on object X"** — translating the whole
+LOCAL frame so X is at (0,0,0) and every ring / distance / telemetry reads *from
+X* — is intentionally **not** built yet (noted here for later). It is clean and
+exact in LOCAL (a rigid translation preserves all distances); it is deliberately
+avoided in COSMOS, where the logarithmic radius is inherently Sun-centred and
+re-origining would misrepresent the cosmology.
+
 ---
 
 ## Running it
@@ -128,6 +157,8 @@ runs offline with no build-time network.
 npm run build:data     # stars: HYG v4.1 -> 100k working set + voyages
 npm run build:cosmos   # galaxies/quasars: 2MRS + SDSS -> layers + scale voyage
 npm run build:cmb      # real WMAP 9-yr CMB map -> equirectangular shell texture
+npm run build:extras   # curated star clusters + large-scale structures
+npm run build:atlas    # curated cosmic-atlas knowledge base
 ```
 
 `build-cosmos.mjs` fetches the 2MASS Redshift Survey (VizieR) and SDSS

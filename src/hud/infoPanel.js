@@ -12,8 +12,9 @@ export function initInfoPanel(app) {
     if (!o) { dock.hidden = true; dock.innerHTML = ''; return; }
     dock.hidden = false;
     dock.innerHTML = o.kind === 'star' ? renderStar(o)
-      : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-        : renderCosmos(o);
+      : o.kind === 'atlas' ? renderAtlas(o)
+        : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
+          : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
@@ -77,6 +78,21 @@ function renderExtra(o) {
   }
   const note = o.note ? `<div class="muted" style="margin-top:8px;line-height:1.5">${esc(o.note)}</div>` : '';
   return head(o.name, isCluster ? 'star cluster' : 'large-scale structure', swatch) + grid(rows) + actions({}) + note;
+}
+
+function renderAtlas(o) {
+  const [r, g, b] = o.color || [1, 1, 1];
+  const swatch = `rgb(${(r * 255) | 0},${(g * 255) | 0},${(b * 255) | 0})`;
+  const rows = [['Class', o.categoryLabel], ['Type', o.type], ['Distance', fmtAtlasDist(o.distLy), 'hl'],
+    ['Right ascension', fmtRA(o.ra)], ['Declination', fmtDec(o.dec)]];
+  const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
+  return head(o.name, o.categoryLabel, swatch) + grid(rows) + facts + actions({});
+}
+function fmtAtlasDist(ly) {
+  if (ly >= 1e9) return `${(ly / 1e9).toFixed(2)} Gly`;
+  if (ly >= 1e6) return `${(ly / 1e6).toFixed(2)} Mly`;
+  if (ly >= 1e3) return `${(ly / 1e3).toFixed(1)} kly`;
+  return `${ly.toFixed(1)} ly`;
 }
 
 function head(name, sub, swatch) {

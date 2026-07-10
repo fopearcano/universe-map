@@ -2,6 +2,7 @@ import { cartesianToRaDec, fmtRA, fmtDec, fmtNum, PC_TO_LY } from '../util/astro
 import { buildLocalFilters } from './filters.js';
 import { buildLocalVoyageList, buildCosmosVoyageList } from './voyages.js';
 import { buildCosmosFilters, buildCosmosLayers } from './cosmosHud.js';
+import { buildAtlasBrowser } from './atlasBrowser.js';
 
 export function initHUD(app) {
   initModeSwitch(app);
@@ -35,6 +36,7 @@ function buildDock(app) {
   } else {
     buildLocalFilters(app); buildLocalVoyageList(app); buildLocalLayers(app);
   }
+  buildAtlasBrowser(app); // mode-independent
   // reset to the filters tab
   document.querySelectorAll('.tab').forEach((x, i) => x.classList.toggle('active', i === 0));
   document.querySelectorAll('.tabpanel').forEach((p, i) => p.classList.toggle('active', i === 0));
@@ -49,6 +51,7 @@ function buildLocalLayers(app) {
     <div class="toggle on" data-l="axes"><span>Celestial axes</span><span class="sw"></span></div>
     <div class="toggle on" data-l="labels"><span>Star name labels</span><span class="sw"></span></div>
     <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
+    <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="hr"></div>
     <button class="btn" id="l-home">⌂ recenter on Sol</button>
     <div class="muted" style="margin-top:12px;line-height:1.6">100,000 stars · HYG v4.1<br>positions in parsecs, equatorial J2000<br>Sol fixed at origin.</div>`;
@@ -58,6 +61,7 @@ function buildLocalLayers(app) {
     axes: (on) => app.scene.setAxesVisible(on),
     labels: (on) => app.labels.setStarsVisible(on),
     clusters: (on) => app.setLayerVisible('clusters', on),
+    atlas: (on) => app.setLayerVisible('atlas', on),
   };
   root.querySelectorAll('.toggle').forEach((el) => {
     el.onclick = () => { el.classList.toggle('on'); handlers[el.dataset.l](el.classList.contains('on')); };
