@@ -49,7 +49,7 @@ const SECTIONS = [
     ['Explore', 'click stars to select, trace routes between them (true intra-galaxy distances), and raise the star count for a strong GPU. ⤴ exit to leave.'],
   ]],
   ['Layers & overlays', [
-    ['Sector grid (S)', 'a polar RA/Dec graticule + the live SECTOR code in the telemetry bar.'],
+    ['Sector grid (S)', 'a 3-D block cage — the bright cosmic-plane (celestial equator) with radial spokes, 9 ring-planes above and 9 below, and vertical pillars through every node. Blocks map to the live SECTOR code in the telemetry bar.'],
     ['Galaxy imagery (B)', 'flat billboards of real galaxy cutouts at their positions.'],
     ['Resolve structures (V)', 'clusters & notable galaxies bloom into their shapes as you approach.'],
     ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined) — green, or matched to real data.'],

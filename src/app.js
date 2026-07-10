@@ -427,26 +427,56 @@ export class App {
     this._routeRing = makeRingTexture('#7bf0a0', true);
   }
 
-  // A polar "sector" grid: radial spokes at each 2h of RA on the equatorial plane
-  // + the celestial polar axis. Reads like a spaceship map graticule; toggleable.
+  // A 3-D "sector" lattice: the main cosmic plane (radial spokes + distance rings),
+  // plus 9 horizontal planes above and 9 below it, with vertical pillars rising
+  // through every spoke×ring node — carving the volume into navigable sector
+  // blocks. Built as a unit cage and scaled to each mode's extent. Toggleable.
   _buildSectorGrid() {
     this.showSectorGrid = false;
     const g = new THREE.Group();
-    const L = 1e5;
-    const mkLine = (a, b, col, op) => {
-      const m = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op });
-      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), m);
-      l.frustumCulled = false; g.add(l);
+    const SPOKES = 12, RINGS = [0.34, 0.67, 1.0], PLANES = 9, H = 0.7, SEG = 72;
+    const dz = H / PLANES;                 // vertical spacing between planes
+    const TAU = Math.PI * 2;
+    const main = [], grid = [];            // merged line-segment vertex lists
+    const ring = (arr, r, z) => {
+      for (let s = 0; s < SEG; s++) {
+        const a0 = s / SEG * TAU, a1 = (s + 1) / SEG * TAU;
+        arr.push(Math.cos(a0) * r, Math.sin(a0) * r, z, Math.cos(a1) * r, Math.sin(a1) * r, z);
+      }
     };
-    for (let h = 0; h < 24; h += 2) {
-      const a = h / 24 * Math.PI * 2, cardinal = h % 6 === 0;
-      mkLine(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(a) * L, Math.sin(a) * L, 0),
-        cardinal ? 0x3f7fa0 : 0x24506a, cardinal ? 0.5 : 0.28);
+    // main cosmic plane (z=0): rings + spokes
+    for (const r of RINGS) ring(main, r, 0);
+    for (let sp = 0; sp < SPOKES; sp++) { const a = sp / SPOKES * TAU; main.push(0, 0, 0, Math.cos(a), Math.sin(a), 0); }
+    // 9 planes up + 9 down: rings (faint); top & bottom faces also get spokes
+    for (let k = -PLANES; k <= PLANES; k++) {
+      if (k === 0) continue;
+      const z = k * dz;
+      for (const r of RINGS) ring(grid, r, z);
+      if (k === PLANES || k === -PLANES) for (let sp = 0; sp < SPOKES; sp++) { const a = sp / SPOKES * TAU; grid.push(0, 0, z, Math.cos(a), Math.sin(a), z); }
     }
-    mkLine(new THREE.Vector3(0, 0, -L), new THREE.Vector3(0, 0, L), 0x3f7fa0, 0.4); // polar axis
+    // vertical pillars through every spoke×ring node, spanning the full stack
+    for (let sp = 0; sp < SPOKES; sp++) {
+      const a = sp / SPOKES * TAU, cx = Math.cos(a), cy = Math.sin(a);
+      for (const r of RINGS) grid.push(cx * r, cy * r, -H, cx * r, cy * r, H);
+    }
+    grid.push(0, 0, -H, 0, 0, H); // polar axis
+    const seg = (arr, color, opacity) => {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3));
+      const s = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+      s.frustumCulled = false; g.add(s);
+    };
+    seg(main, 0x5fb4da, 0.6);    // bright cosmic plane
+    seg(grid, 0x2c5d74, 0.3);    // faint stacked lattice
     g.visible = false;
     this.sectorGridGroup = g;
     this.scene.scene.add(g);
+    this._syncSectorGridScale();
+  }
+  // Size the cage to the current scale (out to the CMB in cosmos; the neighbourhood in local).
+  _syncSectorGridScale() {
+    if (!this.sectorGridGroup) return;
+    this.sectorGridGroup.scale.setScalar(this.mode === 'cosmos' ? (this.cosmos ? this.cosmos.cmbR : 30) : 60);
   }
   setSectorGrid(on) { this.showSectorGrid = !!on; if (this.sectorGridGroup) this.sectorGridGroup.visible = this.showSectorGrid; }
 
@@ -539,6 +569,7 @@ export class App {
       this._applyLocalLabels();
       this.scene.setView(new THREE.Vector3(14, 9, 17), new THREE.Vector3(0, 0, 0));
     }
+    this._syncSectorGridScale();
     this.emit('mode', mode);
   }
 

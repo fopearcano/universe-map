@@ -267,11 +267,20 @@ Edit `public/data/expeditions.json` to add your own — each stop is `{ "star": 
 
 ### Sector grid (map HUD)
 
-The Layers panel has a **Sector grid · map** toggle that overlays a polar
-graticule — radial spokes at each 2ʰ of right ascension plus the celestial polar
-axis — turning the view into a spaceship-style navigation chart. The telemetry bar
-always shows the current **SECTOR** code (an RA-column / Dec-row / distance-tier
-cell, e.g. `N04·10`) alongside heading and scale.
+The Layers panel has a **Sector grid · map** toggle that overlays a 3-D block
+cage, turning the view into a spaceship-style navigation chart:
+
+- the **main cosmic plane** (the celestial equator) rendered bright — three
+  concentric range rings crossed by radial spokes at each 2ʰ of right ascension;
+- **nine ring-planes above and nine below** the cosmic plane, stacking the volume
+  into height bands (the celestial-declination decks);
+- **vertical pillars** rising through every spoke × ring node, and the celestial
+  **polar axis** — together dividing the universe into addressable sector blocks.
+
+The telemetry bar always shows the current **SECTOR** code (an RA-column /
+Dec-row / distance-tier cell, e.g. `N04·10`) alongside heading and scale. The
+cage scales with the mode — out to the CMB in COSMOS, to the stellar
+neighbourhood in LOCAL.
 
 ## Navigation — plot & fly a course
 
