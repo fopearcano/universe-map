@@ -90,9 +90,21 @@ type and a distance derived from parallax or redshift — then placed on the map
 button to enrich it with live data. SIMBAD's service is CORS-enabled, so this runs
 straight from the browser (no proxy needed).
 
-Everything you add is written to **localStorage**, so it **persists across reloads**
-(it does *not* reset on restart). **Export / Import** round-trips your whole library
-as JSON, and **Clear** wipes it.
+Alongside it, a **◈ grow** control pulls whole batches from a live catalogue and
+folds real objects into your library in one shot — pick a preset and a count:
+
+- **pulsars** — the **ATNF Pulsar Catalogue** via VizieR (`B/psr/psr`), placed by
+  their catalogued distances (kpc → ly).
+- **galaxies** / **quasars** — **SIMBAD** by object type + redshift, with distances
+  from the ΛCDM comoving integral.
+- **near view** — a **SIMBAD cone search** around wherever the camera is pointing,
+  so you can densify the patch of sky you're actually looking at.
+
+Everything you add — resolved names, grown batches, imagined objects — is written to
+**localStorage**, so it **persists across reloads** (it does *not* reset on restart).
+**Export / Import** round-trips your whole library as JSON, and **Clear** wipes it.
+(Live services need outbound network; if a query is blocked or times out the control
+says so and the existing map is untouched.)
 
 ### The Codex — an imported fiction knowledge base
 
@@ -107,6 +119,15 @@ clickable chips that walk the graph), a **real ↔ fiction** anchor line, and a
 constitution axes, substrate floor → the limit Κ) with clickable nodes. Drop a
 different `qtr-universe-db.json` in `public/data/` to swap in your own corpus; the
 schema block in the file is self-describing.
+
+**The real ↔ fiction bridge.** Where a fictional class names a real astrophysical
+one — its `real_anchor` (e.g. *Natural seam-wells* → "Black holes"), or a matching
+name/category — the detail view grows a **◎ show the real … on the map** button.
+Click it and the app leaves the story frame: it switches to **COSMOS**, filters the
+Cosmic Atlas to that real category, and flies you to the first real object of the
+class. So from the seam-wells entry you land on **Sagittarius A***, with M87\*, TON
+618 and the rest of the real black holes listed beside it — the imagined and the
+observed pinned to the same sky.
 
 ### Story Studio — imagined objects & events
 
@@ -195,7 +216,7 @@ re-origining would misrepresent the cosmology.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5333
 npm run build      # -> dist/ (fully static)
 ```
 
@@ -266,11 +287,13 @@ src/
 
 ## Dynamic data retrieval
 
-The base map is static so it always works. On top of that, a selected star
-exposes **◇ query exoplanets**, a live call to the NASA Exoplanet Archive TAP
-service (best-effort; honest CORS fallback; `remote.setProxy(url)` to route
-through a pass-through). The module documents wiring SIMBAD, Gaia and VizieR the
-same way.
+The base map is static so it always works. On top of that, several live TAP paths
+run straight from the browser (all best-effort, with an honest CORS/timeout
+fallback; `remote.setProxy(url)` routes through a pass-through if a service lacks
+CORS): a selected star exposes **◇ query exoplanets** (NASA Exoplanet Archive);
+the ATLAS tab resolves single names against **SIMBAD** and **◈ grows** whole
+batches from **SIMBAD** and the **ATNF Pulsar Catalogue (VizieR)** into your
+persistent library.
 
 ## Data & credits
 - Stars: **HYG database v4.1** (astronexus) — Hipparcos / Yale / Gliese.
@@ -278,5 +301,6 @@ same way.
 - Galaxies & quasars (deep): **Sloan Digital Sky Survey** DR17, via SkyServer.
 - CMB map: **WMAP 9-year ILC** (NASA / LAMBDA), reprojected from HEALPix.
 - Exoplanets (live): **NASA Exoplanet Archive**.
+- Live growth: **SIMBAD (CDS)** and the **ATNF Pulsar Catalogue** (via VizieR/CDS).
 - Cosmology: flat ΛCDM, **Planck 2018** parameters.
 - Rendering [three.js](https://threejs.org) · build [Vite](https://vitejs.dev).

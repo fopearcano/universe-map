@@ -53,7 +53,15 @@ async function main() {
 
   // load the imagined "Immeasurable Spaces" codex (optional; button hides if absent)
   const qtr = new QtrData();
-  qtr.load().then(() => initCodex(qtr));
+  qtr.load().then(() => initCodex(qtr, app));
+
+  // real ↔ fiction bridge: jumping from a codex class to the real atlas category
+  // rebuilds the atlas browser (with the category pre-filtered) and shows it.
+  app.on('revealCategory', () => {
+    buildAtlasBrowser(app);
+    const tab = document.querySelector('.tab[data-tab="atlas"]');
+    if (tab) tab.click();
+  });
 
   app.start();
 

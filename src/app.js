@@ -9,7 +9,7 @@ import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture } from 
 import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
 import { RouteStore } from './data/routeStore.js';
-import { resolveSimbad } from './data/remote.js';
+import { resolveSimbad, growFromCatalogue } from './data/remote.js';
 
 // marker colours by type
 const MARK_COLOR = {
@@ -107,6 +107,39 @@ export class App {
   exportCustom() { return this.userStore.export(); }
   importCustom(json, opts) { const r = this.userStore.import(json, opts); this._rebuildCustom(); this.emit('custom', this.userStore.all()); return r; }
 
+  // Bulk-add real objects (from a live catalogue) as discovered records, deduping
+  // by name against the existing library. Rebuilds/persists once.
+  bulkAddDiscovered(objects) {
+    const seen = new Set(this.userStore.all().map((o) => o.name.toLowerCase()));
+    let added = 0;
+    for (const o of objects) {
+      if (!o.name || seen.has(o.name.toLowerCase())) continue;
+      seen.add(o.name.toLowerCase());
+      const cat = this.atlasCategories[o.category];
+      this.userStore.add({
+        kind: 'discovered', source: o.source || 'catalogue', name: o.name,
+        category: o.category, type: o.type || 'object', ra: o.ra, dec: o.dec, distLy: o.distLy || 0,
+        facts: `Imported live from ${o.source || 'a catalogue'}${cat ? ` · ${cat.label}` : ''}.`,
+      });
+      added++;
+    }
+    this._rebuildCustom();
+    this.emit('custom', this.userStore.all());
+    return added;
+  }
+
+  async growCatalogue(preset, opts = {}) {
+    let ra = 0, dec = 0;
+    if (preset === 'nearby') {
+      const d = new THREE.Vector3(); this.scene.camera.getWorldDirection(d);
+      const c = cartesianToRaDec(d.x, d.y, d.z); ra = c.ra; dec = c.dec;
+    }
+    const res = await growFromCatalogue(preset, { ...opts, ra, dec });
+    if (!res.ok) return res;
+    const added = this.bulkAddDiscovered(res.objects.map((o) => ({ ...o, source: res.source })));
+    return { ok: true, source: res.source, found: res.objects.length, added };
+  }
+
   async resolveAndAdd(name) {
     const res = await resolveSimbad(name);
     if (!res.ok) return res;
@@ -119,6 +152,22 @@ export class App {
     this.selectCustom(rec.id, { fly: true });
     return { ok: true, rec };
   }
+
+  // Real ↔ fiction bridge: reveal the real Cosmic Atlas objects of a category
+  // (e.g. a fictional "black hole" class -> the real black holes on the 3-D map).
+  revealAtlasCategory(catKey) {
+    const matches = this.atlas.map((o, i) => ({ o, i })).filter(({ o }) => o.category === catKey);
+    if (!matches.length) return { ok: false, count: 0 };
+    // setMode emits 'mode' synchronously, which rebuilds the atlas browser and
+    // consumes _atlasInitialCat — so set the pre-filter *after* the mode switch.
+    if (this.mode !== 'cosmos') this.setMode('cosmos');
+    this.showAtlas = true; this.cosmosAtlas.setVisible(true);
+    this.selectAtlas(matches[0].i, { fly: true });
+    this._atlasInitialCat = catKey;
+    this.emit('revealCategory', catKey);
+    return { ok: true, count: matches.length };
+  }
+  atlasCategoryCount(catKey) { return this.atlas.filter((o) => o.category === catKey).length; }
 
   selectCustom(id, { fly = false } = {}) {
     const o = this.userStore.get(id); if (!o) return;

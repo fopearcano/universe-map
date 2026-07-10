@@ -10,7 +10,21 @@ const LONG = ['reading', 'reframe_long', 'classic_reading', 'got_right', 'mistoo
 const LONG_LABEL = { reading: 'Reading', reframe_long: 'Reframe', classic_reading: 'Classic reading', got_right: 'Got right', mistook: 'Mistook', behaviour: 'Behaviour', escape: 'Escape protocol', houdini: 'VFX note', usage: 'Usage' };
 const SKIP = new Set(['id', 'type', 'name', 'jp', 'summary', 'links', 'sources', 'coords', 'map_layers', 'map_id', 'badges', 'attributes', 'resolved', ...LONG]);
 
-export function initCodex(qtr) {
+// Map a fictional object/event class to a real Cosmic-Atlas category via its
+// real-world anchor text (the real ↔ fiction bridge).
+function bridgeCategory(rec) {
+  const t = `${rec.real_anchor || ''} ${rec.name || ''} ${rec.category || ''}`.toLowerCase();
+  if (/black hole|seam-well/.test(t)) return 'smbh';
+  if (/pulsar|magnetar|neutron|beacon core/.test(t)) return 'pulsar';
+  if (/supernova|remnant|core fall/.test(t)) return 'supernova';
+  if (/nebula|h ii|hii|planetary|field veil/.test(t)) return 'nebula';
+  if (/galax|elliptical|spiral|lenticular|irregular|correlation island/.test(t)) return 'galaxy';
+  if (/quasar|blazar|agn/.test(t)) return 'quasar';
+  if (/giant|supergiant|hypergiant|swollen/.test(t)) return 'hyperstar';
+  return null;
+}
+
+export function initCodex(qtr, app) {
   const btn = document.getElementById('codex-btn');
   if (!qtr.loaded) { if (btn) btn.hidden = true; return; }
   if (btn) { btn.hidden = false; btn.onclick = () => open(); }
@@ -74,6 +88,14 @@ export function initCodex(qtr) {
     const linkRows = Object.entries(links).map(([rel, arr]) =>
       `<div class="cx-linkrow"><span class="cx-rel">${esc(REL_LABEL[rel] || rel)}</span><div class="cx-chips">${arr.map((t) => `<button class="cx-chip" data-goto="${esc(t.id)}">${esc(t.name)}<i>${esc(TYPE_LABEL[t.type] || t.type)}</i></button>`).join('')}</div></div>`).join('');
     const onMap = rec.type === 'map_node' ? `<button class="cx-mapbtn" data-diagram="${esc(rec.id)}">◇ show on diagram</button>` : '';
+    // Real ↔ fiction bridge: if this fictional class maps to a real Cosmic-Atlas
+    // category that has objects, offer to jump there on the 3-D map.
+    const bridge = app ? bridgeCategory(rec) : null;
+    const bridgeN = bridge ? app.atlasCategoryCount(bridge) : 0;
+    const bridgeLbl = bridge ? (app.atlasCategories[bridge]?.label || bridge) : '';
+    const bridgeBtn = bridgeN > 0
+      ? `<button class="cx-mapbtn cx-bridge" data-reveal="${esc(bridge)}">◎ show the real ${esc(bridgeLbl.toLowerCase())} on the map <i>${bridgeN}</i></button>`
+      : '';
     return `
       <div class="cx-d-head"><div class="cx-d-name">${esc(rec.name)}${jp}</div><div class="cx-d-type">${esc(TYPE_LABEL[rec.type] || rec.type)}</div></div>
       ${anchor ? `<div class="cx-anchor"><span class="cx-anchor-k">${esc(anchorLbl)}</span> ${esc(anchor)}</div>` : ''}
@@ -82,6 +104,7 @@ export function initCodex(qtr) {
       ${facts ? `<h4 class="cx-h">details</h4><dl class="cx-facts">${facts}</dl>` : ''}
       ${attrs ? `<h4 class="cx-h">attributes</h4><dl class="cx-facts">${attrs}</dl>` : ''}
       ${linkRows ? `<h4 class="cx-h">links</h4><div class="cx-links">${linkRows}</div>` : ''}
+      ${bridgeBtn ? `<div class="cx-bridgewrap">${bridgeBtn}</div>` : ''}
       ${onMap}
       ${rec.sources ? `<div class="cx-sources muted">source: ${esc((rec.sources || []).join(', '))}</div>` : ''}`;
   }
@@ -109,6 +132,7 @@ export function initCodex(qtr) {
     overlay.querySelectorAll('[data-type]').forEach((c) => { c.onclick = () => { activeType = c.dataset.type; render(); }; });
     overlay.querySelectorAll('[data-goto]').forEach((el) => { el.onclick = () => { selId = el.dataset.goto; view = 'browse'; render(); scrollDetail(); }; });
     overlay.querySelectorAll('[data-diagram]').forEach((el) => { el.onclick = () => { view = 'diagram'; render(); }; });
+    overlay.querySelectorAll('[data-reveal]').forEach((el) => { el.onclick = () => { close(); app.revealAtlasCategory(el.dataset.reveal); }; });
     const qi = overlay.querySelector('#cx-q');
     if (qi) qi.oninput = (e) => { q = e.target.value; const recs = filtered(); overlay.querySelector('.cx-list').innerHTML = recs.slice(0, 400).map((r) => `<div class="cx-item ${r.id === selId ? 'on' : ''}" data-goto="${esc(r.id)}"><span class="cx-it-nm">${esc(r.name)}</span><span class="cx-it-ty">${esc(TYPE_LABEL[r.type] || r.type)}</span></div>`).join('') || '<div class="cx-empty">no matches</div>'; overlay.querySelector('.cx-count').textContent = `${recs.length} records`; overlay.querySelectorAll('.cx-list [data-goto]').forEach((el) => { el.onclick = () => { selId = el.dataset.goto; view = 'browse'; render(); scrollDetail(); }; }); };
   }

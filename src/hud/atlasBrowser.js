@@ -6,7 +6,8 @@ export function buildAtlasBrowser(app) {
   const root = document.getElementById('tab-atlas');
   const cats = app.atlasCategories || {};
   const objs = app.atlas || [];
-  let activeCat = 'all', q = '';
+  let activeCat = app._atlasInitialCat || 'all', q = '';
+  app._atlasInitialCat = null;
 
   const rgb = (c) => `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`;
   const catKeys = Object.keys(cats);
@@ -23,6 +24,16 @@ export function buildAtlasBrowser(app) {
     <div class="studio-resolve">
       <input id="st-resolve" type="text" placeholder="resolve a real object live (SIMBAD)…" autocomplete="off" />
       <button class="btn sm" id="st-go">⟲</button>
+    </div>
+    <div class="studio-grow">
+      <select id="st-preset" title="grow the database from a live catalogue">
+        <option value="pulsars">pulsars · ATNF</option>
+        <option value="galaxies">galaxies · SIMBAD</option>
+        <option value="quasars">quasars · SIMBAD</option>
+        <option value="nearby">near view · SIMBAD</option>
+      </select>
+      <input id="st-count" type="number" min="10" max="1000" step="10" value="200" title="max count" />
+      <button class="btn sm" id="st-grow">◈ grow</button>
     </div>
     <div id="st-status" class="muted"></div>
     <input id="atlas-q" class="atlas-q" type="text" placeholder="filter the atlas…" autocomplete="off" spellcheck="false" />
@@ -52,6 +63,19 @@ export function buildAtlasBrowser(app) {
   };
   root.querySelector('#st-go').onclick = doResolve;
   resolve.addEventListener('keydown', (e) => { if (e.key === 'Enter') doResolve(); });
+
+  const growBtn = root.querySelector('#st-grow');
+  growBtn.onclick = async () => {
+    const preset = root.querySelector('#st-preset').value;
+    const count = +root.querySelector('#st-count').value || 200;
+    growBtn.disabled = true;
+    status.innerHTML = `<span style="color:var(--cyan)">growing from ${esc(preset)}…</span>`;
+    const r = await app.growCatalogue(preset, { count });
+    growBtn.disabled = false;
+    status.innerHTML = r.ok
+      ? `<span style="color:var(--green)">+${r.added} added</span> <span class="muted">(${r.found} found · ${esc(r.source)})</span>`
+      : `<span style="color:var(--amber)">${esc(r.note || 'failed')}</span>`;
+  };
 
   const chipsEl = root.querySelector('#atlas-chips');
   const mkChip = (key, label, color) => {
