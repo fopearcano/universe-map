@@ -58,9 +58,16 @@ export function buildCosmosLayers(app) {
   const root = document.getElementById('tab-layers');
   const m = app.cosmos.data.meta;
   root.innerHTML = `
-    <div class="muted" style="margin-bottom:10px">Reference shells & the cosmic microwave background.</div>
+    <div class="muted" style="margin-bottom:10px">Structures, clusters & the cosmic microwave background.</div>
+    <div class="toggle on" data-l="structures"><span>Large-scale structures</span><span class="sw"></span></div>
+    <div class="toggle on" data-l="clusters"><span>Star clusters</span><span class="sw"></span></div>
     <div class="toggle on" data-l="cmb"><span>CMB boundary shell</span><span class="sw"></span></div>
-    <button class="btn" id="c-home" style="margin-top:10px">⌂ recenter on the Sun</button>
+    <div class="ctl" style="margin-top:10px">
+      <label>CMB radiation opacity <span class="val" id="c-cmb-v">auto</span></label>
+      <input type="range" id="c-cmb-op" min="0" max="100" step="1" value="0" />
+      <div class="muted">0 = auto-fade with distance</div>
+    </div>
+    <button class="btn" id="c-home" style="margin-top:6px">⌂ recenter on the Sun</button>
     <div class="hr"></div>
     <div class="muted" style="line-height:1.7">
       <b style="color:var(--cyan)">Distance colour</b><br>
@@ -79,6 +86,16 @@ export function buildCosmosLayers(app) {
     </div>`;
   const cmb = root.querySelector('[data-l="cmb"]');
   cmb.onclick = () => { cmb.classList.toggle('on'); app.setCosmosFilter({ show: { cmb: cmb.classList.contains('on') } }); };
+  const structs = root.querySelector('[data-l="structures"]');
+  structs.onclick = () => { structs.classList.toggle('on'); app.setLayerVisible('structures', structs.classList.contains('on')); };
+  const clus = root.querySelector('[data-l="clusters"]');
+  clus.onclick = () => { clus.classList.toggle('on'); app.setLayerVisible('clusters', clus.classList.contains('on')); };
+  const op = root.querySelector('#c-cmb-op'), opv = root.querySelector('#c-cmb-v');
+  op.oninput = () => {
+    const val = +op.value;
+    if (val === 0) { opv.textContent = 'auto'; app.cosmos.setCmbOpacity(null); }
+    else { opv.textContent = (val / 100).toFixed(2); app.cosmos.setCmbOpacity(val / 100); }
+  };
   root.querySelector('#c-home').onclick = () => app.home();
 }
 

@@ -3,17 +3,22 @@ import { fmtRA, fmtDec, fmtDist, fmtLum } from '../util/astro.js';
 import { fmtCosmoDist, fmtMpc, fmtZ, lookbackGyr } from '../util/cosmology.js';
 import { fetchExoplanets } from '../data/remote.js';
 
-// Right-hand info dock. Renders stars (local mode) or galaxies/quasars (cosmos).
+// Right-hand info dock. Renders any selectable object and offers navigation
+// actions: fly-to, set-focus (re-centre the pivot), and add-to-route.
 export function initInfoPanel(app) {
   const dock = document.getElementById('infodock');
 
   app.on('select', (o) => {
     if (!o) { dock.hidden = true; dock.innerHTML = ''; return; }
     dock.hidden = false;
-    dock.innerHTML = o.kind === 'star' ? renderStar(o) : renderCosmos(o);
+    dock.innerHTML = o.kind === 'star' ? renderStar(o)
+      : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
+        : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const fly = dock.querySelector('#i-fly');
-    if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(o.worldPos));
+    if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
+    dock.querySelector('#i-focus').onclick = () => app.setFocus();
+    dock.querySelector('#i-route').onclick = () => app.addRouteWaypoint();
     const exo = dock.querySelector('#i-exo');
     if (exo) exo.onclick = () => runExo(o, dock);
   });
@@ -37,12 +42,12 @@ function renderStar(s) {
     ['Colour index B–V', s.ci.toFixed(3)], ['Right ascension', fmtRA(s.ra)], ['Declination', fmtDec(s.dec)],
     ['Constellation', s.con || '—'],
   ];
-  return head(s.name, ids.join('  ·  ') || 'uncatalogued', swatch) + grid(rows) + actions(!s.isSun);
+  return head(s.name, ids.join('  ·  ') || 'uncatalogued', swatch) + grid(rows) + actions({ exo: !s.isSun });
 }
 
 function renderCosmos(o) {
-  const isGx = o.kind === 'localgalaxy';
-  const swatch = o.kind === 'quasar' ? '#c86bff' : isGx ? '#9fe8ff' : '#7fd4ff';
+  const isQ = o.kind === 'quasar', isLG = o.kind === 'localgalaxy';
+  const swatch = isQ ? '#c86bff' : isLG ? '#9fe8ff' : '#7fd4ff';
   const rows = [];
   rows.push(['Type', o.sub || o.kind]);
   if (o.z != null) rows.push(['Redshift z', fmtZ(o.z), 'hl']);
@@ -53,8 +58,25 @@ function renderCosmos(o) {
   rows.push(['Right ascension', fmtRA(o.ra)]);
   rows.push(['Declination', fmtDec(o.dec)]);
   rows.push(['Survey', o.survey]);
-  const label = o.kind === 'quasar' ? 'QUASAR' : isGx ? '' : 'GALAXY';
-  return head(o.name, label ? `${label} · ${o.survey}` : o.survey, swatch) + grid(rows) + actions(false);
+  const note = (o.kind === 'galaxy' || isLG)
+    ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud (procedural — real per-star data exists only for the Milky Way).</div>' : '';
+  return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({}) + note;
+}
+
+function renderExtra(o) {
+  const isCluster = o.kind === 'cluster';
+  const swatch = isCluster ? '#aee0ff' : '#ff8ad0';
+  const rows = [];
+  rows.push(['Type', o.sub]);
+  if (isCluster) {
+    rows.push(['Distance', fmtDist(o.distPc), 'hl']);
+    rows.push(['', `${o.distPc.toLocaleString()} pc`]);
+  } else {
+    rows.push(['Distance', `${o.distGly >= 1 ? o.distGly.toFixed(2) + ' Gly' : (o.distGly * 1000).toFixed(0) + ' Mly'}`, 'hl']);
+    rows.push(['', `${o.distMpc.toLocaleString()} Mpc`]);
+  }
+  const note = o.note ? `<div class="muted" style="margin-top:8px;line-height:1.5">${esc(o.note)}</div>` : '';
+  return head(o.name, isCluster ? 'star cluster' : 'large-scale structure', swatch) + grid(rows) + actions({}) + note;
 }
 
 function head(name, sub, swatch) {
@@ -66,8 +88,13 @@ function head(name, sub, swatch) {
 function grid(rows) {
   return `<dl class="datagrid">${rows.map(([k, v, cls]) => `<dt>${esc(k)}</dt><dd class="${cls || ''}">${esc(v)}</dd>`).join('')}</dl>`;
 }
-function actions(withExo) {
-  return `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button>${withExo ? '<button class="btn sm" id="i-exo">◇ query exoplanets</button>' : ''}</div><div id="i-exo-out" class="muted" style="margin-top:8px"></div>`;
+function actions({ exo }) {
+  return `<div class="info-actions">
+    <button class="btn sm" id="i-fly">➤ fly to</button>
+    <button class="btn sm" id="i-focus" title="orbit around this object">◎ focus</button>
+    <button class="btn sm" id="i-route" title="add to route">＋ route</button>
+    ${exo ? '<button class="btn sm" id="i-exo">◇ exoplanets</button>' : ''}
+  </div><div id="i-exo-out" class="muted" style="margin-top:8px"></div>`;
 }
 
 async function runExo(star, dock) {

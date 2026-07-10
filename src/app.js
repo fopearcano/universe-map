@@ -5,14 +5,25 @@ import { Picker } from './render/picking.js';
 import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
+import { MarkerLayer, pickPositions, makeRingTexture } from './render/markers.js';
+import { PC_TO_LY } from './util/astro.js';
+import { comovingMpc } from './util/cosmology.js';
+
+// marker colours by type
+const MARK_COLOR = {
+  open: [0.6, 0.82, 1.0], globular: [1.0, 0.82, 0.42],
+  cluster: [1.0, 0.45, 0.85], supercluster: [1.0, 0.62, 0.32], attractor: [1.0, 0.42, 0.42],
+  wall: [0.55, 1.0, 0.66], void: [0.62, 0.66, 0.78],
+};
 
 // Central application state. Two modes share one renderer/camera/HUD chrome:
 //   local  — the true-scale stellar neighbourhood (parsecs, Sol at origin)
 //   cosmos — the whole observable universe on a logarithmic radial scale
 export class App {
-  constructor(canvas, catalog, cosmosData) {
+  constructor(canvas, catalog, cosmosData, extras = { clusters: [], structures: [] }) {
     this.catalog = catalog;
     this.cosmosData = cosmosData;
+    this.extras = extras;
     this.scene = new Scene(canvas);
     this.mode = 'local';
 
@@ -28,6 +39,8 @@ export class App {
     this.labels = new Labels(document.body);
     this.selection = null;      // { kind, worldPos, starIndex?, info }
     this.voyage = null;         // { source, def, index }
+    this.focus = null;          // { worldPos, truePos, label }
+    this.route = [];            // [{ worldPos, truePos, label, kind }]
     this._listeners = {};
     this._clock = new THREE.Clock();
     this._telAcc = 0;
@@ -35,9 +48,41 @@ export class App {
     this._selmark = document.getElementById('selmark');
     this._v = new THREE.Vector3();
     this._ray = new THREE.Raycaster();
+    this._bloom = null;
 
+    this._buildMarkers();
+    this._buildRouteLayer();
     this._applyLocalLabels();
     this._bindPointer(canvas);
+  }
+
+  // ---- clusters & large-scale structures ----
+  _buildMarkers() {
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    const localMax = this.catalog.meta.bounds.maxRadiusPc;
+    const ringOpen = makeRingTexture('#ffffff', true);
+    const mk = (it, pos, color, prio) => ({ pos, color, label: it.name, prio, data: it });
+
+    // LOCAL: clusters within the true-scale range, placed by real parsec position
+    const localItems = this.extras.clusters.filter((c) => c.distPc <= localMax * 1.02)
+      .map((c) => mk(c, new THREE.Vector3(c.pos[0], c.pos[1], c.pos[2]), MARK_COLOR[c.type] || [1, 1, 1], 8));
+    this.localClusters = new MarkerLayer(localItems, { size: 12, ring: ringOpen });
+    this.scene.scene.add(this.localClusters.points);
+    this.localClusters.setVisible(true);
+
+    // COSMOS: all clusters + structures, placed on the log-radial scale
+    const cItems = this.extras.clusters.map((c) => mk(c, new THREE.Vector3(...c.dir).multiplyScalar(c.displayR), MARK_COLOR[c.type] || [1, 1, 1], 6));
+    this.cosmosClusters = new MarkerLayer(cItems, { size: 11, ring: ringOpen });
+    const sItems = this.extras.structures.map((s) => mk(s, new THREE.Vector3(...s.dir).multiplyScalar(s.displayR), MARK_COLOR[s.type] || [1, 1, 1], 9));
+    this.cosmosStructures = new MarkerLayer(sItems, { size: 18, ring: makeRingTexture('#ffffff', false) });
+    if (this.cosmos) { this.cosmos.group.add(this.cosmosClusters.points); this.cosmos.group.add(this.cosmosStructures.points); }
+    this.showClusters = true; this.showStructures = true;
+  }
+
+  _buildRouteLayer() {
+    this.routeGroup = new THREE.Group();
+    this.scene.scene.add(this.routeGroup);
+    this._routeRing = makeRingTexture('#7bf0a0', true);
   }
 
   on(evt, cb) { (this._listeners[evt] ||= []).push(cb); return this; }
@@ -48,13 +93,18 @@ export class App {
     if (mode === this.mode) return;
     this.stopVoyage();
     this.clearSelection();
+    this.clearRoute();
+    this.clearFocus();
     this.mode = mode;
     if (mode === 'cosmos') {
       this.starfield.points.visible = false;
       this.scene.setReferenceVisible(false);
       this.voyageLayer.setVisible(false);
+      this.localClusters.setVisible(false);
       this.cosmos.setVisible(true);
       this.cosmos.applyFilter({});
+      this.cosmosClusters.setVisible(this.showClusters);
+      this.cosmosStructures.setVisible(this.showStructures);
       this._applyCosmosLabels();
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
@@ -62,10 +112,34 @@ export class App {
       this.cosmos.setVisible(false);
       this.starfield.points.visible = true;
       this.scene.setReferenceVisible(true);
+      this.localClusters.setVisible(this.showClusters);
       this._applyLocalLabels();
       this.scene.setView(new THREE.Vector3(14, 9, 17), new THREE.Vector3(0, 0, 0));
     }
     this.emit('mode', mode);
+  }
+
+  setLayerVisible(key, on) {
+    if (key === 'clusters') {
+      this.showClusters = on;
+      (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters).setVisible(on);
+      this._refreshMarkerLabels();
+    } else if (key === 'structures') {
+      this.showStructures = on;
+      this.cosmosStructures.setVisible(on);
+      this._refreshMarkerLabels();
+    }
+  }
+
+  _refreshMarkerLabels() {
+    const items = [];
+    if (this.mode === 'cosmos') {
+      if (this.showStructures) items.push(...this.cosmosStructures.labelItems().map((l) => ({ ...l, cls: 'lbl-structure' })));
+      if (this.showClusters) items.push(...this.cosmosClusters.labelItems().map((l) => ({ ...l, cls: 'lbl-cluster' })));
+    } else if (this.showClusters) {
+      items.push(...this.localClusters.labelItems().map((l) => ({ ...l, cls: 'lbl-cluster' })));
+    }
+    this.labels.setMarkers(items);
   }
 
   _applyLocalLabels() {
@@ -75,6 +149,7 @@ export class App {
       text: l.name, prio: -this.catalog.mag[l.i],
     })));
     this.labels.setVoyage([]);
+    this._refreshMarkerLabels();
   }
 
   _applyCosmosLabels() {
@@ -82,29 +157,52 @@ export class App {
     this.labels.setStatic(rings);
     this.labels.setStars(localGroup);
     this.labels.setVoyage([]);
+    this._refreshMarkerLabels();
   }
 
   // ================= selection =================
+  // truePos = real position in PARSECS (universal metric unit for route distances)
   selectStar(i, { fly = false } = {}) {
     if (i < 0) { this.clearSelection(); return; }
     const info = this.catalog.star(i);
     info.kind = 'star';
-    this.selection = { kind: 'star', starIndex: i, worldPos: new THREE.Vector3(info.x, info.y, info.z), info };
-    this.emit('select', info);
-    if (fly) this.scene.flyTo(this.selection.worldPos);
+    const worldPos = new THREE.Vector3(info.x, info.y, info.z);
+    this._setSelection({ kind: 'star', starIndex: i, worldPos, truePos: worldPos.clone(), info });
+    if (fly) this.scene.flyTo(worldPos);
   }
 
   selectObject(hit, { fly = false } = {}) {
     if (!hit) { this.clearSelection(); return; }
     const info = this.cosmos.describe(hit);
-    this.selection = { kind: info.kind, worldPos: info.worldPos.clone(), info };
-    this.emit('select', info);
+    const truePos = new THREE.Vector3(...info.dir).multiplyScalar(info.comovingMpc * 1e6);
+    this._setSelection({ kind: info.kind, worldPos: info.worldPos.clone(), truePos, info });
+    this._maybeBloom(info);
     if (fly) this.scene.flyTo(this.selection.worldPos);
+  }
+
+  selectExtra(kind, i, { fly = false } = {}) {
+    const it = (kind === 'cluster'
+      ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters)
+      : this.cosmosStructures).items[i];
+    if (!it) return;
+    const d = it.data;
+    const info = kind === 'cluster'
+      ? { kind: 'cluster', name: d.name, sub: `${d.type} cluster`, distPc: d.distPc, distLy: d.distLy, dir: d.dir }
+      : { kind: 'structure', name: d.name, sub: d.type, note: d.note, distMpc: d.distMpc, distGly: d.distGly, dir: d.dir };
+    const truePos = new THREE.Vector3(...d.dir).multiplyScalar(kind === 'cluster' ? d.distPc : d.distMpc * 1e6);
+    this._setSelection({ kind: info.kind, worldPos: it.pos.clone(), truePos, info });
+    if (fly) this.scene.flyTo(it.pos);
+  }
+
+  _setSelection(sel) {
+    this.selection = sel;
+    this.emit('select', sel.info);
   }
 
   clearSelection() {
     this.selection = null;
     this._selmark.hidden = true;
+    this._clearBloom();
     this.emit('select', null);
   }
 
@@ -113,8 +211,98 @@ export class App {
 
   home() {
     this.clearSelection();
+    this.clearFocus();
     if (this.mode === 'cosmos') { const v = this.cosmos.defaultView(); this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.2 }); }
     else this.scene.flyTo(new THREE.Vector3(0, 0, 0), { approach: 22, dur: 1.2 });
+  }
+
+  // ================= focus (re-centre the pivot, nautical-chart style) =================
+  setFocus() {
+    if (!this.selection) return;
+    const s = this.selection;
+    this.focus = { worldPos: s.worldPos.clone(), truePos: s.truePos.clone(), label: s.info.name || s.info.designation || 'object' };
+    this.scene.flyTo(s.worldPos.clone(), { dur: 1.0 });
+    this.emit('focus', this.focus);
+  }
+  clearFocus() {
+    if (!this.focus) return;
+    this.focus = null;
+    this.emit('focus', null);
+  }
+
+  // ================= route planning =================
+  addRouteWaypoint() {
+    if (!this.selection) return;
+    const s = this.selection;
+    this.route.push({ worldPos: s.worldPos.clone(), truePos: s.truePos.clone(), label: s.info.name || s.info.designation || `point ${this.route.length + 1}`, kind: s.kind });
+    this._redrawRoute();
+    this.emit('route', this._routeSummary());
+  }
+  removeRouteWaypoint(idx) {
+    if (idx == null) this.route.pop(); else this.route.splice(idx, 1);
+    this._redrawRoute();
+    this.emit('route', this._routeSummary());
+  }
+  clearRoute() {
+    if (!this.route.length && !this.routeGroup.children.length) return;
+    this.route = [];
+    this._redrawRoute();
+    this.emit('route', this._routeSummary());
+  }
+
+  _routeSummary() {
+    const legs = [];
+    let total = 0;
+    for (let i = 1; i < this.route.length; i++) {
+      const dpc = this.route[i].truePos.distanceTo(this.route[i - 1].truePos);
+      total += dpc;
+      legs.push({ from: this.route[i - 1].label, to: this.route[i].label, ly: dpc * PC_TO_LY });
+    }
+    return { points: this.route.map((r) => ({ label: r.label, kind: r.kind })), legs, totalLy: total * PC_TO_LY };
+  }
+
+  _redrawRoute() {
+    for (const o of [...this.routeGroup.children]) { this.routeGroup.remove(o); o.geometry?.dispose?.(); o.material?.dispose?.(); }
+    if (this.route.length < 1) return;
+    if (this.route.length >= 2) {
+      const g = new THREE.BufferGeometry().setFromPoints(this.route.map((r) => r.worldPos));
+      const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x7bf0a0, transparent: true, opacity: 0.85 }));
+      line.frustumCulled = false; this.routeGroup.add(line);
+    }
+    const arr = new Float32Array(this.route.length * 3);
+    this.route.forEach((r, i) => { arr[i * 3] = r.worldPos.x; arr[i * 3 + 1] = r.worldPos.y; arr[i * 3 + 2] = r.worldPos.z; });
+    const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    const mk = new THREE.Points(mg, new THREE.PointsMaterial({ size: 15, map: this._routeRing, sizeAttenuation: false, transparent: true, color: 0x7bf0a0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    mk.frustumCulled = false; this.routeGroup.add(mk);
+  }
+
+  // ================= galaxy LOD "bloom" (illustrative) =================
+  _maybeBloom(info) {
+    this._clearBloom();
+    if (info.kind !== 'galaxy' && info.kind !== 'localgalaxy') return;
+    const center = info.worldPos, N = 2600;
+    const pos = new Float32Array(N * 3);
+    // seed a plausible disc+bulge from the object's own coordinates (deterministic)
+    let seed = Math.floor(Math.abs(center.x * 733 + center.y * 977 + center.z * 613)) % 2147483647 || 12345;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const R = 0.32, tilt = rnd() * Math.PI;
+    for (let i = 0; i < N; i++) {
+      const bulge = rnd() < 0.3;
+      const r = bulge ? Math.pow(rnd(), 2) * R * 0.4 : Math.pow(rnd(), 0.6) * R;
+      const a = rnd() * Math.PI * 2 + r * 6;
+      let x = Math.cos(a) * r, y = Math.sin(a) * r, z = (rnd() - 0.5) * (bulge ? R * 0.3 : R * 0.06);
+      const yt = y * Math.cos(tilt) - z * Math.sin(tilt); z = y * Math.sin(tilt) + z * Math.cos(tilt); y = yt;
+      pos[i * 3] = center.x + x; pos[i * 3 + 1] = center.y + y; pos[i * 3 + 2] = center.z + z;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({ size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0.7, color: 0xcfe0ff, depthWrite: false, blending: THREE.AdditiveBlending });
+    this._bloom = new THREE.Points(g, m); this._bloom.frustumCulled = false;
+    this.scene.scene.add(this._bloom);
+  }
+  _clearBloom() {
+    if (!this._bloom) return;
+    this.scene.scene.remove(this._bloom); this._bloom.geometry.dispose(); this._bloom.material.dispose();
+    this._bloom = null;
   }
 
   // ================= filters =================
@@ -195,9 +383,18 @@ export class App {
     let down = null;
     const ndc = (e) => ({ x: (e.clientX / window.innerWidth) * 2 - 1, y: -(e.clientY / window.innerHeight) * 2 + 1 });
     const pickAt = (e) => {
-      if (this.mode === 'local') { const i = this.starPicker.pick(ndc(e)); return i >= 0 ? { star: i } : null; }
       this._ray.setFromCamera(ndc(e), this.scene.camera); this._ray.camera = this.scene.camera;
+      // labelled markers (clusters/structures) take priority when the cursor is on them
+      const ex = this._pickExtra();
+      if (ex) return ex;
+      if (this.mode === 'local') { const i = this.starPicker.pick(ndc(e)); return i >= 0 ? { star: i } : null; }
       return this.cosmos.pick(this._ray);
+    };
+    const dispatch = (hit, fly) => {
+      if (!hit) { if (!fly) this.clearSelection(); return; }
+      if (hit.star != null) this.selectStar(hit.star, { fly });
+      else if (hit.extra) this.selectExtra(hit.extra.kind, hit.extra.i, { fly });
+      else this.selectObject(hit, { fly });
     };
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now(), btn: e.button }; });
     canvas.addEventListener('pointerup', (e) => {
@@ -205,15 +402,9 @@ export class App {
       const isClick = Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && performance.now() - down.t < 400 && down.btn === 0;
       down = null;
       if (!isClick) return;
-      const hit = pickAt(e);
-      if (!hit) { this.clearSelection(); return; }
-      if (hit.star != null) this.selectStar(hit.star); else this.selectObject(hit);
+      dispatch(pickAt(e), false);
     });
-    canvas.addEventListener('dblclick', (e) => {
-      const hit = pickAt(e);
-      if (!hit) return;
-      if (hit.star != null) this.selectStar(hit.star, { fly: true }); else this.selectObject(hit, { fly: true });
-    });
+    canvas.addEventListener('dblclick', (e) => dispatch(pickAt(e), true));
     canvas.addEventListener('pointermove', (e) => { this._hover.need = true; this._hover.x = e.clientX; this._hover.y = e.clientY; });
     canvas.addEventListener('pointerleave', () => { this.emit('hover', null); this._hover.key = ''; });
   }
@@ -243,17 +434,44 @@ export class App {
     this._selmark.style.top = (-this._v.y * 0.5 + 0.5) * window.innerHeight + 'px';
   }
 
+  _pickExtra() {
+    const cam = this.scene.camera;
+    let best = null, bestAng = Infinity;
+    const check = (layer, kind, show) => {
+      if (!show || !layer.positions.length) return;
+      const r = pickPositions(this._ray, layer.positions, cam, 13);
+      if (r && r.ang < bestAng) { best = { extra: { kind, i: r.i } }; bestAng = r.ang; }
+    };
+    if (this.mode === 'cosmos') {
+      check(this.cosmosStructures, 'structure', this.showStructures);
+      check(this.cosmosClusters, 'cluster', this.showClusters);
+    } else check(this.localClusters, 'cluster', this.showClusters);
+    return best;
+  }
+
   _updateHover() {
     const now = performance.now();
     if (!this._hover.need || now - this._hover.last < 100) return;
     this._hover.last = now; this._hover.need = false;
     const ndc = { x: (this._hover.x / window.innerWidth) * 2 - 1, y: -(this._hover.y / window.innerHeight) * 2 + 1 };
+    this._ray.setFromCamera(ndc, this.scene.camera); this._ray.camera = this.scene.camera;
+    const ex = this._pickExtra();
+    if (ex) {
+      const key = `${ex.extra.kind}${ex.extra.i}`;
+      if (key !== this._hover.key) {
+        this._hover.key = key;
+        const layer = ex.extra.kind === 'cluster' ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters) : this.cosmosStructures;
+        const d = layer.items[ex.extra.i].data;
+        const text = ex.extra.kind === 'cluster' ? `${esc(d.name)} · ${esc(d.type)} cluster` : `${esc(d.name)} · ${esc(d.type)}`;
+        this.emit('hover', { text, x: this._hover.x, y: this._hover.y });
+      }
+      return;
+    }
     if (this.mode === 'local') {
       const i = this.starPicker.pick(ndc, 12);
       const key = 'star' + i;
       if (key !== this._hover.key) { this._hover.key = key; this.emit('hover', i >= 0 ? { text: hoverStar(this.catalog.star(i)), x: this._hover.x, y: this._hover.y } : null); }
     } else {
-      this._ray.setFromCamera(ndc, this.scene.camera); this._ray.camera = this.scene.camera;
       const hit = this.cosmos.pick(this._ray);
       const key = hit ? `${hit.kind}${hit.layer || ''}${hit.i}` : '';
       if (key !== this._hover.key) {
@@ -273,6 +491,7 @@ export class App {
       mode: this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
       visible: this.mode === 'local' ? this.starfield.visibleCount : this.cosmos.visibleCount(),
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
+      focus: this.focus ? this.focus.label : null,
     });
   }
 }

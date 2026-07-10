@@ -210,6 +210,40 @@ select:focus { outline: none; border-color: var(--cyan); }
 .lbl-ref, .lbl-ring { color: var(--dim); font-size: 9px; letter-spacing: 0.12em; }
 .lbl-axis { color: #8fb8c8; font-size: 9px; letter-spacing: 0.16em; }
 .lbl-voyage { color: var(--amber); font-size: 10px; margin: -18px 0 0 10px; text-shadow: 0 0 5px #000, 0 0 10px rgba(0,0,0,0.9); }
+.lbl-cluster { color: #aee0ff; font-size: 9.5px; margin: -6px 0 0 8px; text-shadow: 0 0 5px #000; }
+.lbl-structure { color: #ff9ad6; font-size: 10px; letter-spacing: 0.04em; margin: -6px 0 0 9px; text-shadow: 0 0 5px #000, 0 0 9px rgba(0,0,0,0.9); }
+.lbl-marker { color: var(--ink); font-size: 10px; }
+
+/* ---------- focus chip + route panel (nautical chart) ---------- */
+#focuschip {
+  position: fixed; top: 78px; left: 50%; transform: translateX(-50%); z-index: 13;
+  background: var(--panel-solid); border: 1px solid var(--amber); border-radius: 20px;
+  padding: 4px 6px 4px 12px; font-size: 11px; letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 0 16px rgba(255,180,84,0.25);
+}
+#focuschip .fc-k { color: var(--amber); }
+#focuschip .fc-v { color: var(--ink); }
+#focuschip .fc-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 4px; }
+#focuschip .fc-x:hover { color: var(--red); }
+
+#routepanel {
+  position: fixed; right: 12px; bottom: 40px; z-index: 13; width: 268px;
+  background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px;
+  backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+.rp-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.rp-title { color: var(--green); letter-spacing: 0.08em; font-size: 11px; }
+.rp-title b { color: var(--ink); }
+.rp-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px; }
+.rp-x:hover { color: var(--red); }
+.rp-legs { max-height: 32vh; overflow-y: auto; }
+.rp-leg { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+.rp-leg .v { color: var(--green); white-space: nowrap; }
+.rp-total { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-strong); font-size: 12px; }
+.rp-total .v { color: var(--green); }
+.rp-hint { font-size: 9.5px; margin: 8px 0; line-height: 1.5; }
+.rp-ctrls { display: flex; gap: 6px; }
+.rp-ctrls .btn { width: auto; flex: 1; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 760px) {

@@ -176,10 +176,14 @@ export class CosmosWorld {
     );
   }
 
+  // Manual CMB opacity override (null = auto fade with camera distance).
+  setCmbOpacity(v) { this._cmbOverride = v; }
+
   // Fade the CMB shell in as the camera pulls out toward the horizon, so it stays
   // a faint backdrop while exploring the interior and only asserts itself at the edge.
   update(camera) {
     if (!this.cmb || !this.cmb.visible) return;
+    if (this._cmbOverride != null) { this.cmb.material.opacity = this._cmbOverride; return; }
     const frac = Math.min(1, camera.position.length() / this.cmbR);
     this.cmb.material.opacity = 0.06 + 0.28 * frac * frac;
   }
@@ -259,8 +263,8 @@ export class CosmosWorld {
       const v = this.localGroupPos[hit.i];
       const { ra, dec } = dirToRaDec(g.dir);
       return {
-        kind: 'localgalaxy', name: g.name, sub: g.type,
-        worldPos: v.clone(),
+        kind: 'localgalaxy', name: g.name, designation: g.name, sub: g.type,
+        worldPos: v.clone(), dir: g.dir,
         ra, dec, distMpc: g.distMpc, z: null, comovingMpc: g.distMpc, distLy: g.distLy,
         survey: 'Local Group', lookback: (g.distLy / 1e9),
       };
@@ -273,11 +277,13 @@ export class CosmosWorld {
     const v = new THREE.Vector3(L.worldPos[i * 3], L.worldPos[i * 3 + 1], L.worldPos[i * 3 + 2]);
     const { ra, dec } = dirToRaDec(dir);
     const survey = hit.layer === 'twomrs' ? '2MASS Redshift Survey' : 'Sloan Digital Sky Survey';
+    const prefix = hit.layer === 'twomrs' ? '2MASX' : 'SDSS';
     return {
       kind: hit.kind, // 'galaxy' | 'quasar'
-      name: hit.kind === 'quasar' ? 'Quasar' : 'Galaxy',
-      sub: survey,
-      worldPos: v, ra, dec, z, comovingMpc: mpc, distLy: mpc * 3.2615638e6, survey,
+      name: `${prefix} ${jCoord(ra, dec)}`,
+      designation: `${prefix} ${jCoord(ra, dec)}`,
+      sub: `${hit.kind === 'quasar' ? 'quasar' : 'galaxy'} · ${survey}`,
+      worldPos: v, dir, ra, dec, z, comovingMpc: mpc, distLy: mpc * 3.2615638e6, survey,
     };
   }
 
@@ -307,6 +313,13 @@ function dirToRaDec(d) {
   const dec = Math.asin(d[2]) * 180 / Math.PI;
   let ra = Math.atan2(d[1], d[0]) * 180 / Math.PI; if (ra < 0) ra += 360;
   return { ra: ra / 15, dec };
+}
+// IAU-style Jhhmmss.s±ddmmss designation from RA (hours) + Dec (deg).
+function jCoord(raH, decD) {
+  const p2 = (n) => String(Math.floor(n)).padStart(2, '0');
+  const rh = Math.floor(raH), rm = Math.floor((raH - rh) * 60), rs = ((raH - rh) * 60 - rm) * 60;
+  const sign = decD < 0 ? '−' : '+', ad = Math.abs(decD), dd = Math.floor(ad), dm = Math.floor((ad - dd) * 60), ds = ((ad - dd) * 60 - dm) * 60;
+  return `J${p2(rh)}${p2(rm)}${rs.toFixed(1).padStart(4, '0')}${sign}${p2(dd)}${p2(dm)}${p2(Math.floor(ds))}`;
 }
 function makeRingTexture() {
   const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;

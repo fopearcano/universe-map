@@ -46,9 +46,21 @@ cosmos becomes a navigable onion centred on the Sun:
 | The horizon | **real WMAP 9-yr CMB** shell at z≈1100 | boundary at 45.4 Gly |
 
 Objects are coloured by distance (cyan near → crimson far, mirroring redshift).
-A **redshift slider peels back the universe** by look-back distance; toggle each
-catalogue; click any galaxy/quasar for its redshift, comoving distance (Gly &
-Mpc), look-back time, RA/Dec and survey.
+A **redshift slider peels back the universe** by look-back distance; a manual
+**CMB opacity** control overrides the auto-fade; toggle each catalogue; click any
+galaxy/quasar for its redshift, comoving distance (Gly & Mpc), look-back time,
+RA/Dec, survey and a derived **IAU-style designation** (e.g. `SDSS J120702.4−024415`).
+
+### On object counts, "galaxies made of stars", and LOD
+
+The map plots ~430,000 real objects. That is *not* an arbitrary cap you can lift
+to "hundreds of billions": the observable universe holds ~10²² stars, and a
+browser GPU renders a few million points at most (tens of millions with heavy
+LOD). Just as importantly, **per-star data simply does not exist** for other
+galaxies — only for our own Milky Way (via Gaia). So selecting a galaxy blooms it
+into a **procedural, illustrative star cloud** (clearly labelled as a
+representation, not a catalogue) to convey that galaxies are made of stars —
+honest about the fact that no catalogue resolves them.
 
 ## Story voyages
 
@@ -65,15 +77,37 @@ traced across the map, the way Ulysses' or Darwin's voyages are charted.
   the Milky Way, Local Group, supercluster, cosmic web and quasar era to the CMB,
   progressively revealing more distant objects at each stop.
 
+## Planning routes — the nautical chart
+
+The map doubles as a chart for plotting a story voyage. Select any object and use
+its panel to **◎ focus** (re-centre the orbit pivot on it, so you navigate around
+*it* instead of the Sun) or **＋ route** (add it as a waypoint). The route panel
+then draws the path and lists the **true metric distance** of every leg and the
+total.
+
+Crucially, those distances are always *physically correct* even in COSMOS mode:
+the display radius there is logarithmic, but every object also carries its real
+direction and distance, so leg lengths are computed from true 3-D positions
+(parsecs → ly / Mly / Gly). LOCAL mode is metrically exact throughout.
+
+Also plotted: **star clusters** (open + globular) in both modes, and named
+**large-scale structures** in COSMOS — the Virgo & Coma clusters, the Great
+Attractor, the Shapley & Laniakea superclusters, the Sloan Great Wall, the Boötes
+Void and more.
+
 ## Controls
 
 | Action | Input |
 | --- | --- |
 | Orbit / pan / zoom | drag · right-drag · scroll |
 | Select object | click · **fly to**: double-click |
+| Re-centre pivot on object | object panel ▸ ◎ focus |
+| Add waypoint / trace a route | object panel ▸ ＋ route |
 | Switch scale | LOCAL / COSMOS toggle (top bar) |
 | Search / jump | top search box |
-| Recenter | Layers ▸ recenter on Sol |
+| Recenter on Sol | Layers ▸ recenter · focus chip ✕ |
+
+Dev/preview server runs on **port 5333** (`npm run dev`).
 
 ---
 

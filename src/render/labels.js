@@ -9,7 +9,7 @@ export class Labels {
     this.layer.id = 'labels';
     Object.assign(this.layer.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '4', overflow: 'hidden' });
     container.appendChild(this.layer);
-    this.groups = { static: [], stars: [], voyage: [] };
+    this.groups = { static: [], stars: [], voyage: [], markers: [] };
     this._v = new THREE.Vector3();
     this.showStars = true;
   }
@@ -38,6 +38,11 @@ export class Labels {
     this.groups.voyage = (items || []).map((it) => ({ pos: it.pos.clone(), el: this._make('lbl-voyage', it.text), prio: 50 }));
   }
 
+  setMarkers(items) {
+    this._clear('markers');
+    this.groups.markers = (items || []).map((it) => ({ pos: it.pos.clone(), el: this._make(it.cls || 'lbl-marker', it.text), prio: 40 }));
+  }
+
   _clear(key) {
     for (const l of this.groups[key]) l.el.remove();
     this.groups[key] = [];
@@ -60,7 +65,7 @@ export class Labels {
       return { x, y };
     };
 
-    for (const l of [...this.groups.static, ...this.groups.voyage]) {
+    for (const l of [...this.groups.static, ...this.groups.voyage, ...this.groups.markers]) {
       const s = project(l);
       if (!s) { l.el.style.display = 'none'; continue; }
       l.el.style.display = '';
