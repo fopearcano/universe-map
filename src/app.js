@@ -9,7 +9,7 @@ import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGl
 import { StructureShapes } from './render/structures.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
-import { fetchGalaxyImage, loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, cutoutURL } from './render/galaxyImage.js';
+import { loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, pickSurveyImage } from './render/galaxyImage.js';
 import { GalaxyBillboards } from './render/galaxyBillboards.js';
 import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
@@ -292,8 +292,13 @@ export class App {
       const kpc = diameterKpcFor(g);
       items.push({ pos: new THREE.Vector3(...g.dir).multiplyScalar(g.displayR), raDeg: g.ra, dec: g.dec, distMpc: g.distMpc, diameterKpc: kpc, size: sizeFor(kpc) });
     }
-    const urlFor = (it) => this._gxImageOverride || cutoutURL(it.raDeg, it.dec, fovForGalaxy(it.distMpc, it.diameterKpc), { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 256 });
-    this.galaxyBillboards = new GalaxyBillboards(this.cosmos.group, items, { urlFor });
+    const surveys = this._gxSurvey ? [this._gxSurvey, 'CDS/P/DSS2/color'] : undefined; // SDSS→DSS2 auto
+    const loadTexture = async (it) => {
+      if (this._gxImageOverride) { const d = await loadImageData(this._gxImageOverride); return new THREE.CanvasTexture(d.canvas); }
+      const r = await pickSurveyImage(it.raDeg, it.dec, fovForGalaxy(it.distMpc, it.diameterKpc), { surveys, size: 256 });
+      return new THREE.CanvasTexture(r.imgData.canvas);
+    };
+    this.galaxyBillboards = new GalaxyBillboards(this.cosmos.group, items, { loadTexture });
   }
 
   setGalaxyImagery(on) {
@@ -334,12 +339,13 @@ export class App {
     }
     const pcPerUnit = (diameterKpc * 500) / R;      // (D/2 in pc) / R
 
-    let cloud = null, imageDerived = false;
+    const surveys = this._gxSurvey ? [this._gxSurvey, 'CDS/P/DSS2/color'] : undefined; // undefined → SDSS→DSS2 auto
+    let cloud = null, imageDerived = false, survey = null;
     if (this._gxImageOverride || (raDeg != null && dec != null)) {
       try {
-        const imgData = this._gxImageOverride
-          ? await loadImageData(this._gxImageOverride)
-          : await fetchGalaxyImage(raDeg, dec, distMpc, { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 512, fovDeg });
+        let imgData;
+        if (this._gxImageOverride) { imgData = await loadImageData(this._gxImageOverride); survey = 'custom'; }
+        else { const r = await pickSurveyImage(raDeg, dec, fovDeg, { surveys, size: 512 }); imgData = r.imgData; survey = surveyLabel(r.survey); }
         const c = imageToCloud(imgData, { count, R, thickness: 0.05, seed });
         if (c.count > count * 0.4) { cloud = c; imageDerived = true; }
       } catch (e) { /* offline / CORS blocked → procedural fallback */ }
@@ -356,8 +362,8 @@ export class App {
     this._hideForInterior();
     this.clearSelection(); this.clearRoute(); this.clearFocus();
     this.scene.setView(new THREE.Vector3(R * 0.9, R * 0.45, R * 1.15), new THREE.Vector3(0, 0, 0));
-    this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count, diameterKpc });
-    return { ok: true, imageDerived, count: cloud.count, diameterKpc };
+    this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count, diameterKpc, survey });
+    return { ok: true, imageDerived, count: cloud.count, diameterKpc, survey };
   }
 
   exitGalaxy() {
@@ -1108,6 +1114,14 @@ function fmtLy(ly) {
   return `${ly.toFixed(0)} ly`;
 }
 function hoverStar(s) { return `${esc(s.name)} · ${esc(s.spect)} · ${s.distLy.toFixed(1)} ly`; }
+function surveyLabel(hips) {
+  if (!hips) return null;
+  if (/sdss/i.test(hips)) return 'SDSS';
+  if (/dss2/i.test(hips)) return 'DSS2';
+  if (/2mass/i.test(hips)) return '2MASS';
+  if (/panstarrs|ps1/i.test(hips)) return 'PanSTARRS';
+  return hips.split('/').pop();
+}
 function hoverCosmos(o) {
   if (o.kind === 'localgalaxy') return `${esc(o.name)} · ${(o.distLy / 1e6).toFixed(1)} Mly`;
   if (o.kind === 'procedural') return `✦ ${esc(o.name)} · z=${o.z.toFixed(3)} · imagined`;

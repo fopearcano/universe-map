@@ -6,9 +6,9 @@ import * as THREE from 'three';
 // time the layer is shown. Additive blending means the image's black background
 // drops out, so each galaxy floats as light, not a black card.
 export class GalaxyBillboards {
-  constructor(parent, items, { urlFor } = {}) {
-    this.items = items;          // [{ pos:Vector3, size, url? }]
-    this.urlFor = urlFor;        // (item) => cutout URL
+  constructor(parent, items, { loadTexture } = {}) {
+    this.items = items;            // [{ pos:Vector3, size, ... }]
+    this.loadTexture = loadTexture; // async (item) => THREE.Texture | null (auto-picks survey)
     this.meshes = [];
     this._loaded = false;
     this.group = new THREE.Group();
@@ -21,8 +21,6 @@ export class GalaxyBillboards {
   _load() {
     if (this._loaded) return;
     this._loaded = true;
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
     for (const it of this.items) {
       const geo = new THREE.PlaneGeometry(it.size, it.size);
       const mat = new THREE.MeshBasicMaterial({
@@ -34,11 +32,9 @@ export class GalaxyBillboards {
       m.frustumCulled = false;
       this.group.add(m);
       this.meshes.push(m);
-      const url = it.url || this.urlFor(it);
-      loader.load(url,
-        (tex) => { tex.colorSpace = THREE.SRGBColorSpace; mat.map = tex; mat.opacity = 0.92; mat.needsUpdate = true; },
-        undefined,
-        () => { /* offline / blocked — leave the quad invisible */ });
+      this.loadTexture(it)
+        .then((tex) => { if (!tex) return; tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; mat.map = tex; mat.opacity = 0.92; mat.needsUpdate = true; })
+        .catch(() => { /* offline / blocked — leave the quad invisible */ });
     }
   }
 

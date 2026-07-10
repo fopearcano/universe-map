@@ -53,7 +53,7 @@ export function fovForGalaxy(distMpc, diameterKpc = 30) {
 }
 export function fovForDistance(distMpc) { return fovForGalaxy(distMpc, 30); }
 
-// Fetch a URL into an {data, w, h} pixel buffer via an anonymous-CORS image.
+// Fetch a URL into an {data, w, h, canvas} pixel buffer via an anonymous-CORS image.
 export async function loadImageData(url, { timeout = 12000 } = {}) {
   const img = new Image();
   img.crossOrigin = 'anonymous';
@@ -67,10 +67,45 @@ export async function loadImageData(url, { timeout = 12000 } = {}) {
   const ctx = cv.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0, w, h);
   const d = ctx.getImageData(0, 0, w, h);
-  return { data: d.data, w, h, url };
+  return { data: d.data, w, h, url, canvas: cv };
 }
 
-// Convenience: fetch a galaxy cutout by sky position.
+// Fraction of pixels that carry actual sky coverage (opaque + non-black). HiPS
+// tiles outside a survey's footprint come back fully transparent, so this cleanly
+// separates "in footprint" from "not covered".
+export function coveredFraction(imgData) {
+  const d = imgData.data, N = imgData.w * imgData.h;
+  let covered = 0;
+  for (let p = 0; p < N; p++) {
+    const a = d[p * 4 + 3];
+    if (a > 24 && (d[p * 4] + d[p * 4 + 1] + d[p * 4 + 2]) > 12) covered++;
+  }
+  return covered / N;
+}
+
+// The default survey preference: SDSS colour (sharp) where covered, DSS2 all-sky
+// everywhere else.
+export const DEFAULT_SURVEYS = ['CDS/P/SDSS9/color', 'CDS/P/DSS2/color'];
+
+// Fetch a cutout, auto-selecting the sharpest survey that actually covers the
+// position. Tries each survey in order; the first with enough real coverage wins,
+// otherwise the last (all-sky DSS2) is used. Returns { imgData, survey }.
+export async function pickSurveyImage(raDeg, dec, fovDeg, { surveys = DEFAULT_SURVEYS, size = 384, minCover = 0.12, timeout = 12000 } = {}) {
+  let last = null;
+  for (let i = 0; i < surveys.length; i++) {
+    const survey = surveys[i];
+    try {
+      const imgData = await loadImageData(cutoutURL(raDeg, dec, fovDeg, { survey, size }), { timeout });
+      last = { imgData, survey };
+      if (i === surveys.length - 1) return last;         // last option: take it as-is
+      if (coveredFraction(imgData) >= minCover) return last; // covered → sharpest wins
+    } catch (e) { /* try the next survey */ }
+  }
+  if (last) return last;
+  throw new Error('no survey returned an image');
+}
+
+// Convenience: fetch a galaxy cutout by sky position (single survey).
 export async function fetchGalaxyImage(ra, dec, distMpc, opts = {}) {
   const fov = opts.fovDeg || fovForDistance(distMpc);
   return loadImageData(cutoutURL(ra, dec, fov, opts), opts);

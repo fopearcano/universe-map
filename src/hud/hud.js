@@ -28,7 +28,7 @@ function initGalaxyBanner(app) {
     const q = app.qualityStarCount();
     b.innerHTML = `
       <span class="gb-name">⛶ INSIDE <b>${esc(e.name)}</b></span>
-      <span class="gb-src">${e.imageDerived ? 'image-derived field' : 'procedural field'} · ${(e.count || 0).toLocaleString('en-US')} stars${e.diameterKpc ? ` · ⌀ ${Math.round(e.diameterKpc)} kpc` : ''}</span>
+      <span class="gb-src">${e.imageDerived ? `${e.survey && e.survey !== 'custom' ? e.survey + ' ' : ''}image-derived field` : 'procedural field'} · ${(e.count || 0).toLocaleString('en-US')} stars${e.diameterKpc ? ` · ⌀ ${Math.round(e.diameterKpc)} kpc` : ''}</span>
       <label class="gb-q">stars
         <select id="gb-q">
           <option value="60000">60k</option>

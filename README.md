@@ -118,9 +118,14 @@ the density for a strong GPU.
 - **Million-star picking.** Interiors up to ~1M stars stay instantly clickable via
   a **uniform-grid spatial index** — a pick marches the ray through grid cells and
   tests only the tube around it (~1 ms at 1M vs ~25 ms brute-force).
+- **Sharpest survey, automatically.** The cutout tries **SDSS colour** first and
+  falls back to **DSS2 all-sky** when the galaxy is outside the SDSS footprint —
+  detected from the image itself (out-of-footprint HiPS tiles come back
+  transparent), so no footprint polygon is hardcoded. The banner shows which
+  survey supplied the field.
 - **Custom image / survey.** Set `app._gxImageOverride = '<url>'`,
-  `app._gxSurvey = 'CDS/P/SDSS9/color'`, or `app._gxSizeLookup = false` to skip
-  the live size query.
+  `app._gxSurvey = 'CDS/P/PanSTARRS/DR1/color-z-zg-g'` (still falls back to DSS2),
+  or `app._gxSizeLookup = false` to skip the live size query.
 
 **⤴ exit galaxy** returns you to the cosmos where you left off.
 
@@ -130,7 +135,8 @@ The Layers panel has a **Galaxy imagery · HiPS** toggle. When on, notable galax
 (the atlas + Local Group) get a **flat, camera-facing billboard of their real sky
 cutout** floating at their position in the cosmos view, alongside the point-cloud
 data — additively blended so the image's black sky drops out and each galaxy reads
-as light. Textures are fetched lazily on first enable.
+as light. Each billboard uses the same **SDSS-where-covered, DSS2-elsewhere** auto
+selection as the interior. Textures are fetched lazily on first enable.
 
 ## The Cosmic Atlas (knowledge base)
 
