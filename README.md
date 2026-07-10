@@ -94,6 +94,20 @@ Everything you add is written to **localStorage**, so it **persists across reloa
 (it does *not* reset on restart). **Export / Import** round-trips your whole library
 as JSON, and **Clear** wipes it.
 
+### The Codex — an imported fiction knowledge base
+
+A **📖 CODEX** button (top bar) opens the *Immeasurable Spaces* universe database —
+a bundled example of a large, richly-linked story knowledge base (406 records
+across 16 types: objects, events, concepts, hazards, reconciliations, a two-fleet
+lexicon, phrases, places, worlds, ships, factions, technologies, nav axes…). It's
+a full browser: **search + type facets + a graph-linked detail view** (every record
+shows its `related` / `same_as` / `denotes` / `in_language` / `located_on` links as
+clickable chips that walk the graph), a **real ↔ fiction** anchor line, and a
+**DIAGRAM** tab that renders the canon's 2D "tower" map (the depth / adjacency /
+constitution axes, substrate floor → the limit Κ) with clickable nodes. Drop a
+different `qtr-universe-db.json` in `public/data/` to swap in your own corpus; the
+schema block in the file is self-describing.
+
 ### Story Studio — imagined objects & events
 
 The **✦ Imagine** button opens an authoring modal to add **hypothetical objects

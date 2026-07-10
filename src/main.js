@@ -9,6 +9,8 @@ import { initVoyagePlayer } from './hud/voyages.js';
 import { initNavChart } from './hud/navchart.js';
 import { initStudio } from './hud/studio.js';
 import { buildAtlasBrowser } from './hud/atlasBrowser.js';
+import { QtrData } from './data/qtrData.js';
+import { initCodex } from './hud/codex.js';
 
 const boot = document.getElementById('boot');
 const bootBar = document.getElementById('boot-bar-fill');
@@ -48,6 +50,10 @@ async function main() {
   initStudio(app);
   // keep the atlas browser in sync when the user's library changes
   app.on('custom', () => buildAtlasBrowser(app));
+
+  // load the imagined "Immeasurable Spaces" codex (optional; button hides if absent)
+  const qtr = new QtrData();
+  qtr.load().then(() => initCodex(qtr));
 
   app.start();
 
