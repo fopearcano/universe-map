@@ -119,18 +119,32 @@ traced across the map, the way Ulysses' or Darwin's voyages are charted.
   the Milky Way, Local Group, supercluster, cosmic web and quasar era to the CMB,
   progressively revealing more distant objects at each stop.
 
-## Planning routes — the nautical chart
+## Navigation — plot & fly a course
 
-The map doubles as a chart for plotting a story voyage. Select any object and use
-its panel to **◎ focus** (re-centre the orbit pivot on it, so you navigate around
-*it* instead of the Sun) or **＋ route** (add it as a waypoint). The route panel
-then draws the path and lists the **true metric distance** of every leg and the
-total.
+The map doubles as a **spaceship navigation computer**. You are not limited to the
+preset voyages — you can plot arbitrary routes:
 
-Crucially, those distances are always *physically correct* even in COSMOS mode:
-the display radius there is logarithmic, but every object also carries its real
-direction and distance, so leg lengths are computed from true 3-D positions
-(parsecs → ly / Mly / Gly). LOCAL mode is metrically exact throughout.
+- **Plot a course**: toggle **◉ plot** and click the map to drop waypoints (they
+  snap to an object under the cursor, or land in free space at the focal depth),
+  or select any object and hit **＋ route**. **＋ pt** drops a free-space waypoint
+  where you're looking, so you can route through empty space.
+- **Edit the course**: reorder (▲▼), remove (✕) or reverse (⇄) any waypoint.
+- **Cruise speed → travel time**: pick a cruise velocity (Voyager's 17 km/s up to
+  light speed). Each leg then shows its **distance, heading (RA/Dec) and travel
+  time**, and the totals show the **mission time** *and* the **relativistic ship
+  (proper) time** — at 0.99 c a 700-year crossing is only ~100 years for the crew.
+- **⏵ ENGAGE autopilot**: a chase-cam flies the plotted course with a live nav HUD
+  (current leg, heading, range to next, ETA, ship time); hold / step / disengage.
+- **Save / load**: name and save routes (persisted in localStorage), reload them,
+  and import/export the whole set as JSON.
+
+Distances are always *physically correct* even in COSMOS mode: the display radius
+there is logarithmic, but every object carries its real direction and distance, so
+leg lengths and times come from true 3-D positions (parsecs → ly / Mly / Gly).
+LOCAL mode is metrically exact throughout.
+
+You can also **◎ focus** any object to re-centre the orbit pivot on it (navigate
+around *it* instead of the Sun).
 
 Also plotted: **star clusters** (open + globular) in both modes, and named
 **large-scale structures** in COSMOS — the Virgo & Coma clusters, the Great

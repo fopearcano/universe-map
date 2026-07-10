@@ -6,8 +6,9 @@ import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture } from './render/markers.js';
-import { PC_TO_LY } from './util/astro.js';
+import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
+import { RouteStore } from './data/routeStore.js';
 import { resolveSimbad } from './data/remote.js';
 
 // marker colours by type
@@ -42,6 +43,10 @@ export class App {
     this.voyage = null;         // { source, def, index }
     this.focus = null;          // { worldPos, truePos, label }
     this.route = [];            // [{ worldPos, truePos, label, kind }]
+    this.cruiseSpeed = 0.1;     // cruise velocity as a fraction of c
+    this.plotCourse = false;    // click-to-add-waypoint mode
+    this.autopilot = null;      // active flythrough state
+    this.routeStore = new RouteStore();
     this._listeners = {};
     this._clock = new THREE.Clock();
     this._telAcc = 0;
@@ -369,36 +374,176 @@ export class App {
     this.emit('focus', null);
   }
 
-  // ================= route planning =================
+  // ================= navigation: route plotting =================
   addRouteWaypoint() {
     if (!this.selection) return;
     const s = this.selection;
-    this.route.push({ worldPos: s.worldPos.clone(), truePos: s.truePos.clone(), label: s.info.name || s.info.designation || `point ${this.route.length + 1}`, kind: s.kind });
-    this._redrawRoute();
-    this.emit('route', this._routeSummary());
+    this._addRoute({ worldPos: s.worldPos.clone(), truePos: s.truePos.clone(), label: s.info.name || s.info.designation || `waypoint ${this.route.length + 1}`, kind: s.kind });
   }
+
+  // Free-space waypoint at the point you're looking at (crosshair × focal depth).
+  addViewPoint() {
+    const cam = this.scene.camera, tgt = this.scene.controls.target;
+    const dist = Math.max(0.01, cam.position.distanceTo(tgt));
+    const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
+    const worldPos = cam.position.clone().add(dir.multiplyScalar(dist));
+    this._addRoute({ worldPos, truePos: this._worldToTrue(worldPos), label: `nav point ${this.route.length + 1}`, kind: 'free' });
+  }
+
+  _addRoute(wp) { this.route.push(wp); this._redrawRoute(); this.emit('route', this._routeSummary()); }
+
+  // Map a display-space point back to a true position in parsecs (mode-aware).
+  _worldToTrue(worldPos) {
+    if (this.mode !== 'cosmos') return worldPos.clone();
+    const D = this.cosmos.decadeUnit, r = worldPos.length();
+    return worldPos.clone().normalize().multiplyScalar(Math.pow(10, r / D));
+  }
+
   removeRouteWaypoint(idx) {
     if (idx == null) this.route.pop(); else this.route.splice(idx, 1);
-    this._redrawRoute();
-    this.emit('route', this._routeSummary());
+    this._redrawRoute(); this.emit('route', this._routeSummary());
   }
+  moveRouteWaypoint(idx, dir) {
+    const j = idx + dir;
+    if (j < 0 || j >= this.route.length) return;
+    [this.route[idx], this.route[j]] = [this.route[j], this.route[idx]];
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+  }
+  reverseRoute() { this.route.reverse(); this._redrawRoute(); this.emit('route', this._routeSummary()); }
   clearRoute() {
+    if (this.autopilot) this.stopRoute();
     if (!this.route.length && !this.routeGroup.children.length) return;
     this.route = [];
-    this._redrawRoute();
-    this.emit('route', this._routeSummary());
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+  }
+  setCruiseSpeed(fracC) { this.cruiseSpeed = Math.max(1e-7, Math.min(1, fracC)); this.emit('route', this._routeSummary()); }
+  setPlotCourse(on) { this.plotCourse = !!on; this.emit('plot', this.plotCourse); }
+
+  // distance -> travel time. Light travels 1 ly/yr, so coordinate years = ly / (v/c).
+  // Ship (proper) time is dilated by the Lorentz factor.
+  _legTimes(ly) {
+    const beta = this.cruiseSpeed;
+    const years = ly / beta;
+    const shipYears = years * Math.sqrt(Math.max(0, 1 - beta * beta));
+    return { years, shipYears };
   }
 
   _routeSummary() {
     const legs = [];
-    let total = 0;
+    let total = 0, years = 0, shipYears = 0;
     for (let i = 1; i < this.route.length; i++) {
-      const dpc = this.route[i].truePos.distanceTo(this.route[i - 1].truePos);
-      total += dpc;
-      legs.push({ from: this.route[i - 1].label, to: this.route[i].label, ly: dpc * PC_TO_LY });
+      const d = new THREE.Vector3().subVectors(this.route[i].truePos, this.route[i - 1].truePos);
+      const ly = d.length() * PC_TO_LY;
+      const { ra, dec } = cartesianToRaDec(d.x, d.y, d.z);
+      const t = this._legTimes(ly);
+      total += ly; years += t.years; shipYears += t.shipYears;
+      legs.push({ from: this.route[i - 1].label, to: this.route[i].label, ly, ra, dec, years: t.years, shipYears: t.shipYears });
     }
-    return { points: this.route.map((r) => ({ label: r.label, kind: r.kind })), legs, totalLy: total * PC_TO_LY };
+    return {
+      points: this.route.map((r) => ({ label: r.label, kind: r.kind })),
+      legs, totalLy: total, cruiseC: this.cruiseSpeed, years, shipYears,
+    };
   }
+
+  // ================= navigation: autopilot flythrough =================
+  engageRoute() {
+    if (this.route.length < 2) return;
+    this.clearSelection();
+    this.autopilot = { seg: 0, t: 0, paused: false, speed: 0.11 };
+    this.scene.controls.enabled = false;
+    this.emit('nav', this._navReadout());
+  }
+  pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
+  navStep(d) {
+    if (!this.autopilot) return;
+    this.autopilot.seg = Math.max(0, Math.min(this.route.length - 2, this.autopilot.seg + d));
+    this.autopilot.t = 0; this.emit('nav', this._navReadout());
+  }
+  stopRoute() {
+    if (!this.autopilot) return;
+    this.autopilot = null;
+    this.scene.controls.enabled = true;
+    this.scene.controls.update();
+    this.emit('nav', null);
+  }
+  navSetSpeed(v) { if (this.autopilot) this.autopilot.speed = v; }
+
+  _updateAutopilot(dt) {
+    const ap = this.autopilot; if (!ap) return;
+    const pts = this.route.map((r) => r.worldPos);
+    if (!ap.paused) {
+      let remaining = ap.speed * dt * this._routeSpan();
+      while (remaining > 0 && ap.seg < pts.length - 1) {
+        const segLen = Math.max(1e-6, pts[ap.seg].distanceTo(pts[ap.seg + 1]));
+        const along = segLen * ap.t + remaining;
+        if (along >= segLen) { remaining = along - segLen; ap.seg++; ap.t = 0; }
+        else { ap.t = along / segLen; remaining = 0; }
+      }
+      if (ap.seg >= pts.length - 1) { this._navReadoutFinal(); this.stopRoute(); return; }
+    }
+    const a = pts[ap.seg], b = pts[ap.seg + 1];
+    const cur = a.clone().lerp(b, ap.t);
+    const fwd = b.clone().sub(a); const segLen = fwd.length() || 1; fwd.normalize();
+    const up = new THREE.Vector3(0, 0, 1);
+    const back = Math.max(0.4, segLen * 0.22);
+    const camPos = cur.clone().addScaledVector(fwd, -back).addScaledVector(up, back * 0.4);
+    this.scene.camera.position.copy(camPos);
+    this.scene.camera.lookAt(cur.clone().addScaledVector(fwd, back));
+    this.scene.controls.target.copy(cur);
+  }
+
+  _routeSpan() {
+    let s = 0;
+    for (let i = 1; i < this.route.length; i++) s += this.route[i].worldPos.distanceTo(this.route[i - 1].worldPos);
+    return Math.max(1, s) * 0.12;
+  }
+
+  _navReadout() {
+    const ap = this.autopilot; if (!ap) return null;
+    const i = ap.seg;
+    const dTrue = new THREE.Vector3().subVectors(this.route[i + 1].truePos, this.route[i].truePos);
+    const legLy = dTrue.length() * PC_TO_LY;
+    const { ra, dec } = cartesianToRaDec(dTrue.x, dTrue.y, dTrue.z);
+    const rangeLy = legLy * (1 - ap.t);
+    let remLy = rangeLy;
+    for (let k = i + 1; k < this.route.length - 1; k++) remLy += new THREE.Vector3().subVectors(this.route[k + 1].truePos, this.route[k].truePos).length() * PC_TO_LY;
+    return {
+      active: true, paused: ap.paused, seg: i + 1, total: this.route.length - 1,
+      toLabel: this.route[i + 1].label, ra, dec, rangeLy, rangeLyTotal: remLy, cruiseC: this.cruiseSpeed,
+      etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy),
+    };
+  }
+  _navReadoutFinal() { this.emit('nav', { arrived: true, at: this.route[this.route.length - 1].label }); }
+
+  // ================= navigation: saved routes =================
+  _wpToPortable(r) {
+    const { ra, dec, r: rr } = cartesianToRaDec(r.truePos.x, r.truePos.y, r.truePos.z);
+    return { label: r.label, kind: r.kind, ra, dec, distLy: rr * PC_TO_LY };
+  }
+  saveRoute(name) {
+    if (this.route.length < 1) return null;
+    const rec = this.routeStore.save(name, this.route.map((r) => this._wpToPortable(r)), this.cruiseSpeed);
+    this.emit('routes', this.routeStore.all());
+    return rec;
+  }
+  loadRoute(id) {
+    const rec = this.routeStore.get(id); if (!rec) return;
+    if (this.autopilot) this.stopRoute();
+    this.cruiseSpeed = rec.cruiseC || 0.1;
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    this.route = rec.waypoints.map((w, i) => {
+      const distPc = Math.max((w.distLy || 0) / PC_TO_LY, 0);
+      const ra = w.ra * 15 * Math.PI / 180, dec = w.dec * Math.PI / 180, cd = Math.cos(dec);
+      const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
+      const truePos = dir.clone().multiplyScalar(distPc);
+      const worldPos = this.mode === 'cosmos' ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
+      return { worldPos, truePos, label: w.label || `waypoint ${i + 1}`, kind: w.kind || 'free' };
+    });
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+  }
+  deleteRoute(id) { this.routeStore.remove(id); this.emit('routes', this.routeStore.all()); }
+  exportRoutes() { return this.routeStore.export(); }
+  importRoutes(json) { const r = this.routeStore.import(json); this.emit('routes', this.routeStore.all()); return r; }
 
   _redrawRoute() {
     for (const o of [...this.routeGroup.children]) { this.routeGroup.remove(o); o.geometry?.dispose?.(); o.material?.dispose?.(); }
@@ -554,13 +699,23 @@ export class App {
       else if (hit.extra) this.selectExtra(hit.extra.kind, hit.extra.i, { fly });
       else this.selectObject(hit, { fly });
     };
+    // In plot-course mode a click drops a waypoint: snap to an object under the
+    // cursor, otherwise a free-space point at the focal depth along the click ray.
+    const plotAt = (e) => {
+      const hit = pickAt(e);
+      if (hit) { dispatch(hit, false); if (this.selection) this.addRouteWaypoint(); return; }
+      this._ray.setFromCamera(ndc(e), this.scene.camera);
+      const dist = this.scene.camera.position.distanceTo(this.scene.controls.target);
+      const wp = this._ray.ray.origin.clone().addScaledVector(this._ray.ray.direction, dist);
+      this._addRoute({ worldPos: wp, truePos: this._worldToTrue(wp), label: `nav point ${this.route.length + 1}`, kind: 'free' });
+    };
     canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now(), btn: e.button }; });
     canvas.addEventListener('pointerup', (e) => {
       if (!down) return;
       const isClick = Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5 && performance.now() - down.t < 400 && down.btn === 0;
       down = null;
-      if (!isClick) return;
-      dispatch(pickAt(e), false);
+      if (!isClick || this.autopilot) return;
+      if (this.plotCourse) plotAt(e); else dispatch(pickAt(e), false);
     });
     canvas.addEventListener('dblclick', (e) => dispatch(pickAt(e), true));
     canvas.addEventListener('pointermove', (e) => { this._hover.need = true; this._hover.x = e.clientX; this._hover.y = e.clientY; });
@@ -571,6 +726,7 @@ export class App {
   start() {
     const tick = () => {
       const dt = Math.min(0.05, this._clock.getDelta());
+      if (this.autopilot) { this._updateAutopilot(dt); this._navAcc = (this._navAcc || 0) + dt; if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) this.emit('nav', this._navReadout()); } }
       this.scene.update(dt);
       if (this.mode === 'cosmos') this.cosmos.update(this.scene.camera);
       this.labels.update(this.scene.camera);
