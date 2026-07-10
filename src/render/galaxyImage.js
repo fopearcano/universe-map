@@ -20,13 +20,38 @@ export function cutoutURL(ra, dec, fovDeg, { survey = 'CDS/P/DSS2/color', size =
   return `${HIPS2FITS}?${q.toString()}`;
 }
 
-// A reasonable cutout FOV (deg) for a galaxy at a given distance, assuming a
-// ~30 kpc disc. Clamped to a sensible range.
-export function fovForDistance(distMpc) {
-  if (!distMpc || distMpc <= 0) return 0.12;
-  const deg = (0.03 / distMpc) * 57.2958 * 1.6; // 30 kpc across, +margin
-  return Math.max(0.03, Math.min(3.0, deg));
+// Curated physical diameters (kpc, ~D25) for well-known galaxies, matched by a
+// substring of the object name. Order: more specific first.
+const GALAXY_KPC = [
+  ['andromeda', 46], ['m31', 46], ['triangulum', 19], ['m33', 19],
+  ['large magellanic', 9.9], ['lmc', 9.9], ['small magellanic', 5], ['smc', 5],
+  ['whirlpool', 23], ['m51', 23], ['sombrero', 15], ['m104', 15],
+  ['pinwheel', 52], ['m101', 52], ['sunflower', 30], ['m63', 30],
+  ['black eye', 16], ['m64', 16], ['cigar', 12], ['m82', 12], ['bode', 29], ['m81', 29],
+  ['centaurus a', 30], ['sculptor', 8], ['ngc 253', 27], ['ngc 300', 12],
+  ['m87', 40], ['virgo a', 40], ['cartwheel', 44], ['tadpole', 85],
+  ['fornax', 6], ['leo', 3], ['wlm', 3], ['ic 10', 2], ['ngc 6822', 3], ['sagittarius dwarf', 3],
+  ['milky way', 30],
+];
+
+// Best physical diameter (kpc) for a galaxy: curated by name, else by type.
+export function diameterKpcFor(info = {}) {
+  const n = String(info.name || '').toLowerCase();
+  for (const [k, v] of GALAXY_KPC) if (n.includes(k)) return v;
+  const t = String(info.type || info.sub || '').toLowerCase();
+  if (/dwarf|dsph|\bsm\b|magellanic|irr/.test(t)) return 7;
+  if (/ellipt|lenticular|\bcd\b|\be\d|\bs0\b/.test(t)) return 38;
+  if (/spiral|\bs[abc]|barred|grand-design|flocculent/.test(t)) return 30;
+  return 26;
 }
+
+// Cutout FOV (deg) framing a galaxy of the given physical diameter at a distance.
+export function fovForGalaxy(distMpc, diameterKpc = 30) {
+  if (!distMpc || distMpc <= 0) return 0.15;
+  const deg = ((diameterKpc / 1000) / distMpc) * 57.2958 * 1.5; // physical/dist → angular, +margin
+  return Math.max(0.02, Math.min(3.0, deg));
+}
+export function fovForDistance(distMpc) { return fovForGalaxy(distMpc, 30); }
 
 // Fetch a URL into an {data, w, h} pixel buffer via an anonymous-CORS image.
 export async function loadImageData(url, { timeout = 12000 } = {}) {

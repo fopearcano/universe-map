@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SpatialGrid } from './spatialGrid.js';
 
 // A navigable galaxy interior: the selected galaxy's star field as its own scene
 // you can fly inside, pick stars in, and trace routes through. The cloud is
@@ -55,6 +56,8 @@ export class GalaxyInterior {
     this.group = new THREE.Group();
     this.group.add(this.points);
     this._extent = geo.boundingSphere ? geo.boundingSphere.radius : 30;
+    // spatial index for fast picking once the field gets large
+    this._grid = N > 40000 ? new SpatialGrid(this.positions, N, { cells: 56 }) : null;
   }
 
   extent() { return this._extent; }
@@ -64,8 +67,9 @@ export class GalaxyInterior {
   // distance of star i from the galactic centre, in parsecs
   starDistPc(i) { return Math.hypot(this.positions[i * 3], this.positions[i * 3 + 1], this.positions[i * 3 + 2]) * this.pcPerUnit; }
 
-  // nearest-ray pick over the interior stars
+  // nearest-ray pick over the interior stars (spatial-indexed when large)
   pick(raycaster, camera, thresholdPx = 14) {
+    if (this._grid) return this._grid.pick(raycaster, camera, thresholdPx);
     const ray = raycaster.ray, o = ray.origin, dir = ray.direction;
     const maxAng = thresholdPx * ((camera.fov * Math.PI / 180) / window.innerHeight);
     let best = -1, bestAng = maxAng; const p = new THREE.Vector3();

@@ -9,11 +9,12 @@ import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGl
 import { StructureShapes } from './render/structures.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
-import { fetchGalaxyImage, loadImageData, imageToCloud } from './render/galaxyImage.js';
+import { fetchGalaxyImage, loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, cutoutURL } from './render/galaxyImage.js';
+import { GalaxyBillboards } from './render/galaxyBillboards.js';
 import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
 import { RouteStore } from './data/routeStore.js';
-import { resolveSimbad, growFromCatalogue } from './data/remote.js';
+import { resolveSimbad, growFromCatalogue, fetchAngularSize } from './data/remote.js';
 
 // marker colours by type
 const MARK_COLOR = {
@@ -79,6 +80,7 @@ export class App {
 
     this._buildMarkers();
     this._buildStructureShapes();
+    this._buildGalaxyBillboards();
     this._buildRouteLayer();
     this._rebuildCustom();
     this._applyLocalLabels();
@@ -275,9 +277,33 @@ export class App {
     if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
   }
 
+  // Flat image billboards (real sky cutouts) for notable galaxies in cosmos view.
+  _buildGalaxyBillboards() {
+    this.showGalaxyImagery = false;
+    if (!this.cosmos) { this.galaxyBillboards = null; return; }
+    const sizeFor = (kpc) => Math.max(0.8, Math.min(2.8, 0.9 + (kpc || 25) / 22));
+    const items = [];
+    for (const o of this.atlas) {
+      if (o.category !== 'galaxy') continue;
+      const kpc = diameterKpcFor(o);
+      items.push({ pos: new THREE.Vector3(...o.dir).multiplyScalar(o.displayR), raDeg: o.ra * 15, dec: o.dec, distMpc: (o.distLy || 0) / 3.2615638e6, diameterKpc: kpc, size: sizeFor(kpc) });
+    }
+    for (const g of this.cosmosData.localGroup || []) {
+      const kpc = diameterKpcFor(g);
+      items.push({ pos: new THREE.Vector3(...g.dir).multiplyScalar(g.displayR), raDeg: g.ra, dec: g.dec, distMpc: g.distMpc, diameterKpc: kpc, size: sizeFor(kpc) });
+    }
+    const urlFor = (it) => this._gxImageOverride || cutoutURL(it.raDeg, it.dec, fovForGalaxy(it.distMpc, it.diameterKpc), { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 256 });
+    this.galaxyBillboards = new GalaxyBillboards(this.cosmos.group, items, { urlFor });
+  }
+
+  setGalaxyImagery(on) {
+    this.showGalaxyImagery = !!on;
+    if (this.galaxyBillboards) this.galaxyBillboards.setVisible(this.showGalaxyImagery);
+  }
+
   // ===== galaxy interior: fly inside a galaxy, explore & route among its stars =====
   qualityStarCount() { return this._interiorQuality || 120000; }
-  setInteriorQuality(n) { this._interiorQuality = Math.max(10000, Math.min(600000, n | 0)); }
+  setInteriorQuality(n) { this._interiorQuality = Math.max(10000, Math.min(3000000, n | 0)); }
 
   // Build a navigable interior for a selected galaxy. Tries a live sky cutout so
   // the star field mirrors the real image; falls back to procedural morphology.
@@ -288,18 +314,32 @@ export class App {
     const name = info.name || 'galaxy';
     this.emit('galaxy', { name, loading: true, inside: true });
     const R = 30;                                  // interior world radius (units)
-    const diameterKpc = 30;                         // assumed physical diameter
-    const pcPerUnit = (diameterKpc * 500) / R;      // (D/2 in pc) / R
     const count = this.qualityStarCount();
-    const ra = info.ra, dec = info.dec;
+    const ra = info.ra, dec = info.dec;             // ra is in HOURS
+    const raDeg = ra != null ? ra * 15 : null;      // hips2fits / SIMBAD want degrees
     const distMpc = info.distMpc || info.comovingMpc || (info.distLy ? info.distLy / 3.2615638e6 : null);
     const seed = seedFromVec(info.worldPos || new THREE.Vector3(3, 5, 7)) % 100000;
+
+    // real physical size: curated default, refined by a live SIMBAD angular size
+    let diameterKpc = diameterKpcFor(info), fovDeg = fovForGalaxy(distMpc, diameterKpc);
+    if (this._gxSizeLookup !== false && raDeg != null && dec != null && distMpc) {
+      try {
+        const sz = await fetchAngularSize(raDeg, dec);
+        if (sz.ok && sz.majAxisArcmin > 0) {
+          fovDeg = Math.max(0.02, Math.min(3.0, (sz.majAxisArcmin / 60) * 1.5));
+          const physKpc = (sz.majAxisArcmin / 60) * (Math.PI / 180) * distMpc * 1000;
+          if (physKpc > 0.5 && physKpc < 200) diameterKpc = physKpc;
+        }
+      } catch (e) { /* keep curated size */ }
+    }
+    const pcPerUnit = (diameterKpc * 500) / R;      // (D/2 in pc) / R
+
     let cloud = null, imageDerived = false;
-    if (this._gxImageOverride || (ra != null && dec != null)) {
+    if (this._gxImageOverride || (raDeg != null && dec != null)) {
       try {
         const imgData = this._gxImageOverride
           ? await loadImageData(this._gxImageOverride)
-          : await fetchGalaxyImage(ra, dec, distMpc, { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 512 });
+          : await fetchGalaxyImage(raDeg, dec, distMpc, { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 512, fovDeg });
         const c = imageToCloud(imgData, { count, R, thickness: 0.05, seed });
         if (c.count > count * 0.4) { cloud = c; imageDerived = true; }
       } catch (e) { /* offline / CORS blocked → procedural fallback */ }
@@ -316,8 +356,8 @@ export class App {
     this._hideForInterior();
     this.clearSelection(); this.clearRoute(); this.clearFocus();
     this.scene.setView(new THREE.Vector3(R * 0.9, R * 0.45, R * 1.15), new THREE.Vector3(0, 0, 0));
-    this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count });
-    return { ok: true, imageDerived, count: cloud.count };
+    this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count, diameterKpc });
+    return { ok: true, imageDerived, count: cloud.count, diameterKpc };
   }
 
   exitGalaxy() {
@@ -925,6 +965,7 @@ export class App {
       if (this.mode === 'cosmos') {
         this.cosmos.update(this.scene.camera);
         if (this.resolveStructures && this.structureShapes) this.structureShapes.update(this.scene.camera);
+        if (this.showGalaxyImagery && this.galaxyBillboards) this.galaxyBillboards.update(this.scene.camera);
       }
       this.labels.update(this.scene.camera);
       this._updateSelMark();

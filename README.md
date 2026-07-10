@@ -107,11 +107,30 @@ drops you *inside* it. There you can orbit and fly through the stars, **click an
 star to select it**, and **trace routes between stars** with true intra-galaxy
 distances and relativistic travel times (a crossing of tens of thousands of
 light-years, kyr of ship time). A banner shows the galaxy, whether the field is
-image-derived or a procedural fallback (used when offline), and a **star-count
-selector** (60k → 450k · ultra) so you can crank the density for a strong GPU.
-Set `app._gxImageOverride = '<url>'` (or `app._gxSurvey = 'CDS/P/SDSS9/color'`)
-to point the interior at a custom image / survey. **⤴ exit galaxy** returns you
-to the cosmos where you left off.
+image-derived or a procedural fallback (used when offline), its diameter, and a
+**star-count selector** (60k → 450k · ultra → **1M · extreme**) so you can crank
+the density for a strong GPU.
+
+- **Real per-galaxy size.** The interior is scaled to the galaxy's actual
+  diameter: a curated table for the well-known ones, refined live from **SIMBAD's
+  angular size** (`galdim_majaxis` → physical kpc via the distance). So Andromeda
+  is larger than a dwarf, and intra-galaxy route distances are physically honest.
+- **Million-star picking.** Interiors up to ~1M stars stay instantly clickable via
+  a **uniform-grid spatial index** — a pick marches the ray through grid cells and
+  tests only the tube around it (~1 ms at 1M vs ~25 ms brute-force).
+- **Custom image / survey.** Set `app._gxImageOverride = '<url>'`,
+  `app._gxSurvey = 'CDS/P/SDSS9/color'`, or `app._gxSizeLookup = false` to skip
+  the live size query.
+
+**⤴ exit galaxy** returns you to the cosmos where you left off.
+
+### Galaxy imagery overlay (flat billboards)
+
+The Layers panel has a **Galaxy imagery · HiPS** toggle. When on, notable galaxies
+(the atlas + Local Group) get a **flat, camera-facing billboard of their real sky
+cutout** floating at their position in the cosmos view, alongside the point-cloud
+data — additively blended so the image's black sky drops out and each galaxy reads
+as light. Textures are fetched lazily on first enable.
 
 ## The Cosmic Atlas (knowledge base)
 

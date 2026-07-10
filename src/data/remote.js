@@ -141,6 +141,21 @@ async function tapJson(base, query, lang = 'adql') {
   }
 }
 
+// Live angular size (major axis, arcmin) of the galaxy nearest a sky position,
+// from SIMBAD's galdim_majaxis. raDeg/decDeg in degrees. Best-effort.
+export async function fetchAngularSize(raDeg, decDeg) {
+  const adql =
+    'SELECT TOP 1 main_id, galdim_majaxis, galdim_minaxis FROM basic ' +
+    `WHERE CONTAINS(POINT('ICRS',ra,dec),CIRCLE('ICRS',${(+raDeg).toFixed(4)},${(+decDeg).toFixed(4)},0.15))=1 ` +
+    'AND galdim_majaxis IS NOT NULL ORDER BY galdim_majaxis DESC';
+  const r = await tapJson(SIMBAD_TAP, adql);
+  if (!r.ok) return r;
+  const row = r.rows[0];
+  if (!row) return { ok: false, note: 'no sized object nearby' };
+  const [name, maj, min] = row;
+  return { ok: true, name: (name || '').trim(), majAxisArcmin: +maj, minAxisArcmin: min != null ? +min : null };
+}
+
 // Grow the object database from a live catalogue. Returns real objects with a
 // usable distance so they can be placed on the 3-D map.
 //   preset: 'pulsars' | 'galaxies' | 'quasars' | 'nearby'

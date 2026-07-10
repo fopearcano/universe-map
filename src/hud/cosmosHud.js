@@ -64,6 +64,7 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
     <div class="toggle on" data-l="resolve"><span>Resolve structures (shapes)</span><span class="sw"></span></div>
+    <div class="toggle" data-l="imagery"><span>Galaxy imagery <span class="muted">· HiPS</span></span><span class="sw"></span></div>
     <div class="toggle ${app.cosmos.state.show.procedural ? 'on' : ''}" data-l="procedural"><span>Procedural fill <span class="muted">· imagined</span></span><span class="sw"></span></div>
     <div class="seg" id="c-proc-color" ${app.cosmos.state.show.procedural ? '' : 'hidden'}>
       <button class="segbtn ${app.cosmos.procMode === 'green' ? 'on' : ''}" data-pc="green">green</button>
@@ -107,6 +108,9 @@ export function buildCosmosLayers(app) {
   const res = root.querySelector('[data-l="resolve"]');
   res.classList.toggle('on', !!app.resolveStructures);
   res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };
+  const imagery = root.querySelector('[data-l="imagery"]');
+  imagery.classList.toggle('on', !!app.showGalaxyImagery);
+  imagery.onclick = () => { imagery.classList.toggle('on'); app.setGalaxyImagery(imagery.classList.contains('on')); };
   // Procedural fill + its colour switch
   const proc = root.querySelector('[data-l="procedural"]');
   const procColor = root.querySelector('#c-proc-color');

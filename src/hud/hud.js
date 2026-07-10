@@ -28,18 +28,19 @@ function initGalaxyBanner(app) {
     const q = app.qualityStarCount();
     b.innerHTML = `
       <span class="gb-name">⛶ INSIDE <b>${esc(e.name)}</b></span>
-      <span class="gb-src">${e.imageDerived ? 'image-derived field' : 'procedural field'} · ${(e.count || 0).toLocaleString('en-US')} stars</span>
+      <span class="gb-src">${e.imageDerived ? 'image-derived field' : 'procedural field'} · ${(e.count || 0).toLocaleString('en-US')} stars${e.diameterKpc ? ` · ⌀ ${Math.round(e.diameterKpc)} kpc` : ''}</span>
       <label class="gb-q">stars
         <select id="gb-q">
           <option value="60000">60k</option>
           <option value="120000">120k</option>
           <option value="250000">250k · high</option>
           <option value="450000">450k · ultra</option>
+          <option value="1000000">1M · extreme</option>
         </select>
       </label>
       <button id="gb-exit" class="btn sm">⤴ exit galaxy</button>`;
     const sel = b.querySelector('#gb-q');
-    sel.value = String([60000, 120000, 250000, 450000].reduce((a, v) => Math.abs(v - q) < Math.abs(a - q) ? v : a));
+    sel.value = String([60000, 120000, 250000, 450000, 1000000].reduce((a, v) => Math.abs(v - q) < Math.abs(a - q) ? v : a));
     sel.onchange = () => { app.setInteriorQuality(+sel.value); app.enterGalaxy(app._lastGalaxyInfo); };
     b.querySelector('#gb-exit').onclick = () => app.exitGalaxy();
   });
