@@ -5,7 +5,7 @@ import { App } from './app.js';
 import { initHUD } from './hud/hud.js';
 import { initSearch } from './hud/search.js';
 import { initInfoPanel } from './hud/infoPanel.js';
-import { initVoyagePlayer } from './hud/voyages.js';
+import { initVoyagePlayer, initExpeditionCruise } from './hud/voyages.js';
 import { initNavChart } from './hud/navchart.js';
 import { initStudio } from './hud/studio.js';
 import { buildAtlasBrowser } from './hud/atlasBrowser.js';
@@ -47,6 +47,7 @@ async function main() {
   initSearch(app);
   initInfoPanel(app);
   initVoyagePlayer(app);
+  initExpeditionCruise(app);
   initNavChart(app);
   initStudio(app);
   // keep the atlas browser in sync when the user's library changes

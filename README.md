@@ -231,12 +231,23 @@ traced across the map, the way Ulysses' or Darwin's voyages are charted.
 
 ### The Expedition Log — 20 preset routes
 
-The VOYAGES tab also carries an **Expedition Log**: twenty charted, Odyssey-style
+The VOYAGES tab also carries an **Expedition Log**: two dozen charted, Odyssey-style
 routes of varying length, from a four-light-year hop to a 47-Gly haul to the edge
 of the observable universe. Each stop is a real object resolved from the
-catalogues, so **◈ trace route** loads it straight into the NAV COMPUTER (below)
-with true leg distances, headings and relativistic travel times — then **⏵ ENGAGE**
-flies it. Tracing an expedition switches to the right scale automatically.
+catalogues, and every card offers two ways to travel:
+
+- **◈ trace** loads it straight into the NAV COMPUTER (below) with true leg
+  distances, headings and relativistic travel times — then **⏵ ENGAGE** flies it.
+- **▶ cruise** runs a stepped, cinematic tour (prev / next / auto) with the
+  narrative at each stop — and **mixed-scale** expeditions (marked ⛶ *descends*)
+  actually **drop you inside a galaxy mid-voyage**: the cruise crosses to a galaxy,
+  descends into its star field, then rises back out to continue. *The Deep Descent*
+  lands you inside Andromeda, Triangulum and the Whirlpool in turn.
+
+Either way the app switches to the right scale automatically. New in this set:
+*The Titans' Road* and *Walking Orion* (the great supergiants, hundreds of ly out),
+*The Open-Cluster Run*, and the descent tours *The Deep Descent* and *The Island
+Landings*.
 
 > *The First Crossing* · *The Sirian Run* · *Errand of the Red Giants* · *Voyage to
 > the Galactic Heart* · *The Nebula Pilgrimage* · *Graveyard of Giants* · *The

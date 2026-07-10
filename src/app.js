@@ -449,6 +449,7 @@ export class App {
   // ================= mode switching =================
   setMode(mode) {
     if (this._inGalaxy) this.exitGalaxy();
+    if (this.cruise && !this._inCruiseNav) this.stopCruise();
     if (mode === this.mode) return;
     this.stopVoyage();
     this.clearSelection();
@@ -880,6 +881,88 @@ export class App {
     return `${col}${String(row).padStart(2, '0')}·${tier}`;
   }
 
+  // free-text type of a named object (for interior morphology)
+  _objType(q) {
+    if (!q) return null;
+    const s = String(q).toLowerCase();
+    const find = (arr) => arr.find((o) => (o.name || '').toLowerCase() === s) || arr.find((o) => (o.name || '').toLowerCase().includes(s));
+    return (find(this.atlas)?.type) || (find(this.cosmosData.localGroup || [])?.type) || null;
+  }
+
+  // ---- expedition cruise: a stepped, cinematic tour that can change scale and
+  // descend INTO galaxies mid-voyage (a chapter with enter:true) ----
+  startExpeditionCruise(exp) {
+    if (typeof exp === 'string') exp = this.expeditions.find((e) => e.id === exp);
+    if (!exp) return { ok: false };
+    this.stopVoyage();
+    if (this.autopilot) this.stopRoute();
+    this.clearRoute(); this.clearSelection();
+    const baseScale = exp.scale === 'local' ? 'local' : 'cosmos';
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    const chapters = [];
+    for (const w of (exp.stops || [])) {
+      const r = this._resolveWaypoint(w); if (!r) continue;
+      const distPc = Math.max((r.distLy || 0) / PC_TO_LY, 0);
+      const ra = r.ra * 15 * Math.PI / 180, dec = r.dec * Math.PI / 180, cd = Math.cos(dec);
+      const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
+      const truePos = dir.clone().multiplyScalar(distPc);
+      const cosmosPos = dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1)));
+      if (w.enter) {
+        chapters.push({ kind: 'interior', label: r.label, note: r.note, truePos,
+          galaxyInfo: { name: r.label, ra: r.ra, dec: r.dec, distMpc: (r.distLy || 0) / 3.2615638e6, type: this._objType(w.obj) || 'spiral', worldPos: cosmosPos } });
+      } else {
+        chapters.push({ kind: baseScale, label: r.label, note: r.note, truePos,
+          worldPos: baseScale === 'cosmos' ? cosmosPos : truePos.clone() });
+      }
+    }
+    if (!chapters.length) return { ok: false };
+    this.cruise = { exp: { id: exp.id, title: exp.title, premise: exp.premise }, chapters, index: -1, scale: baseScale };
+    this.cruiseGoto(0);
+    return { ok: true, chapters: chapters.length };
+  }
+
+  async cruiseGoto(i) {
+    const c = this.cruise; if (!c) return;
+    i = Math.max(0, Math.min(c.chapters.length - 1, i));
+    const ch = c.chapters[i];
+    const token = (c._token = (c._token || 0) + 1); // guard against overlapping async steps
+    // leave an interior we're no longer meant to be in
+    if (this._inGalaxy && !(ch.kind === 'interior' && this.interior && this.interior.name === ch.label)) this.exitGalaxy();
+    if (ch.kind === 'interior') {
+      if (this.mode !== 'cosmos') { this._inCruiseNav = true; this.setMode('cosmos'); this._inCruiseNav = false; }
+      c.index = i; this.emit('cruise', this._cruiseReadout(i, true)); // "descending…"
+      if (!(this._inGalaxy && this.interior && this.interior.name === ch.label)) {
+        await this.enterGalaxy(ch.galaxyInfo);
+      }
+      if (!this.cruise || c._token !== token) return; // superseded / cancelled
+    } else {
+      if (this.mode !== ch.kind) { this._inCruiseNav = true; this.setMode(ch.kind); this._inCruiseNav = false; }
+      const approach = this.mode === 'cosmos' ? 2.4 : Math.max(3, ch.worldPos.length() * 0.12);
+      this.scene.flyTo(ch.worldPos.clone(), { approach, dur: 1.6 });
+    }
+    c.index = i;
+    this.emit('cruise', this._cruiseReadout(i, false));
+  }
+
+  cruiseStep(d) { if (this.cruise) this.cruiseGoto(this.cruise.index + d); }
+  stopCruise() {
+    if (!this.cruise) return;
+    this.cruise = null;
+    if (this._inGalaxy) this.exitGalaxy();
+    this.emit('cruise', null);
+  }
+  _cruiseReadout(i, loading) {
+    const c = this.cruise; if (!c) return null;
+    const ch = c.chapters[i];
+    let legLy = 0;
+    if (i > 0) legLy = new THREE.Vector3().subVectors(ch.truePos, c.chapters[i - 1].truePos).length() * PC_TO_LY;
+    return {
+      title: c.exp.title, premise: c.exp.premise, index: i, total: c.chapters.length,
+      label: ch.label, note: ch.note, interior: ch.kind === 'interior', loading: !!loading,
+      legLy, legTime: this._legTimes(legLy),
+    };
+  }
+
   deleteRoute(id) { this.routeStore.remove(id); this.emit('routes', this.routeStore.all()); }
   exportRoutes() { return this.routeStore.export(); }
   importRoutes(json) { const r = this.routeStore.import(json); this.emit('routes', this.routeStore.all()); return r; }
@@ -965,6 +1048,7 @@ export class App {
   startVoyageLocal(id) {
     const v = this.catalog.voyages.find((x) => x.id === id);
     if (!v) return;
+    this.stopCruise();
     this.voyage = { source: 'local', def: v, index: 0 };
     this.voyageLayer.setVoyage(v);
     this.voyageLayer.setVisible(true);
@@ -977,6 +1061,7 @@ export class App {
   startVoyageCosmos(id) {
     const v = this.cosmosData.voyages.find((x) => x.id === id);
     if (!v) return;
+    this.stopCruise();
     this.voyage = { source: 'cosmos', def: v, index: 0 };
     this.voyageGoto(0);
   }

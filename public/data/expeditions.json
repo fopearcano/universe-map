@@ -204,6 +204,61 @@
         { "obj": "3C 273", "note": "Glimpse a quasar's fire at the turn of the voyage." },
         { "obj": "Sagittarius A*", "note": "And home at last — the long way round." }
       ]
+    },
+    {
+      "id": "titans-road", "title": "The Titans' Road", "scale": "local", "length": "medium", "cruiseC": 0.5,
+      "premise": "A pilgrimage to the true giants near home — supergiant suns hundreds of light-years off, any one of which could swallow the orbit of Jupiter whole.",
+      "stops": [
+        { "star": "Sol", "note": "Cast off from a very ordinary star." },
+        { "star": "Aldebaran", "note": "The Bull's eye — an orange giant, close and warm." },
+        { "star": "Betelgeuse", "note": "Orion's red shoulder, a doomed supergiant that could go supernova any millennium." },
+        { "star": "Rigel", "note": "Orion's blue-white foot — 120,000 times the Sun's light." },
+        { "star": "Antares", "note": "The Heart of the Scorpion, a vast red supergiant." },
+        { "star": "Deneb", "note": "The Swan's tail — among the most luminous stars known, 1,400 ly out." }
+      ]
+    },
+    {
+      "id": "walking-orion", "title": "Walking Orion", "scale": "local", "length": "medium", "cruiseC": 0.5,
+      "premise": "The hunter is a trick of perspective. Fly the stars of Orion and watch the familiar figure fall apart — they lie at wildly different distances, bound only by our line of sight.",
+      "stops": [
+        { "star": "Bellatrix", "note": "The left shoulder — nearest of the bright ones, ~250 ly." },
+        { "star": "Betelgeuse", "note": "The right shoulder, red, ~500 ly." },
+        { "star": "Alnitak", "note": "The Belt's eastern star, a hot triple ~740 ly off." },
+        { "star": "Alnilam", "note": "The Belt's centre — a blue supergiant nearly 2,000 ly away." },
+        { "star": "Saiph", "note": "The right knee, ~650 ly." },
+        { "star": "Rigel", "note": "The left foot, ~860 ly. Nothing here truly stands beside its neighbour." }
+      ]
+    },
+    {
+      "id": "cluster-run", "title": "The Open-Cluster Run", "scale": "local", "length": "short", "cruiseC": 0.4,
+      "premise": "Hop between the nearby open clusters — loose swarms of young sibling stars, born together and slowly drifting apart.",
+      "stops": [
+        { "obj": "Hyades", "note": "The nearest cluster of all, the Bull's face." },
+        { "obj": "Pleiades (M45)", "note": "The Seven Sisters, blue and veiled in dust." },
+        { "obj": "Beehive (M44)", "note": "A rich swarm in Cancer, a naked-eye smudge." },
+        { "obj": "Alpha Persei Cluster", "note": "A bright, sprawling group around Mirfak." }
+      ]
+    },
+    {
+      "id": "deep-descent", "title": "The Deep Descent", "scale": "cosmos", "mixed": true, "length": "epic", "cruiseC": 0.99,
+      "premise": "Not a flyby — a descent. Cross to the great galaxies and drop inside each one, among its own hundred billion suns, before rising back into the dark. (Cruise it — each ⛶ stop lands you inside.)",
+      "stops": [
+        { "ra": 0, "dec": 0, "distLy": 0, "label": "Milky Way", "note": "Leave home." },
+        { "obj": "Andromeda Galaxy (M31)", "enter": true, "note": "Descend into the great spiral — fly among the stars of another galaxy." },
+        { "obj": "Triangulum Galaxy (M33)", "enter": true, "note": "Drop into the third-largest island of the Local Group." },
+        { "obj": "Whirlpool Galaxy (M51)", "enter": true, "note": "Down into the Whirlpool's grand-design arms." },
+        { "obj": "M87 (Virgo A)", "note": "Rise, and end before the giant of Virgo and its jet." }
+      ]
+    },
+    {
+      "id": "island-landings", "title": "The Island Landings", "scale": "cosmos", "mixed": true, "length": "epic", "cruiseC": 0.98,
+      "premise": "An explorer's log of landings — touch down inside our companion galaxies, from the ragged Magellanic Clouds to the great spiral next door. (Cruise it to land inside each.)",
+      "stops": [
+        { "obj": "Large Magellanic Cloud", "enter": true, "note": "Land in the Large Magellanic Cloud, its Tarantula Nebula ablaze." },
+        { "obj": "Small Magellanic Cloud", "enter": true, "note": "Cross to its smaller twin." },
+        { "obj": "Andromeda Galaxy (M31)", "enter": true, "note": "The long jump — inside Andromeda itself." },
+        { "obj": "Sagittarius A*", "note": "Home again, at the black heart of the Milky Way." }
+      ]
     }
   ]
 }
