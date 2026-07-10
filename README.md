@@ -96,6 +96,23 @@ The map is drawn like an annotated chart, not a uniform dot-field:
   match-data** switch (match makes it read as a real, complete survey). Selectable
   on click (kept out of the hover scan for smoothness at ~650k points).
 
+### Enter a galaxy — real imagery & interior exploration
+
+Any galaxy's info panel has an **⛶ enter galaxy** button. It pulls a real sky
+cutout for that position from **CDS hips2fits** (HiPS surveys — DSS2 all-sky,
+SDSS where available; the service is CORS-enabled, so the browser fetches it
+directly, no proxy), then samples a **3-D star field whose density and colour
+follow the actual image** — the arms, bar and bulge of the real galaxy — and
+drops you *inside* it. There you can orbit and fly through the stars, **click any
+star to select it**, and **trace routes between stars** with true intra-galaxy
+distances and relativistic travel times (a crossing of tens of thousands of
+light-years, kyr of ship time). A banner shows the galaxy, whether the field is
+image-derived or a procedural fallback (used when offline), and a **star-count
+selector** (60k → 450k · ultra) so you can crank the density for a strong GPU.
+Set `app._gxImageOverride = '<url>'` (or `app._gxSurvey = 'CDS/P/SDSS9/color'`)
+to point the interior at a custom image / survey. **⤴ exit galaxy** returns you
+to the cosmos where you left off.
+
 ## The Cosmic Atlas (knowledge base)
 
 A dedicated **ATLAS** tab and a set of typed markers overlay a curated knowledge
@@ -335,5 +352,6 @@ persistent library.
 - CMB map: **WMAP 9-year ILC** (NASA / LAMBDA), reprojected from HEALPix.
 - Exoplanets (live): **NASA Exoplanet Archive**.
 - Live growth: **SIMBAD (CDS)** and the **ATNF Pulsar Catalogue** (via VizieR/CDS).
+- Galaxy imagery (live): **CDS hips2fits** over HiPS surveys (**DSS2**, **SDSS**, …).
 - Cosmology: flat ΛCDM, **Planck 2018** parameters.
 - Rendering [three.js](https://threejs.org) · build [Vite](https://vitejs.dev).

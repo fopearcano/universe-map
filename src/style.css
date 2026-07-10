@@ -434,6 +434,22 @@ select:focus { outline: none; border-color: var(--cyan); }
 }
 #plotbanner[hidden] { display: none; }
 
+/* inside-a-galaxy banner */
+#galaxybanner {
+  position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 14;
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(6,10,20,0.92); border: 1px solid var(--cyan); color: var(--ink);
+  padding: 5px 12px; border-radius: 16px; font-size: 11px; letter-spacing: 0.06em;
+  box-shadow: 0 0 18px rgba(92,225,255,0.25);
+}
+#galaxybanner[hidden] { display: none; }
+#galaxybanner .gb-name { color: var(--cyan); }
+#galaxybanner .gb-src { color: var(--dim); }
+#galaxybanner .gb-load { color: var(--cyan); }
+#galaxybanner .gb-q { color: var(--dim); display: flex; align-items: center; gap: 5px; }
+#galaxybanner select { background: #0a1220; color: var(--ink); border: 1px solid var(--line-strong); border-radius: 5px; padding: 2px 5px; font-family: var(--mono); font-size: 10px; }
+#galaxybanner .btn.sm { width: auto; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 760px) {
   #leftdock { top: auto; bottom: 60px; left: 8px; right: 8px; width: auto; max-height: 40vh; }

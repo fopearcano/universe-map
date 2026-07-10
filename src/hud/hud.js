@@ -12,6 +12,37 @@ export function initHUD(app) {
   initTelemetry(app);
   initFps();
   initHoverTip(app);
+  initGalaxyBanner(app);
+}
+
+// Banner shown while flying inside a galaxy: name, field source, a star-count
+// quality selector (raise it for a strong GPU), and an exit button.
+function initGalaxyBanner(app) {
+  const b = document.createElement('div');
+  b.id = 'galaxybanner'; b.hidden = true;
+  document.body.appendChild(b);
+  app.on('galaxy', (e) => {
+    if (!e || !e.inside) { b.hidden = true; b.innerHTML = ''; return; }
+    if (e.loading) { b.hidden = false; b.innerHTML = `<span class="gb-load">⛶ entering <b>${esc(e.name)}</b> · fetching sky image…</span>`; return; }
+    b.hidden = false;
+    const q = app.qualityStarCount();
+    b.innerHTML = `
+      <span class="gb-name">⛶ INSIDE <b>${esc(e.name)}</b></span>
+      <span class="gb-src">${e.imageDerived ? 'image-derived field' : 'procedural field'} · ${(e.count || 0).toLocaleString('en-US')} stars</span>
+      <label class="gb-q">stars
+        <select id="gb-q">
+          <option value="60000">60k</option>
+          <option value="120000">120k</option>
+          <option value="250000">250k · high</option>
+          <option value="450000">450k · ultra</option>
+        </select>
+      </label>
+      <button id="gb-exit" class="btn sm">⤴ exit galaxy</button>`;
+    const sel = b.querySelector('#gb-q');
+    sel.value = String([60000, 120000, 250000, 450000].reduce((a, v) => Math.abs(v - q) < Math.abs(a - q) ? v : a));
+    sel.onchange = () => { app.setInteriorQuality(+sel.value); app.enterGalaxy(app._lastGalaxyInfo); };
+    b.querySelector('#gb-exit').onclick = () => app.exitGalaxy();
+  });
 }
 
 function initModeSwitch(app) {
@@ -76,7 +107,17 @@ function initTelemetry(app) {
   app.on('frame', (f) => {
     const { ra, dec } = cartesianToRaDec(f.dir.x, f.dir.y, f.dir.z);
     const focus = f.focus ? cell('FOCUS', esc(f.focus)) : '';
-    if (f.mode === 'cosmos') {
+    if (f.mode === 'galaxy' && f.galaxy) {
+      const ly = f.galaxy.rangeLy;
+      const rng = ly >= 1e3 ? `${(ly / 1e3).toFixed(1)} kly` : `${ly.toFixed(0)} ly`;
+      el.innerHTML = [
+        cell('INSIDE', esc(f.galaxy.name)),
+        cell('STARS', fmtNum(f.galaxy.stars)),
+        cell('RANGE', rng),
+        cell('HDG', `${fmtRA(ra)} ${fmtDec(dec)}`),
+        cell('FOV', `${f.fov.toFixed(0)}°`), focus,
+      ].join('');
+    } else if (f.mode === 'cosmos') {
       el.innerHTML = [
         cell('OBJECTS', fmtNum(f.visible)),
         cell('SCALE', scaleAt(Math.min(f.camRadius, f.cmbR), f.decadeUnit)),

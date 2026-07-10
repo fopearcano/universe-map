@@ -7,7 +7,9 @@ import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
-import { morphFromType, seedFromVec } from './render/morphology.js';
+import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
+import { GalaxyInterior } from './render/galaxyInterior.js';
+import { fetchGalaxyImage, loadImageData, imageToCloud } from './render/galaxyImage.js';
 import { PC_TO_LY, cartesianToRaDec } from './util/astro.js';
 import { UserStore } from './data/userStore.js';
 import { RouteStore } from './data/routeStore.js';
@@ -273,6 +275,97 @@ export class App {
     if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
   }
 
+  // ===== galaxy interior: fly inside a galaxy, explore & route among its stars =====
+  qualityStarCount() { return this._interiorQuality || 120000; }
+  setInteriorQuality(n) { this._interiorQuality = Math.max(10000, Math.min(600000, n | 0)); }
+
+  // Build a navigable interior for a selected galaxy. Tries a live sky cutout so
+  // the star field mirrors the real image; falls back to procedural morphology.
+  async enterGalaxy(info) {
+    info = info || this.selection?.info; if (!info) return { ok: false };
+    this._lastGalaxyInfo = info;
+    if (this._inGalaxy) this.exitGalaxy();
+    const name = info.name || 'galaxy';
+    this.emit('galaxy', { name, loading: true, inside: true });
+    const R = 30;                                  // interior world radius (units)
+    const diameterKpc = 30;                         // assumed physical diameter
+    const pcPerUnit = (diameterKpc * 500) / R;      // (D/2 in pc) / R
+    const count = this.qualityStarCount();
+    const ra = info.ra, dec = info.dec;
+    const distMpc = info.distMpc || info.comovingMpc || (info.distLy ? info.distLy / 3.2615638e6 : null);
+    const seed = seedFromVec(info.worldPos || new THREE.Vector3(3, 5, 7)) % 100000;
+    let cloud = null, imageDerived = false;
+    if (this._gxImageOverride || (ra != null && dec != null)) {
+      try {
+        const imgData = this._gxImageOverride
+          ? await loadImageData(this._gxImageOverride)
+          : await fetchGalaxyImage(ra, dec, distMpc, { survey: this._gxSurvey || 'CDS/P/DSS2/color', size: 512 });
+        const c = imageToCloud(imgData, { count, R, thickness: 0.05, seed });
+        if (c.count > count * 0.4) { cloud = c; imageDerived = true; }
+      } catch (e) { /* offline / CORS blocked → procedural fallback */ }
+    }
+    if (!cloud) {
+      let morph = morphFromType(info.type || info.sub || '');
+      if (morph === 'globular' || morph === 'open') morph = 'spiral';
+      cloud = structureCloud(morph, R, seed, { count });
+    }
+    this.interior = new GalaxyInterior(cloud, { pcPerUnit, name, imageDerived });
+    this.scene.scene.add(this.interior.group);
+    this._galaxyReturn = { camPos: this.scene.camera.position.clone(), target: this.scene.controls.target.clone() };
+    this._inGalaxy = true;
+    this._hideForInterior();
+    this.clearSelection(); this.clearRoute(); this.clearFocus();
+    this.scene.setView(new THREE.Vector3(R * 0.9, R * 0.45, R * 1.15), new THREE.Vector3(0, 0, 0));
+    this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count });
+    return { ok: true, imageDerived, count: cloud.count };
+  }
+
+  exitGalaxy() {
+    if (!this._inGalaxy) return;
+    this.clearSelection(); this.clearRoute();
+    this.scene.scene.remove(this.interior.group); this.interior.dispose(); this.interior = null;
+    this._inGalaxy = false;
+    this._restoreFromInterior();
+    const r = this._galaxyReturn;
+    if (r) this.scene.setView(r.camPos, r.target);
+    this.emit('galaxy', { inside: false });
+  }
+
+  _hideForInterior() {
+    this.starfield.points.visible = false;
+    this.scene.setReferenceVisible(false);
+    this.voyageLayer.setVisible(false);
+    this.cosmos.setVisible(false);
+    for (const l of [this.localClusters, this.cosmosClusters, this.cosmosStructures, this.localAtlas, this.cosmosAtlas, this.localCustom, this.cosmosCustom]) l && l.setVisible(false);
+    if (this.structureShapes) this.structureShapes.setVisible(false);
+    this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
+  }
+  _restoreFromInterior() {
+    if (this.mode === 'cosmos') {
+      this.cosmos.setVisible(true); this.cosmos.applyFilter({});
+      this.cosmosClusters.setVisible(this.showClusters); this.cosmosStructures.setVisible(this.showStructures);
+      this.cosmosAtlas.setVisible(this.showAtlas); this.cosmosCustom.setVisible(this.showCustom);
+      if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
+      this._applyCosmosLabels();
+    } else {
+      this.starfield.points.visible = true; this.scene.setReferenceVisible(true);
+      this.localClusters.setVisible(this.showClusters); this.localAtlas.setVisible(this.showAtlas);
+      this.localCustom.setVisible(this.showCustom);
+      this._applyLocalLabels();
+    }
+  }
+
+  selectInteriorStar(i, { fly = false } = {}) {
+    if (!this.interior || i < 0) return;
+    const wp = this.interior.starWorld(i);
+    const distLy = this.interior.starDistPc(i) * PC_TO_LY;
+    const truePos = wp.clone().multiplyScalar(this.interior.pcPerUnit);
+    const desig = `${this.interior.name.replace(/\s*\(.*\)/, '')}-${(i % 99999).toString().padStart(5, '0')}`;
+    const info = { kind: 'interiorStar', name: desig, galaxy: this.interior.name, distLy, distFromCoreLy: distLy, imageDerived: this.interior.imageDerived };
+    this._setSelection({ kind: 'interiorStar', worldPos: wp.clone(), truePos, info });
+    if (fly) this.scene.flyTo(wp.clone(), { approach: Math.max(2, this.interior.extent() * 0.08) });
+  }
+
   _buildRouteLayer() {
     this.routeGroup = new THREE.Group();
     this.scene.scene.add(this.routeGroup);
@@ -284,6 +377,7 @@ export class App {
 
   // ================= mode switching =================
   setMode(mode) {
+    if (this._inGalaxy) this.exitGalaxy();
     if (mode === this.mode) return;
     this.stopVoyage();
     this.clearSelection();
@@ -490,6 +584,7 @@ export class App {
 
   // Map a display-space point back to a true position in parsecs (mode-aware).
   _worldToTrue(worldPos) {
+    if (this._inGalaxy && this.interior) return worldPos.clone().multiplyScalar(this.interior.pcPerUnit);
     if (this.mode !== 'cosmos') return worldPos.clone();
     const D = this.cosmos.decadeUnit, r = worldPos.length();
     return worldPos.clone().normalize().multiplyScalar(Math.pow(10, r / D));
@@ -784,6 +879,7 @@ export class App {
     const ndc = (e) => ({ x: (e.clientX / window.innerWidth) * 2 - 1, y: -(e.clientY / window.innerHeight) * 2 + 1 });
     const pickAt = (e) => {
       this._ray.setFromCamera(ndc(e), this.scene.camera); this._ray.camera = this.scene.camera;
+      if (this._inGalaxy) { const i = this.interior.pick(this._ray, this.scene.camera); return i >= 0 ? { interiorStar: i } : null; }
       // labelled markers (clusters/structures) take priority when the cursor is on them
       const ex = this._pickExtra();
       if (ex) return ex;
@@ -792,7 +888,8 @@ export class App {
     };
     const dispatch = (hit, fly) => {
       if (!hit) { if (!fly) this.clearSelection(); return; }
-      if (hit.star != null) this.selectStar(hit.star, { fly });
+      if (hit.interiorStar != null) this.selectInteriorStar(hit.interiorStar, { fly });
+      else if (hit.star != null) this.selectStar(hit.star, { fly });
       else if (hit.extra) this.selectExtra(hit.extra.kind, hit.extra.i, { fly });
       else this.selectObject(hit, { fly });
     };
@@ -875,6 +972,15 @@ export class App {
     this._hover.last = now; this._hover.need = false;
     const ndc = { x: (this._hover.x / window.innerWidth) * 2 - 1, y: -(this._hover.y / window.innerHeight) * 2 + 1 };
     this._ray.setFromCamera(ndc, this.scene.camera); this._ray.camera = this.scene.camera;
+    if (this._inGalaxy) {
+      const i = this.interior.pick(this._ray, this.scene.camera);
+      const key = 'in' + i;
+      if (key !== this._hover.key) {
+        this._hover.key = key;
+        this.emit('hover', i >= 0 ? { text: `★ ${esc(this.interior.name)} · ${(this.interior.starDistPc(i) * PC_TO_LY / 1000).toFixed(1)} kly from core`, x: this._hover.x, y: this._hover.y } : null);
+      }
+      return;
+    }
     const ex = this._pickExtra();
     if (ex) {
       const key = `${ex.extra.kind}${ex.extra.i}`;
@@ -921,10 +1027,11 @@ export class App {
     const cam = this.scene.camera;
     const dir = this.scene.controls.target.clone().sub(cam.position);
     this.emit('frame', {
-      mode: this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
+      mode: this._inGalaxy ? 'galaxy' : this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
       visible: this.mode === 'local' ? this.starfield.visibleCount : this.cosmos.visibleCount(),
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
       focus: this.focus ? this.focus.label : null,
+      galaxy: this._inGalaxy ? { name: this.interior.name, stars: this.interior.count, rangeLy: cam.position.length() * this.interior.pcPerUnit * PC_TO_LY } : null,
     });
   }
 }

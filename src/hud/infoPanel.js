@@ -14,13 +14,15 @@ export function initInfoPanel(app) {
     dock.innerHTML = o.kind === 'star' ? renderStar(o)
       : o.kind === 'atlas' ? renderAtlas(o)
         : o.kind === 'custom' ? renderCustom(o)
-          : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-            : renderCosmos(o);
+          : o.kind === 'interiorStar' ? renderInteriorStar(o)
+            : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
+              : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
     dock.querySelector('#i-focus').onclick = () => app.setFocus();
     dock.querySelector('#i-route').onclick = () => app.addRouteWaypoint();
+    const enter = dock.querySelector('#i-enter'); if (enter) enter.onclick = () => app.enterGalaxy(app.selection.info);
     const exo = dock.querySelector('#i-exo'); if (exo) exo.onclick = () => runExo(o, dock);
     const sim = dock.querySelector('#i-simbad'); if (sim) sim.onclick = () => runLookup(o, dock);
     const edit = dock.querySelector('#i-edit'); if (edit) edit.onclick = () => app._openStudio && app._openStudio(app.userStore.get(o.customId));
@@ -64,13 +66,14 @@ function renderCosmos(o) {
   rows.push(['Right ascension', fmtRA(o.ra)]);
   rows.push(['Declination', fmtDec(o.dec)]);
   rows.push(['Catalogue', o.survey]);
+  const canEnter = !isQ && (o.kind === 'galaxy' || isLG || (isProc && o.pType === 'galaxy'));
   if (isProc) {
     const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
-    return head('✦ ' + o.name, o.sub, swatch) + grid(rows) + facts + actions({});
+    return head('✦ ' + o.name, o.sub, swatch) + grid(rows) + facts + actions({ enter: canEnter });
   }
   const note = (o.kind === 'galaxy' || isLG)
-    ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud (procedural — real per-star data exists only for the Milky Way).</div>' : '';
-  return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({ simbad: o.kind === 'localgalaxy' }) + note;
+    ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud. Use ⛶ enter galaxy to fly inside it (star field mirrors a real sky cutout).</div>' : '';
+  return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({ simbad: o.kind === 'localgalaxy', enter: canEnter }) + note;
 }
 
 function renderExtra(o) {
@@ -95,7 +98,7 @@ function renderAtlas(o) {
   const rows = [['Class', o.categoryLabel], ['Type', o.type], ['Distance', fmtAtlasDist(o.distLy), 'hl'],
     ['Right ascension', fmtRA(o.ra)], ['Declination', fmtDec(o.dec)]];
   const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
-  return head(o.name, o.categoryLabel, swatch) + grid(rows) + facts + actions({ simbad: true });
+  return head(o.name, o.categoryLabel, swatch) + grid(rows) + facts + actions({ simbad: true, enter: isGalaxyish(o.categoryLabel) || isGalaxyish(o.type) });
 }
 function fmtAtlasDist(ly) {
   if (ly >= 1e9) return `${(ly / 1e9).toFixed(2)} Gly`;
@@ -113,16 +116,29 @@ function head(name, sub, swatch) {
 function grid(rows) {
   return `<dl class="datagrid">${rows.map(([k, v, cls]) => `<dt>${esc(k)}</dt><dd class="${cls || ''}">${esc(v)}</dd>`).join('')}</dl>`;
 }
-function actions({ exo, simbad, edit, del } = {}) {
+function actions({ exo, simbad, edit, del, enter } = {}) {
   return `<div class="info-actions">
     <button class="btn sm" id="i-fly">➤ fly to</button>
     <button class="btn sm" id="i-focus" title="orbit around this object">◎ focus</button>
     <button class="btn sm" id="i-route" title="add to route">＋ route</button>
+    ${enter ? '<button class="btn sm" id="i-enter" title="fly inside this galaxy and explore its stars">⛶ enter galaxy</button>' : ''}
     ${simbad ? '<button class="btn sm" id="i-simbad" title="fetch live data from SIMBAD">⟲ SIMBAD</button>' : ''}
     ${exo ? '<button class="btn sm" id="i-exo">◇ exoplanets</button>' : ''}
     ${edit ? '<button class="btn sm" id="i-edit">✎ edit</button>' : ''}
     ${del ? '<button class="btn sm" id="i-del" title="delete from library">🗑 delete</button>' : ''}
   </div><div id="i-exo-out" class="muted" style="margin-top:8px"></div>`;
+}
+const isGalaxyish = (s) => /galax|spiral|elliptical|irregular|lenticular|magellanic|starburst|dwarf sph|interacting/i.test(String(s || ''));
+
+function renderInteriorStar(o) {
+  const kly = o.distFromCoreLy / 1000;
+  const rows = [
+    ['Galaxy', o.galaxy],
+    ['From core', `${kly >= 1 ? kly.toFixed(1) + ' kly' : o.distFromCoreLy.toFixed(0) + ' ly'}`, 'hl'],
+    ['Field', o.imageDerived ? 'image-derived (real cutout)' : 'procedural'],
+  ];
+  const note = '<div class="muted" style="margin-top:8px;line-height:1.5">Inside a galaxy. Click stars to route between them; distances are intra-galaxy. Use ⛶ exit (top) to leave.</div>';
+  return head('★ ' + o.name, `star · ${esc(o.galaxy)}`, '#bcd4ff') + grid(rows) + actions({}) + note;
 }
 
 function renderCustom(o) {
@@ -133,7 +149,7 @@ function renderCustom(o) {
     ['Distance', fmtAtlasDist(o.distLy), 'hl'], ['Right ascension', fmtRA(o.ra)], ['Declination', fmtDec(o.dec)]];
   const facts = o.facts ? `<div class="atlas-facts">${esc(o.facts)}</div>` : '';
   const sub = imagined ? '✦ imagined · story library' : `${o.categoryLabel} · live (${esc(o.source || 'SIMBAD')})`;
-  return head((imagined ? '✦ ' : '') + o.name, sub, swatch) + grid(rows) + facts + actions({ edit: true, del: true });
+  return head((imagined ? '✦ ' : '') + o.name, sub, swatch) + grid(rows) + facts + actions({ edit: true, del: true, enter: isGalaxyish(o.type) || isGalaxyish(o.categoryLabel) });
 }
 
 async function runLookup(o, dock) {
