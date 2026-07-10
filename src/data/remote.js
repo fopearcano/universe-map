@@ -16,10 +16,13 @@
 // To make live queries reliable behind CORS, point PROXY at a tiny pass-through
 // (e.g. a serverless function that adds CORS headers): remote.setProxy(url).
 
+import { comovingMpc, MPC_TO_LY } from '../util/cosmology.js';
+
 let PROXY = '';
 export function setProxy(base) { PROXY = base || ''; }
 
 const EXO_TAP = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync';
+const SIMBAD_TAP = 'https://simbad.cds.unistra.fr/simbad/sim-tap/sync';
 
 const withProxy = (u) => (PROXY ? PROXY.replace(/\/$/, '') + '/' + encodeURIComponent(u) : u);
 
@@ -80,4 +83,57 @@ export async function fetchExoplanets(star) {
         : String(e.message || e),
     };
   }
+}
+
+// ---- SIMBAD live name resolver (CDS) — resolves a real object by name and returns
+// its coordinates, type, spectral type and a distance derived from parallax or
+// redshift. SIMBAD's TAP service is CORS-enabled, so this works from the browser. ----
+export async function resolveSimbad(name) {
+  const q = String(name || '').trim();
+  if (!q) return { ok: false, note: 'enter an object name' };
+  const adql =
+    'SELECT TOP 1 b.main_id, b.ra, b.dec, b.otype_txt, b.sp_type, b.plx_value, b.rvz_redshift ' +
+    "FROM basic AS b JOIN ident AS i ON b.oid = i.oidref WHERE i.id = '" + q.replace(/'/g, "''") + "'";
+  const u = `${SIMBAD_TAP}?request=doQuery&lang=adql&format=json&query=${encodeURIComponent(adql)}`;
+  const to = timeout(9000);
+  try {
+    const res = await fetch(withProxy(u), { signal: to.signal });
+    to.done();
+    if (!res.ok) return { ok: false, note: `SIMBAD HTTP ${res.status}` };
+    const j = await res.json();
+    const row = j.data && j.data[0];
+    if (!row) return { ok: false, note: `“${q}” not found in SIMBAD` };
+    const [mainId, ra, dec, otype, spType, plx, z] = row;
+    let distLy = null, distNote = 'unknown';
+    if (plx && plx > 0) { distLy = (1000 / plx) * 3.2615638; distNote = `parallax ${plx.toFixed(2)} mas`; }
+    else if (z && z > 0) { distLy = comovingMpc(z) * MPC_TO_LY; distNote = `redshift z=${z}`; }
+    return {
+      ok: true, source: 'SIMBAD',
+      object: {
+        name: mainId ? mainId.replace(/\s+/g, ' ').trim() : q,
+        query: q, ra: ra / 15, dec, otype: otype || '', spType: spType || '',
+        distLy, distNote, category: categoryFromOtype(otype),
+      },
+    };
+  } catch (e) {
+    to.done();
+    const blocked = e.name === 'AbortError' || e.name === 'TypeError';
+    return { ok: false, note: blocked ? 'live query blocked / timed out (network or CORS)' : String(e.message || e) };
+  }
+}
+
+// Best-effort mapping from SIMBAD object types to our atlas categories.
+function categoryFromOtype(ot) {
+  const o = (ot || '').toLowerCase();
+  if (/qso|blazar|bl lac|seyfert|agn|liner/.test(o)) return 'quasar';
+  if (/galaxy|galaxies/.test(o)) return 'galaxy';
+  if (/pulsar|neutron/.test(o)) return 'pulsar';
+  if (/supernova remnant|snr/.test(o)) return 'supernova';
+  if (/supernova/.test(o)) return 'transient';
+  if (/nebula|hii|planetary|molecular cloud|h2/.test(o)) return 'nebula';
+  if (/black hole/.test(o)) return 'smbh';
+  if (/cluster of galaxies/.test(o)) return 'quasar';
+  if (/cluster|association/.test(o)) return 'nebula';
+  if (/supergiant|hypergiant|wolf|variable|emission-line star/.test(o)) return 'hyperstar';
+  return 'galaxy';
 }

@@ -7,6 +7,8 @@ import { initSearch } from './hud/search.js';
 import { initInfoPanel } from './hud/infoPanel.js';
 import { initVoyagePlayer } from './hud/voyages.js';
 import { initNavChart } from './hud/navchart.js';
+import { initStudio } from './hud/studio.js';
+import { buildAtlasBrowser } from './hud/atlasBrowser.js';
 
 const boot = document.getElementById('boot');
 const bootBar = document.getElementById('boot-bar-fill');
@@ -43,6 +45,9 @@ async function main() {
   initInfoPanel(app);
   initVoyagePlayer(app);
   initNavChart(app);
+  initStudio(app);
+  // keep the atlas browser in sync when the user's library changes
+  app.on('custom', () => buildAtlasBrowser(app));
 
   app.start();
 

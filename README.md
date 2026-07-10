@@ -79,7 +79,30 @@ the Pillars of Creation, TRAPPIST-1, GW170817, GRB 221009A, UY Scuti…). Browse
 category, filter by text, and click to fly to it (hopping to COSMOS when the
 object is beyond the true-scale LOCAL view). It is deliberately **curated, not
 exhaustive** — the universe holds billions of catalogued objects — but it's a real,
-extensible foundation (the same pipeline, or live SIMBAD/NED retrieval, can grow it).
+extensible foundation, and it grows two ways:
+
+### Live data retrieval (SIMBAD) — and it persists
+
+The ATLAS tab has a **resolve-live** box: type any real object's name and it is
+resolved on the fly against **SIMBAD (CDS)** — coordinates, object type, spectral
+type and a distance derived from parallax or redshift — then placed on the map and
+**saved to your library**. Any real object's info panel also has a **⟲ SIMBAD**
+button to enrich it with live data. SIMBAD's service is CORS-enabled, so this runs
+straight from the browser (no proxy needed).
+
+Everything you add is written to **localStorage**, so it **persists across reloads**
+(it does *not* reset on restart). **Export / Import** round-trips your whole library
+as JSON, and **Clear** wipes it.
+
+### Story Studio — imagined objects & events
+
+The **✦ Imagine** button opens an authoring modal to add **hypothetical objects
+and events** for story-crafting: name, category, type, position (RA/Dec, or *use
+view* to drop it where you're looking), distance, and lore/notes. Imagined objects
+render as distinct magenta ✦ markers in both modes, are searchable, route-able and
+focus-able like anything else, and persist in your library. Provide a batch as a
+JSON file via **Import** — the format is `{ "objects": [ { "name", "kind":
+"imagined", "category", "type", "ra"(h), "dec"(°), "distLy", "facts" }, … ] }`.
 
 ## Story voyages
 

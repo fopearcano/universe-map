@@ -5,9 +5,10 @@ import { Picker } from './render/picking.js';
 import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
-import { MarkerLayer, pickPositions, makeRingTexture } from './render/markers.js';
+import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture } from './render/markers.js';
 import { PC_TO_LY } from './util/astro.js';
-import { comovingMpc } from './util/cosmology.js';
+import { UserStore } from './data/userStore.js';
+import { resolveSimbad } from './data/remote.js';
 
 // marker colours by type
 const MARK_COLOR = {
@@ -50,10 +51,86 @@ export class App {
     this._ray = new THREE.Raycaster();
     this._bloom = null;
 
+    this.userStore = new UserStore();
+    this._sparkle = makeSparkleTexture('#ffffff');
+    this.showCustom = true;
+    this.localCustom = null; this.cosmosCustom = null;
+
     this._buildMarkers();
     this._buildRouteLayer();
+    this._rebuildCustom();
     this._applyLocalLabels();
     this._bindPointer(canvas);
+  }
+
+  // ---- user-contributed objects (imagined + live-discovered), persisted ----
+  _customGeom(o) {
+    const distPc = Math.max((o.distLy || 0) * (1 / PC_TO_LY), 0.001);
+    const ra = o.ra * 15 * Math.PI / 180, dec = o.dec * Math.PI / 180, cd = Math.cos(dec);
+    const dir = [cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec)];
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    return { dir, distPc, pos: [dir[0] * distPc, dir[1] * distPc, dir[2] * distPc], displayR: D * Math.log10(Math.max(distPc, 1)) };
+  }
+
+  _rebuildCustom() {
+    for (const layer of [this.localCustom, this.cosmosCustom]) {
+      if (layer) { (layer === this.localCustom ? this.scene.scene : this.cosmos.group).remove(layer.points); layer.points.geometry.dispose(); layer.points.material.dispose(); }
+    }
+    const objs = this.userStore.all();
+    const localMax = this.catalog.meta.bounds.maxRadiusPc;
+    const colorFor = (o) => o.kind === 'imagined' ? [1.0, 0.36, 0.94] : (this.atlasCategories[o.category]?.color || [0.5, 1.0, 0.62]);
+    const localItems = [], cosmosItems = [];
+    for (const o of objs) {
+      const g = this._customGeom(o);
+      const color = colorFor(o);
+      cosmosItems.push({ pos: new THREE.Vector3(...g.dir).multiplyScalar(g.displayR), color, label: o.name, data: { id: o.id } });
+      if (Math.hypot(g.pos[0], g.pos[1], g.pos[2]) <= localMax * 1.02)
+        localItems.push({ pos: new THREE.Vector3(g.pos[0], g.pos[1], g.pos[2]), color, label: o.name, data: { id: o.id } });
+    }
+    this.localCustom = new MarkerLayer(localItems, { size: 14, ring: this._sparkle });
+    this.cosmosCustom = new MarkerLayer(cosmosItems, { size: 14, ring: this._sparkle });
+    this.scene.scene.add(this.localCustom.points);
+    if (this.cosmos) this.cosmos.group.add(this.cosmosCustom.points);
+    this.localCustom.setVisible(this.showCustom && this.mode === 'local');
+    this.cosmosCustom.setVisible(this.showCustom && this.mode === 'cosmos');
+  }
+
+  addCustomObject(obj) { const rec = this.userStore.add(obj); this._rebuildCustom(); this.emit('custom', this.userStore.all()); return rec; }
+  updateCustomObject(id, patch) { const r = this.userStore.update(id, patch); this._rebuildCustom(); this.emit('custom', this.userStore.all()); if (this.selection?.customId === id) this.selectCustom(id); return r; }
+  removeCustomObject(id) { this.userStore.remove(id); if (this.selection?.customId === id) this.clearSelection(); this._rebuildCustom(); this.emit('custom', this.userStore.all()); }
+  clearCustom(kind) { this.userStore.clear(kind); this.clearSelection(); this._rebuildCustom(); this.emit('custom', this.userStore.all()); }
+  exportCustom() { return this.userStore.export(); }
+  importCustom(json, opts) { const r = this.userStore.import(json, opts); this._rebuildCustom(); this.emit('custom', this.userStore.all()); return r; }
+
+  async resolveAndAdd(name) {
+    const res = await resolveSimbad(name);
+    if (!res.ok) return res;
+    const o = res.object;
+    const rec = this.addCustomObject({
+      kind: 'discovered', source: 'SIMBAD', name: o.name, category: o.category,
+      type: o.otype || 'object', ra: o.ra, dec: o.dec, distLy: o.distLy || 0,
+      facts: `Resolved live from SIMBAD${o.spType ? ` · spectral type ${o.spType}` : ''}${o.distNote && o.distNote !== 'unknown' ? ` · distance from ${o.distNote}` : ' · distance unknown'}.`,
+    });
+    this.selectCustom(rec.id, { fly: true });
+    return { ok: true, rec };
+  }
+
+  selectCustom(id, { fly = false } = {}) {
+    const o = this.userStore.get(id); if (!o) return;
+    const g = this._customGeom(o);
+    const worldPos = this.mode === 'cosmos'
+      ? new THREE.Vector3(...g.dir).multiplyScalar(g.displayR)
+      : new THREE.Vector3(g.pos[0], g.pos[1], g.pos[2]);
+    const cat = this.atlasCategories[o.category];
+    const info = {
+      kind: 'custom', customId: id, custKind: o.kind, name: o.name,
+      categoryLabel: o.kind === 'imagined' ? 'imagined' : (cat ? cat.label : o.category),
+      type: o.type, facts: o.facts, distLy: o.distLy, ra: o.ra, dec: o.dec, source: o.source,
+      color: o.kind === 'imagined' ? [1, 0.36, 0.94] : (cat?.color || [0.5, 1, 0.62]),
+    };
+    const truePos = new THREE.Vector3(...g.dir).multiplyScalar(g.distPc);
+    this._setSelection({ kind: 'custom', customId: id, worldPos: worldPos.clone(), truePos, info });
+    if (fly) this.scene.flyTo(worldPos);
   }
 
   // ---- clusters & large-scale structures ----
@@ -123,6 +200,8 @@ export class App {
       this.cosmosClusters.setVisible(this.showClusters);
       this.cosmosStructures.setVisible(this.showStructures);
       this.cosmosAtlas.setVisible(this.showAtlas);
+      this.localCustom.setVisible(false);
+      this.cosmosCustom.setVisible(this.showCustom);
       this._applyCosmosLabels();
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
@@ -132,6 +211,8 @@ export class App {
       this.scene.setReferenceVisible(true);
       this.localClusters.setVisible(this.showClusters);
       this.localAtlas.setVisible(this.showAtlas);
+      this.cosmosCustom.setVisible(false);
+      this.localCustom.setVisible(this.showCustom);
       this._applyLocalLabels();
       this.scene.setView(new THREE.Vector3(14, 9, 17), new THREE.Vector3(0, 0, 0));
     }
@@ -150,6 +231,9 @@ export class App {
     } else if (key === 'atlas') {
       this.showAtlas = on;
       (this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas).setVisible(on);
+    } else if (key === 'custom') {
+      this.showCustom = on;
+      (this.mode === 'cosmos' ? this.cosmosCustom : this.localCustom).setVisible(on);
     }
   }
 
@@ -207,6 +291,11 @@ export class App {
       const layer = this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas;
       const it = layer.items[i]; if (!it) return;
       return this._selectAtlasObject(this.atlas[it.data.atlasIndex], it.pos.clone(), { fly });
+    }
+    if (kind === 'custom') {
+      const layer = this.mode === 'cosmos' ? this.cosmosCustom : this.localCustom;
+      const it = layer.items[i]; if (!it) return;
+      return this.selectCustom(it.data.id, { fly });
     }
     const it = (kind === 'cluster'
       ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters)
@@ -515,9 +604,11 @@ export class App {
       check(this.cosmosStructures, 'structure', this.showStructures);
       check(this.cosmosClusters, 'cluster', this.showClusters);
       check(this.cosmosAtlas, 'atlas', this.showAtlas);
+      check(this.cosmosCustom, 'custom', this.showCustom);
     } else {
       check(this.localClusters, 'cluster', this.showClusters);
       check(this.localAtlas, 'atlas', this.showAtlas);
+      check(this.localCustom, 'custom', this.showCustom);
     }
     return best;
   }
@@ -538,6 +629,10 @@ export class App {
           const layer = this.mode === 'cosmos' ? this.cosmosAtlas : this.localAtlas;
           const o = this.atlas[layer.items[ex.extra.i].data.atlasIndex];
           text = `${esc(o.name)} · ${esc(o.type)}`;
+        } else if (ex.extra.kind === 'custom') {
+          const layer = this.mode === 'cosmos' ? this.cosmosCustom : this.localCustom;
+          const o = this.userStore.get(layer.items[ex.extra.i].data.id);
+          text = o ? `${o.kind === 'imagined' ? '✦ ' : ''}${esc(o.name)} · ${esc(o.type || o.kind)}` : '';
         } else {
           const layer = ex.extra.kind === 'cluster' ? (this.mode === 'cosmos' ? this.cosmosClusters : this.localClusters) : this.cosmosStructures;
           const d = layer.items[ex.extra.i].data;

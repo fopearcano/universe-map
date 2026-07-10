@@ -53,6 +53,17 @@ export function pickPositions(raycaster, positions, camera, thresholdPx = 15) {
   return best >= 0 ? { i: best, ang: bestAng } : null;
 }
 
+// A 4-point sparkle/diamond used to distinguish user-contributed objects.
+export function makeSparkleTexture(color = '#ffffff') {
+  const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;
+  const ctx = cv.getContext('2d'); const c = s / 2;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); // diamond outline
+  ctx.moveTo(c, 6); ctx.lineTo(s - 6, c); ctx.lineTo(c, s - 6); ctx.lineTo(6, c); ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(c, c, 3, 0, Math.PI * 2); ctx.fill();
+  const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
+}
+
 export function makeRingTexture(color = '#ffffff', dot = false) {
   const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;
   const ctx = cv.getContext('2d');

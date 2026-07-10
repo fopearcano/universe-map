@@ -1,7 +1,7 @@
 import { bvToDisplayRGB } from '../util/color.js';
 import { fmtRA, fmtDec, fmtDist, fmtLum } from '../util/astro.js';
 import { fmtCosmoDist, fmtMpc, fmtZ, lookbackGyr } from '../util/cosmology.js';
-import { fetchExoplanets } from '../data/remote.js';
+import { fetchExoplanets, resolveSimbad } from '../data/remote.js';
 
 // Right-hand info dock. Renders any selectable object and offers navigation
 // actions: fly-to, set-focus (re-centre the pivot), and add-to-route.
@@ -13,15 +13,18 @@ export function initInfoPanel(app) {
     dock.hidden = false;
     dock.innerHTML = o.kind === 'star' ? renderStar(o)
       : o.kind === 'atlas' ? renderAtlas(o)
-        : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-          : renderCosmos(o);
+        : o.kind === 'custom' ? renderCustom(o)
+          : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
+            : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
     dock.querySelector('#i-focus').onclick = () => app.setFocus();
     dock.querySelector('#i-route').onclick = () => app.addRouteWaypoint();
-    const exo = dock.querySelector('#i-exo');
-    if (exo) exo.onclick = () => runExo(o, dock);
+    const exo = dock.querySelector('#i-exo'); if (exo) exo.onclick = () => runExo(o, dock);
+    const sim = dock.querySelector('#i-simbad'); if (sim) sim.onclick = () => runLookup(o, dock);
+    const edit = dock.querySelector('#i-edit'); if (edit) edit.onclick = () => app._openStudio && app._openStudio(app.userStore.get(o.customId));
+    const del = dock.querySelector('#i-del'); if (del) del.onclick = () => app.removeCustomObject(o.customId);
   });
   app.on('mode', () => { dock.hidden = true; dock.innerHTML = ''; });
 }
@@ -43,7 +46,7 @@ function renderStar(s) {
     ['Colour index B–V', s.ci.toFixed(3)], ['Right ascension', fmtRA(s.ra)], ['Declination', fmtDec(s.dec)],
     ['Constellation', s.con || '—'],
   ];
-  return head(s.name, ids.join('  ·  ') || 'uncatalogued', swatch) + grid(rows) + actions({ exo: !s.isSun });
+  return head(s.name, ids.join('  ·  ') || 'uncatalogued', swatch) + grid(rows) + actions({ exo: !s.isSun, simbad: !s.isSun });
 }
 
 function renderCosmos(o) {
@@ -61,7 +64,7 @@ function renderCosmos(o) {
   rows.push(['Survey', o.survey]);
   const note = (o.kind === 'galaxy' || isLG)
     ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud (procedural — real per-star data exists only for the Milky Way).</div>' : '';
-  return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({}) + note;
+  return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({ simbad: o.kind === 'localgalaxy' }) + note;
 }
 
 function renderExtra(o) {
@@ -77,7 +80,7 @@ function renderExtra(o) {
     rows.push(['', `${o.distMpc.toLocaleString()} Mpc`]);
   }
   const note = o.note ? `<div class="muted" style="margin-top:8px;line-height:1.5">${esc(o.note)}</div>` : '';
-  return head(o.name, isCluster ? 'star cluster' : 'large-scale structure', swatch) + grid(rows) + actions({}) + note;
+  return head(o.name, isCluster ? 'star cluster' : 'large-scale structure', swatch) + grid(rows) + actions({ simbad: true }) + note;
 }
 
 function renderAtlas(o) {
@@ -86,7 +89,7 @@ function renderAtlas(o) {
   const rows = [['Class', o.categoryLabel], ['Type', o.type], ['Distance', fmtAtlasDist(o.distLy), 'hl'],
     ['Right ascension', fmtRA(o.ra)], ['Declination', fmtDec(o.dec)]];
   const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
-  return head(o.name, o.categoryLabel, swatch) + grid(rows) + facts + actions({});
+  return head(o.name, o.categoryLabel, swatch) + grid(rows) + facts + actions({ simbad: true });
 }
 function fmtAtlasDist(ly) {
   if (ly >= 1e9) return `${(ly / 1e9).toFixed(2)} Gly`;
@@ -104,13 +107,40 @@ function head(name, sub, swatch) {
 function grid(rows) {
   return `<dl class="datagrid">${rows.map(([k, v, cls]) => `<dt>${esc(k)}</dt><dd class="${cls || ''}">${esc(v)}</dd>`).join('')}</dl>`;
 }
-function actions({ exo }) {
+function actions({ exo, simbad, edit, del } = {}) {
   return `<div class="info-actions">
     <button class="btn sm" id="i-fly">➤ fly to</button>
     <button class="btn sm" id="i-focus" title="orbit around this object">◎ focus</button>
     <button class="btn sm" id="i-route" title="add to route">＋ route</button>
+    ${simbad ? '<button class="btn sm" id="i-simbad" title="fetch live data from SIMBAD">⟲ SIMBAD</button>' : ''}
     ${exo ? '<button class="btn sm" id="i-exo">◇ exoplanets</button>' : ''}
+    ${edit ? '<button class="btn sm" id="i-edit">✎ edit</button>' : ''}
+    ${del ? '<button class="btn sm" id="i-del" title="delete from library">🗑 delete</button>' : ''}
   </div><div id="i-exo-out" class="muted" style="margin-top:8px"></div>`;
+}
+
+function renderCustom(o) {
+  const [r, g, b] = o.color || [1, 0.36, 0.94];
+  const swatch = `rgb(${(r * 255) | 0},${(g * 255) | 0},${(b * 255) | 0})`;
+  const imagined = o.custKind === 'imagined';
+  const rows = [['Class', imagined ? '✦ imagined' : o.categoryLabel], ['Type', o.type || '—'],
+    ['Distance', fmtAtlasDist(o.distLy), 'hl'], ['Right ascension', fmtRA(o.ra)], ['Declination', fmtDec(o.dec)]];
+  const facts = o.facts ? `<div class="atlas-facts">${esc(o.facts)}</div>` : '';
+  const sub = imagined ? '✦ imagined · story library' : `${o.categoryLabel} · live (${esc(o.source || 'SIMBAD')})`;
+  return head((imagined ? '✦ ' : '') + o.name, sub, swatch) + grid(rows) + facts + actions({ edit: true, del: true });
+}
+
+async function runLookup(o, dock) {
+  const out = dock.querySelector('#i-exo-out'), btn = dock.querySelector('#i-simbad');
+  out.innerHTML = '<span style="color:var(--cyan)">querying SIMBAD…</span>'; btn.disabled = true;
+  const res = await resolveSimbad(o.name.replace(/^✦\s*/, ''));
+  btn.disabled = false;
+  if (!res.ok) { out.innerHTML = `<span style="color:var(--amber)">SIMBAD: ${esc(res.note || 'unavailable')}</span>`; return; }
+  const s = res.object;
+  const rows = [['SIMBAD id', s.name], ['Object type', s.otype || '—'], s.spType ? ['Spectral type', s.spType] : null,
+    ['Distance', s.distLy ? fmtAtlasDist(s.distLy) : 'unknown']].filter(Boolean);
+  out.innerHTML = '<div style="color:var(--green);margin-bottom:4px">live · SIMBAD (CDS)</div>' +
+    rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:8px"><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
 }
 
 async function runExo(star, dock) {
