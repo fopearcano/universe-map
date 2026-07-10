@@ -157,11 +157,23 @@ export class CosmosWorld {
   _buildCMB() {
     const geo = new THREE.SphereGeometry(this.cmbR, 96, 64);
     const mat = new THREE.MeshBasicMaterial({
-      map: makeCMBTexture(), side: THREE.BackSide, transparent: true, opacity: 0.14, depthWrite: false,
+      map: makeCMBTexture(), side: THREE.BackSide, transparent: true, opacity: 0.12, depthWrite: false,
     });
     this.cmb = new THREE.Mesh(geo, mat);
+    // Orient so the texture's poles sit at the celestial poles (see the RA/Dec
+    // derivation baked into scripts/build-cmb.mjs).
+    this.cmb.rotation.x = Math.PI / 2;
     this.cmb.frustumCulled = false;
     this.group.add(this.cmb);
+
+    // Upgrade the placeholder to the real reprojected WMAP CMB map when present.
+    const base = import.meta.env.BASE_URL || '/';
+    new THREE.TextureLoader().load(
+      `${base}data/cmb.png`.replace(/([^:])\/\/+/g, '$1/'),
+      (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; mat.map = tex; mat.needsUpdate = true; this.cmbReal = true; },
+      undefined,
+      () => {} // keep the procedural fallback on error
+    );
   }
 
   // Fade the CMB shell in as the camera pulls out toward the horizon, so it stays
@@ -169,7 +181,7 @@ export class CosmosWorld {
   update(camera) {
     if (!this.cmb || !this.cmb.visible) return;
     const frac = Math.min(1, camera.position.length() / this.cmbR);
-    this.cmb.material.opacity = 0.05 + 0.20 * frac * frac;
+    this.cmb.material.opacity = 0.06 + 0.28 * frac * frac;
   }
 
   // ---- state ----

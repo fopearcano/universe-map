@@ -43,7 +43,7 @@ cosmos becomes a navigable onion centred on the Sun:
 | Nearby galaxies | **2MRS** (all-sky) | 43,500 |
 | Cosmic web | **SDSS** galaxies | 189,000 |
 | The quasar era | **SDSS** quasars (to z≈3.9) | 95,000 |
-| The horizon | CMB shell at z≈1100 | boundary at 45.4 Gly |
+| The horizon | **real WMAP 9-yr CMB** shell at z≈1100 | boundary at 45.4 Gly |
 
 Objects are coloured by distance (cyan near → crimson far, mirroring redshift).
 A **redshift slider peels back the universe** by look-back distance; toggle each
@@ -92,7 +92,8 @@ runs offline with no build-time network.
 
 ```bash
 npm run build:data     # stars: HYG v4.1 -> 100k working set + voyages
-node scripts/build-cosmos.mjs   # galaxies/quasars: 2MRS + SDSS -> layers + CMB
+npm run build:cosmos   # galaxies/quasars: 2MRS + SDSS -> layers + scale voyage
+npm run build:cmb      # real WMAP 9-yr CMB map -> equirectangular shell texture
 ```
 
 `build-cosmos.mjs` fetches the 2MASS Redshift Survey (VizieR) and SDSS
@@ -141,8 +142,11 @@ src/
   uniform.
 - Picking is a CPU nearest-ray angular scan — exact and ~1–3 ms even across
   100k–330k points, so no GPU id-buffer is needed.
-- The CMB is a dim procedural inside-out shell that fades in as you pull out
-  toward the horizon (a representation, clearly labelled — not the Planck map).
+- The CMB shell carries the **real WMAP 9-year ILC map**: `scripts/build-cmb.mjs`
+  reprojects the HEALPix FITS (Nside 512, NESTED, galactic) to an equatorial
+  equirectangular PNG — implementing `ang2pix_nest` and the equatorial↔galactic
+  rotation by hand, dependency-free. It fades in as the camera nears the horizon,
+  and falls back to a procedural texture if the PNG is absent.
 
 ## Dynamic data retrieval
 
@@ -156,6 +160,7 @@ same way.
 - Stars: **HYG database v4.1** (astronexus) — Hipparcos / Yale / Gliese.
 - Galaxies (nearby): **2MASS Redshift Survey** (Huchra et al.), via VizieR/CDS.
 - Galaxies & quasars (deep): **Sloan Digital Sky Survey** DR17, via SkyServer.
+- CMB map: **WMAP 9-year ILC** (NASA / LAMBDA), reprojected from HEALPix.
 - Exoplanets (live): **NASA Exoplanet Archive**.
 - Cosmology: flat ΛCDM, **Planck 2018** parameters.
 - Rendering [three.js](https://threejs.org) · build [Vite](https://vitejs.dev).

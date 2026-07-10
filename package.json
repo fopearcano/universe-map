@@ -6,6 +6,8 @@
   "description": "Interactive 3D navigable HUD map of the known stellar neighbourhood, with story-voyage tracking.",
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
+    "build:cosmos": "node scripts/build-cosmos.mjs",
+    "build:cmb": "node scripts/build-cmb.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host"

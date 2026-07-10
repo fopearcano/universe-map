@@ -74,7 +74,8 @@ export function buildCosmosLayers(app) {
       H₀ ${m.cosmology.H0} · Ωm ${m.cosmology.OmegaM.toFixed(3)} · ΩΛ ${m.cosmology.OmegaL.toFixed(3)}<br>
       radius plotted on a logarithmic scale (${m.decadeUnit} units / decade)<br>
       CMB shell z≈${m.cmb.z} · ${(m.cmb.radiusLy / 1e9).toFixed(1)} Gly radius<br>
-      observable diameter ≈ ${m.cmb.diameterGly.toFixed(0)} Gly
+      observable diameter ≈ ${m.cmb.diameterGly.toFixed(0)} Gly<br>
+      <span style="color:var(--dim)">CMB map: real WMAP 9-yr ILC, reprojected to equatorial</span>
     </div>`;
   const cmb = root.querySelector('[data-l="cmb"]');
   cmb.onclick = () => { cmb.classList.toggle('on'); app.setCosmosFilter({ show: { cmb: cmb.classList.contains('on') } }); };
