@@ -314,10 +314,10 @@ export class App {
 
   // Build a navigable interior for a selected galaxy. Tries a live sky cutout so
   // the star field mirrors the real image; falls back to procedural morphology.
-  async enterGalaxy(info) {
+  async enterGalaxy(info, { keepRoute = false } = {}) {
     info = info || this.selection?.info; if (!info) return { ok: false };
     this._lastGalaxyInfo = info;
-    if (this._inGalaxy) this.exitGalaxy();
+    if (this._inGalaxy) this.exitGalaxy({ keepRoute });
     const name = info.name || 'galaxy';
     this.emit('galaxy', { name, loading: true, inside: true });
     const R = 30;                                  // interior world radius (units)
@@ -362,15 +362,17 @@ export class App {
     this._galaxyReturn = { camPos: this.scene.camera.position.clone(), target: this.scene.controls.target.clone() };
     this._inGalaxy = true;
     this._hideForInterior();
-    this.clearSelection(); this.clearRoute(); this.clearFocus();
+    this.clearSelection();
+    if (!keepRoute) { this.clearRoute(); this.clearFocus(); }
     this.scene.setView(new THREE.Vector3(R * 0.9, R * 0.45, R * 1.15), new THREE.Vector3(0, 0, 0));
     this.emit('galaxy', { name, inside: true, imageDerived, count: cloud.count, diameterKpc, survey });
     return { ok: true, imageDerived, count: cloud.count, diameterKpc, survey };
   }
 
-  exitGalaxy() {
+  exitGalaxy({ keepRoute = false } = {}) {
     if (!this._inGalaxy) return;
-    this.clearSelection(); this.clearRoute();
+    this.clearSelection();
+    if (!keepRoute) this.clearRoute();
     this.scene.scene.remove(this.interior.group); this.interior.dispose(); this.interior = null;
     this._inGalaxy = false;
     this._restoreFromInterior();
@@ -386,9 +388,13 @@ export class App {
     this.cosmos.setVisible(false);
     for (const l of [this.localClusters, this.cosmosClusters, this.cosmosStructures, this.localAtlas, this.cosmosAtlas, this.localCustom, this.cosmosCustom]) l && l.setVisible(false);
     if (this.structureShapes) this.structureShapes.setVisible(false);
+    if (this.routeGroup) this.routeGroup.visible = false;      // hide the cosmos-scale route line
+    if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
     this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
   }
   _restoreFromInterior() {
+    if (this.routeGroup) this.routeGroup.visible = true;
+    if (this.sectorGridGroup) this.sectorGridGroup.visible = this.showSectorGrid;
     if (this.mode === 'cosmos') {
       this.cosmos.setVisible(true); this.cosmos.applyFilter({});
       this.cosmosClusters.setVisible(this.showClusters); this.cosmosStructures.setVisible(this.showStructures);
@@ -712,7 +718,7 @@ export class App {
   engageRoute() {
     if (this.route.length < 2) return;
     this.clearSelection();
-    this.autopilot = { seg: 0, t: 0, paused: false, speed: 0.11 };
+    this.autopilot = { seg: 0, t: 0, paused: false, speed: 0.11, descended: new Set(), atGalaxy: null };
     this.scene.controls.enabled = false;
     this.emit('nav', this._navReadout());
   }
@@ -724,25 +730,66 @@ export class App {
   }
   stopRoute() {
     if (!this.autopilot) return;
+    const wasDescended = !!this.autopilot.atGalaxy;
     this.autopilot = null;
+    if (this._inGalaxy) this.exitGalaxy();  // disengaging inside a galaxy leaves it
     this.scene.controls.enabled = true;
     this.scene.controls.update();
     this.emit('nav', null);
+    return wasDescended;
+  }
+
+  // If the waypoint just reached is a galaxy descent point, pause & drop inside.
+  _maybeDescend(seg) {
+    const ap = this.autopilot; if (!ap) return false;
+    const wp = this.route[seg];
+    if (wp && wp.galaxy && !ap.descended.has(seg)) {
+      ap.descended.add(seg); ap.paused = true; ap.atGalaxy = 'pending';
+      this._descendAtWaypoint(wp);
+      return true;
+    }
+    return false;
+  }
+
+  // Called when the autopilot arrives at a galaxy waypoint: pause & drop inside.
+  async _descendAtWaypoint(wp) {
+    this.emit('nav', this._navReadout());               // "descending…"
+    await this.enterGalaxy(wp.galaxy, { keepRoute: true });
+    if (!this.autopilot) return;                          // disengaged during load
+    this.autopilot.atGalaxy = wp.galaxy.name;
+    this.scene.controls.enabled = true;                  // free-look inside the galaxy
+    this.emit('nav', this._navReadout());
+  }
+
+  // Resume the course after a galaxy descent: rise out and fly on.
+  resumeFromGalaxy() {
+    const ap = this.autopilot; if (!ap || !ap.atGalaxy) return;
+    ap.atGalaxy = null;
+    this.exitGalaxy({ keepRoute: true });                // restores cosmos + camera to the waypoint
+    this.scene.controls.enabled = false;
+    ap.paused = false;
+    this.emit('nav', this._navReadout());
   }
   navSetSpeed(v) { if (this.autopilot) this.autopilot.speed = v; }
 
   _updateAutopilot(dt) {
     const ap = this.autopilot; if (!ap) return;
+    if (ap.atGalaxy) return; // descended into a galaxy — the user explores; resume to continue
     const pts = this.route.map((r) => r.worldPos);
     if (!ap.paused) {
       let remaining = ap.speed * dt * this._routeSpan();
       while (remaining > 0 && ap.seg < pts.length - 1) {
         const segLen = Math.max(1e-6, pts[ap.seg].distanceTo(pts[ap.seg + 1]));
         const along = segLen * ap.t + remaining;
-        if (along >= segLen) { remaining = along - segLen; ap.seg++; ap.t = 0; }
-        else { ap.t = along / segLen; remaining = 0; }
+        if (along >= segLen) {
+          remaining = along - segLen; ap.seg++; ap.t = 0;
+          if (this._maybeDescend(ap.seg)) return; // arrived at a galaxy waypoint → drop inside
+        } else { ap.t = along / segLen; remaining = 0; }
       }
-      if (ap.seg >= pts.length - 1) { this._navReadoutFinal(); this.stopRoute(); return; }
+      if (ap.seg >= pts.length - 1) {
+        if (this._maybeDescend(ap.seg)) return; // final stop is a galaxy → descend before finishing
+        this._navReadoutFinal(); this.stopRoute(); return;
+      }
     }
     const a = pts[ap.seg], b = pts[ap.seg + 1];
     const cur = a.clone().lerp(b, ap.t);
@@ -763,6 +810,8 @@ export class App {
 
   _navReadout() {
     const ap = this.autopilot; if (!ap) return null;
+    if (ap.atGalaxy === 'pending') return { descending: true, seg: ap.seg, total: this.route.length - 1 };
+    if (ap.atGalaxy) return { insideGalaxy: ap.atGalaxy, seg: ap.seg, total: this.route.length - 1 };
     const i = ap.seg;
     const dTrue = new THREE.Vector3().subVectors(this.route[i + 1].truePos, this.route[i].truePos);
     const legLy = dTrue.length() * PC_TO_LY;
@@ -843,17 +892,21 @@ export class App {
     this.clearSelection(); this.clearRoute();
     this.cruiseSpeed = exp.cruiseC || this.cruiseSpeed;
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
-    const wps = (exp.stops || []).map((w) => this._resolveWaypoint(w)).filter(Boolean);
-    this.route = wps.map((w, i) => {
+    this.route = [];
+    (exp.stops || []).forEach((stop, i) => {
+      const w = this._resolveWaypoint(stop); if (!w) return;
       const distPc = Math.max((w.distLy || 0) / PC_TO_LY, 0);
       const ra = w.ra * 15 * Math.PI / 180, dec = w.dec * Math.PI / 180, cd = Math.cos(dec);
       const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
       const truePos = dir.clone().multiplyScalar(distPc);
       const worldPos = this.mode === 'cosmos' ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
-      return { worldPos, truePos, label: w.label || `stop ${i + 1}`, kind: 'expedition' };
+      const wp = { worldPos, truePos, label: w.label || `stop ${i + 1}`, kind: stop.enter ? 'galaxy' : 'expedition' };
+      // a descent waypoint: ENGAGE will pause here and drop inside the galaxy
+      if (stop.enter && this.mode === 'cosmos') wp.galaxy = { name: w.label, ra: w.ra, dec: w.dec, distMpc: (w.distLy || 0) / 3.2615638e6, type: this._objType(stop.obj) || 'spiral', worldPos: worldPos.clone() };
+      this.route.push(wp);
     });
     this._redrawRoute(); this.emit('route', this._routeSummary());
-    this._activeExpedition = { id: exp.id, title: exp.title, premise: exp.premise, scale, length: exp.length, stops: wps.map((w) => ({ label: w.label, note: w.note })) };
+    this._activeExpedition = { id: exp.id, title: exp.title, premise: exp.premise, scale, length: exp.length, stops: this.route.map((w) => ({ label: w.label })) };
     this.emit('expedition', this._activeExpedition);
     this._fitRouteView();
     return { ok: true, stops: this.route.length };

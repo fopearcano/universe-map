@@ -42,7 +42,11 @@ function initGalaxyBanner(app) {
     const sel = b.querySelector('#gb-q');
     sel.value = String([60000, 120000, 250000, 450000, 1000000].reduce((a, v) => Math.abs(v - q) < Math.abs(a - q) ? v : a));
     sel.onchange = () => { app.setInteriorQuality(+sel.value); app.enterGalaxy(app._lastGalaxyInfo); };
-    b.querySelector('#gb-exit').onclick = () => app.exitGalaxy();
+    b.querySelector('#gb-exit').onclick = () => {
+      if (app.autopilot && app.autopilot.atGalaxy) app.resumeFromGalaxy(); // rejoin the course
+      else if (app.cruise) app.stopCruise();
+      else app.exitGalaxy();
+    };
   });
 }
 

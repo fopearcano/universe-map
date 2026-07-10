@@ -110,6 +110,22 @@ export function initNavChart(app) {
       setTimeout(() => { hud.hidden = true; }, 2600);
       return;
     }
+    if (n.descending) {
+      hud.innerHTML = `<div class="nh-row nh-top"><span class="nh-leg">STOP ${n.seg}/${n.total}</span><span class="nh-to nh-descend">⛶ descending into the galaxy…</span></div>`;
+      return;
+    }
+    if (n.insideGalaxy) {
+      hud.innerHTML = `
+        <div class="nh-row nh-top"><span class="nh-leg">STOP ${n.seg}/${n.total}</span><span class="nh-to">⛶ inside <b>${esc(n.insideGalaxy)}</b></span></div>
+        <div class="nh-row nh-total muted"><span>free-look the interior · continue to rise out and fly on</span></div>
+        <div class="nh-ctrls">
+          <button class="btn sm nh-resume" id="nh-continue">▶ continue course</button>
+          <button class="btn sm" id="nh-stop">■ disengage</button>
+        </div>`;
+      hud.querySelector('#nh-continue').onclick = () => app.resumeFromGalaxy();
+      hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
+      return;
+    }
     hud.innerHTML = `
       <div class="nh-row nh-top">
         <span class="nh-leg">LEG ${n.seg}/${n.total}</span>

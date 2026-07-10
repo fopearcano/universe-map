@@ -238,11 +238,16 @@ catalogues, and every card offers two ways to travel:
 
 - **◈ trace** loads it straight into the NAV COMPUTER (below) with true leg
   distances, headings and relativistic travel times — then **⏵ ENGAGE** flies it.
+  On a **mixed-scale** route the continuous autopilot itself **pauses at each galaxy
+  waypoint and descends inside it** — the star field fills the view (the route is
+  kept), you free-look, and **▶ continue course** rises back out and flies on to the
+  next stop.
 - **▶ cruise** runs a stepped, cinematic tour (prev / next / auto) with the
   narrative at each stop — and **mixed-scale** expeditions (marked ⛶ *descends*)
-  actually **drop you inside a galaxy mid-voyage**: the cruise crosses to a galaxy,
-  descends into its star field, then rises back out to continue. *The Deep Descent*
-  lands you inside Andromeda, Triangulum and the Whirlpool in turn.
+  also drop you inside a galaxy mid-voyage.
+
+*The Deep Descent* and *The Island Landings* land you inside Andromeda, Triangulum
+and the Whirlpool (or the Magellanic Clouds) in turn — by cruise, or now by ENGAGE.
 
 Either way the app switches to the right scale automatically. New in this set:
 *The Titans' Road* and *Walking Orion* (the great supergiants, hundreds of ly out),
