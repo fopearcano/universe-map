@@ -1396,9 +1396,9 @@ export class App {
       const key = 'star' + i;
       if (key !== this._hover.key) { this._hover.key = key; this.emit('hover', i >= 0 ? { text: hoverStar(this.catalog.star(i)), x: this._hover.x, y: this._hover.y } : null); }
     } else {
-      // exclude the (huge) procedural layer from hover picking to keep it smooth;
-      // it stays fully selectable on click.
-      const hit = this.cosmos.pick(this._ray, { includeProcedural: false });
+      // exclude the heavy procedural (~650k) and bridge (~122k) layers from hover
+      // picking to keep the 10 Hz raycast smooth; both stay fully click-selectable.
+      const hit = this.cosmos.pick(this._ray, { includeProcedural: false, includeBridge: false });
       const key = hit ? `${hit.kind}${hit.layer || ''}${hit.i}` : '';
       if (key !== this._hover.key) {
         this._hover.key = key;

@@ -49,6 +49,8 @@ export function buildCosmosFilters(app) {
     size.value = 1; sv.textContent = '1.0×';
     for (const k in show) show[k] = true;
     root.querySelectorAll('.toggle').forEach((el) => el.classList.add('on'));
+    // CMB image stays off on reset — keep the Layers-tab checkbox in sync.
+    document.querySelector('#tab-layers [data-l="cmb"]')?.classList.remove('on');
     app.setCosmosFilter({ zMax: 6, sizeScale: 1, show: { ...show, cmb: false } });
   };
 

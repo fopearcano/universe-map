@@ -141,10 +141,12 @@ export class CosmosWorld {
       for (let bi = 0; bi < NB && k < cap; bi++) {
         let n = Math.floor(cellDeficit[bj * NB + bi] * scale);
         while (n-- > 0 && k < cap) {
-          // draw up to a few candidate positions in this cell and keep the first
-          // that survives an acceptance test ∝ the web weight (last valid stands,
-          // so the per-direction count — and thus sky completeness — is preserved).
-          let px = 0, py = 0, pz = 0, dir = null, z = 0, r = 0, have = false;
+          // draw a few candidate positions in this cell; accept the first that
+          // survives a test ∝ the web weight (importance sampling onto filaments &
+          // walls). If none is accepted, fall back to the HIGHEST-weight candidate
+          // seen — so even the fallback leans onto the web — while still placing one
+          // point, preserving the per-direction count and thus sky completeness.
+          let px = 0, py = 0, pz = 0, dir = null, z = 0, r = 0, have = false, bestW = -1;
           for (let attempt = 0; attempt < 12; attempt++) {
             const lon = ((bi + rnd()) / NB) * 2 * Math.PI - Math.PI;
             const vv = ((bj + rnd()) / MB) * 2 - 1;                 // uniform in sin(lat)
@@ -153,8 +155,9 @@ export class CosmosWorld {
             const zz = sampleZ();
             const rr = displayRadiusFromMpc(comovingMpc(zz), this.decadeUnit);
             if (inVoid(d2, rr)) continue;
-            dir = d2; z = zz; r = rr; px = d2[0] * rr; py = d2[1] * rr; pz = d2[2] * rr; have = true;
-            if (rnd() < this._webAt(webGrid, px, py, pz)) break;   // accepted onto the web
+            const qx = d2[0] * rr, qy = d2[1] * rr, qz = d2[2] * rr, wv = this._webAt(webGrid, qx, qy, qz);
+            if (!have || wv > bestW) { bestW = wv; px = qx; py = qy; pz = qz; dir = d2; z = zz; r = rr; have = true; }
+            if (rnd() < wv) { px = qx; py = qy; pz = qz; dir = d2; z = zz; r = rr; break; }  // accepted onto the web
           }
           if (!have) continue;                                     // whole column fell in a catalogued void
           pos[k * 3] = px; pos[k * 3 + 1] = py; pos[k * 3 + 2] = pz;
@@ -289,7 +292,7 @@ export class CosmosWorld {
     const D = this.decadeUnit, R0 = 8200;                 // Sun→GC in parsecs
     let seed = 8675309;
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-    const gauss = () => (rnd() + rnd() + rnd() - 1.5) / 1.5;  // ~unit-variance
+    const gauss = () => (rnd() + rnd() + rnd() - 1.5) * 2;    // ≈ unit-variance (σ≈1)
 
     const CAP = 132000;
     const pos = new Float32Array(CAP * 3), col = new Float32Array(CAP * 3), sz = new Float32Array(CAP);
@@ -333,11 +336,14 @@ export class CosmosWorld {
     const armPhase = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
     for (let i = 0; i < DISK; i++) {
       const flared = rnd() < 0.06;
-      let Rg = flared ? 16000 + rnd() * 16000 : -Rd * Math.log(1 - rnd() * 0.985);
-      if (Rg > 34000) continue;
+      // Erlang(2, Rd) — the correct radial law for a 2-D exponential-surface-density
+      // disk sampled in polar coords: p(R) ∝ R·e^(−R/Rd), peaking at one scale length
+      // (a plain exponential would cusp at R=0 and pile onto the bulge).
+      let Rg = flared ? 16000 + rnd() * 16000 : -Rd * (Math.log(1 - rnd()) + Math.log(1 - rnd()));
+      if (!(Rg <= 34000)) continue;                            // also skips the rare log(0)→∞
       const onArm = !flared && rnd() < 0.62;
       let th = rnd() * 2 * Math.PI;
-      if (onArm) th = armPhase[(Math.floor(rnd() * ARMS))] + Math.log(Rg / 2600) * cotP + gauss() * 0.22;
+      if (onArm) th = armPhase[(Math.floor(rnd() * ARMS))] + Math.log(Rg / 2600) * cotP + gauss() * 0.13;
       const zscale = flared ? hZ * 3 : hZ;
       const z = -zscale * Math.log(1 - rnd() * 0.98) * (rnd() < 0.5 ? 1 : -1);
       putGal(R0 + Rg * Math.cos(th), Rg * Math.sin(th), z, 0, onArm ? 0.82 + rnd() * 0.18 : 0.5 + rnd() * 0.3, onArm ? 0.85 : 0.68);
@@ -624,7 +630,7 @@ export class CosmosWorld {
   // The procedural "known-universe" layer can be ~650k points, so scanning it is
   // ~25ms — fine for a one-off click, too heavy for the 10Hz hover. Callers pass
   // includeProcedural:false on hover to keep it smooth; click/route pass true.
-  pick(raycaster, { includeProcedural = true } = {}) {
+  pick(raycaster, { includeProcedural = true, includeBridge = true } = {}) {
     const ray = raycaster.ray, origin = ray.origin, dir = ray.direction;
     const fovY = (raycaster.camera?.fov || 60) * Math.PI / 180;
     const maxAng = 14 * (fovY / window.innerHeight);
@@ -654,7 +660,7 @@ export class CosmosWorld {
       this.localGroupPos.forEach((v, i) =>
         consider(v.x, v.y, v.z, () => ({ kind: 'localgalaxy', i })));
     }
-    if (s.show.bridge !== false && this.bridgeData) {
+    if (includeBridge && s.show.bridge !== false && this.bridgeData) {
       const wp = this.bridgeWorld;
       for (let i = 0; i < this.bridgeCount; i++) consider(wp[i * 3], wp[i * 3 + 1], wp[i * 3 + 2], () => ({ kind: 'bridge', i }));
     }
