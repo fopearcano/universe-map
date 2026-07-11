@@ -32,7 +32,11 @@ export function computeSupervoids(decadeUnit = 3) {
     const displayR = (rIn + rOut) / 2;
     const band = Math.max(0.4, (rOut - rIn) / 2);                    // radial half-extent (display)
     const theta = Math.asin(Math.min(0.99, v.radiusMpc / v.distMpc)); // angular radius
-    const transverse = Math.max(0.6, displayR * Math.tan(theta));     // across-sky half-extent (display)
+    // A near, wide-angle void (radius ≈ distance, e.g. the Local Void at ~82°)
+    // makes tan(theta) explode, ballooning the lens past the whole display shell.
+    // Cap the across-sky half-extent at the void's own display distance — beyond
+    // that the bubble would reach past Sol at the origin, which is unphysical here.
+    const transverse = Math.max(0.6, Math.min(displayR, displayR * Math.tan(theta))); // across-sky half-extent (display)
     return { ...v, type: 'void', dir, displayR, band, transverse, cosR: Math.cos(theta) };
   });
 }
