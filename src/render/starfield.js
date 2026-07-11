@@ -79,16 +79,21 @@ export class Starfield {
           float d = length(uv);
           float core = smoothstep(0.5, 0.0, d);
           float glow = pow(core, 2.1);
-          // subtle four-point diffraction shards (+ fainter diagonals), brightest-only
-          float sp = 0.0;
-          vec2 av = abs(uv);
-          sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
-          sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
-          vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678;
-          vec2 ar = abs(r);
-          sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
-          sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
-          float shard = sp * vBright;
+          // subtle four-point diffraction shards (+ fainter diagonals), brightest-only.
+          // vBright is constant across a point sprite, so this branch lets the GPU skip
+          // the spike math entirely for the (vast majority) faint stars.
+          float shard = 0.0;
+          if (vBright > 0.001) {
+            float sp = 0.0;
+            vec2 av = abs(uv);
+            sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
+            sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
+            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678;
+            vec2 ar = abs(r);
+            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
+            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
+            shard = sp * vBright;
+          }
           float a = clamp(glow + shard * 0.8, 0.0, 1.0);
           if (a < 0.003) discard;
           gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow + shard), a);

@@ -232,7 +232,9 @@ export class App {
     // COSMOS: all clusters + structures, placed on the log-radial scale
     const cItems = this.extras.clusters.map((c) => mk(c, new THREE.Vector3(...c.dir).multiplyScalar(c.displayR), MARK_COLOR[c.type] || [1, 1, 1], 6, c.type));
     this.cosmosClusters = new MarkerLayer(cItems, { size: 12, atlas });
-    const sItems = this.extras.structures.map((s) => mk(s, new THREE.Vector3(...s.dir).multiplyScalar(s.displayR), MARK_COLOR[s.type] || [1, 1, 1], 9, STRUCT_GLYPH[s.type]));
+    // voids are owned by the Supervoid-zones layer (VoidShapes + lbl-void) — keep
+    // them out of the structure markers so they aren't rendered/labelled twice.
+    const sItems = this.extras.structures.filter((s) => s.type !== 'void').map((s) => mk(s, new THREE.Vector3(...s.dir).multiplyScalar(s.displayR), MARK_COLOR[s.type] || [1, 1, 1], 9, STRUCT_GLYPH[s.type]));
     this.cosmosStructures = new MarkerLayer(sItems, { size: 15, atlas });
     if (this.cosmos) { this.cosmos.group.add(this.cosmosClusters.points); this.cosmos.group.add(this.cosmosStructures.points); }
     this.showClusters = true; this.showStructures = true;
@@ -1182,12 +1184,17 @@ export class App {
     if (wps.length < 2) return;
     const anchors = [];
     const seg = new THREE.Vector3(), segN = new THREE.Vector3(), radial = new THREE.Vector3(), perp = new THREE.Vector3();
+    // Exactly TWO anchors per leg (waypoint + bowed midpoint) so the invariant
+    // anchors.length === 2·(N−1)+1 always holds — _routePointAt's (2·seg+2·t)/L
+    // mapping depends on it. A degenerate (coincident-waypoint) leg still gets its
+    // midpoint, just with no bow, instead of silently contributing one anchor and
+    // shifting every later leg's parameter range.
     for (let i = 0; i < wps.length - 1; i++) {
       const A = wps[i], B = wps[i + 1];
       anchors.push(A.clone());
       seg.subVectors(B, A); const len = seg.length();
+      const mid = A.clone().add(B).multiplyScalar(0.5);
       if (len > 1e-6) {
-        const mid = A.clone().add(B).multiplyScalar(0.5);
         segN.copy(seg).multiplyScalar(1 / len);
         radial.copy(mid); const rl = radial.length();
         if (rl > 1e-6) { radial.multiplyScalar(1 / rl); perp.copy(radial).addScaledVector(segN, -radial.dot(segN)); }
@@ -1197,8 +1204,9 @@ export class App {
           if (perp.lengthSq() < 1e-9) perp.set(0, seg.z, -seg.y);
         }
         perp.normalize().multiplyScalar(len * 0.12);
-        anchors.push(mid.add(perp));
+        mid.add(perp);
       }
+      anchors.push(mid);
     }
     anchors.push(wps[wps.length - 1].clone());
     this._routeCurve = new THREE.CatmullRomCurve3(anchors, false, 'catmullrom', 0.5);

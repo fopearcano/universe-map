@@ -25,9 +25,11 @@ export function computeSupervoids(decadeUnit = 3) {
   return SUPERVOIDS.map((v) => {
     const ra = v.ra * 15 * Math.PI / 180, dec = v.dec * Math.PI / 180, cd = Math.cos(dec);
     const dir = [cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec)];
-    const displayR = displayRadiusFromMpc(v.distMpc, decadeUnit);
     const rIn = displayRadiusFromMpc(Math.max(0.1, v.distMpc - v.radiusMpc), decadeUnit);
     const rOut = displayRadiusFromMpc(v.distMpc + v.radiusMpc, decadeUnit);
+    // Log compression makes the near/far edges asymmetric about the distance point,
+    // so centre the lens on the true display-space midpoint, not on displayR(dist).
+    const displayR = (rIn + rOut) / 2;
     const band = Math.max(0.4, (rOut - rIn) / 2);                    // radial half-extent (display)
     const theta = Math.asin(Math.min(0.99, v.radiusMpc / v.distMpc)); // angular radius
     const transverse = Math.max(0.6, displayR * Math.tan(theta));     // across-sky half-extent (display)

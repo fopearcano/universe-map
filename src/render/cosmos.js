@@ -40,9 +40,11 @@ export class CosmosWorld {
     this._buildLayer('twomrs', 'galaxy', 2.4);
     this._buildLayer('sdssGal', 'galaxy', 2.1);
     this._buildLayer('sdssQso', 'quasar', 2.7);
+    const superVoids = extras.supervoids || [];
     this._buildProcedural([
-      ...(extras.structures || []).filter((s) => s.type === 'void'),
-      ...(extras.supervoids || []),
+      // structures.json voids, minus any the curated supervoid list already covers
+      ...(extras.structures || []).filter((s) => s.type === 'void' && !superVoids.some((v) => v.name === s.name)),
+      ...superVoids,
     ]);
     this._buildBridge();
     this._buildLocalGroup();
@@ -489,38 +491,27 @@ export class CosmosWorld {
         attribute vec3 aColor; attribute float aZ; attribute float aSize;
         uniform float uSize, uSizeScale, uPixelRatio, uZMax, uProc;
         uniform vec3 uProcColor;
-        varying vec3 vColor; varying float vHide; varying float vBright;
+        varying vec3 vColor; varying float vHide;
         void main(){
           vColor = mix(aColor, uProcColor, uProc);
           vHide = aZ > uZMax ? 1.0 : 0.0;
-          // shards only on the brightest (nearest, biggest aSize) points, kept subtle
-          vBright = clamp((aSize - 1.08) / 0.4, 0.0, 1.0);
           vec4 mv = modelViewMatrix * vec4(position,1.0);
-          float px = uSize * aSize * uSizeScale * uPixelRatio * (1.0 + 0.6 * vBright);
-          gl_PointSize = (vHide > 0.5 ? 0.0 : px);
+          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * aSize * uSizeScale * uPixelRatio);
           gl_Position = projectionMatrix * mv;
         }`,
+      // Soft round points — no diffraction shards here. aSize on the real catalogue
+      // layers is only a per-shell proximity proxy (no photometry), so a brightness
+      // gate can't be honestly derived from it; magnitude-driven shards live in the
+      // LOCAL star field (starfield.js) where apparent magnitude actually exists.
       fragmentShader: /* glsl */`
-        varying vec3 vColor; varying float vHide; varying float vBright;
+        varying vec3 vColor; varying float vHide;
         void main(){
           if(vHide > 0.5) discard;
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
+          if(d > 0.5) discard;
           float a = smoothstep(0.5, 0.08, d);
-          // subtle diffraction shards on the brightest points (four spikes + diagonals)
-          float sp = 0.0;
-          if (vBright > 0.001) {
-            vec2 av = abs(uv);
-            sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
-            sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
-            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678, ar = abs(r);
-            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
-            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
-            sp *= vBright;
-          }
-          float alpha = clamp(a * 0.9 + sp * 0.6, 0.0, 1.0);
-          if (alpha < 0.004) discard;
-          gl_FragColor = vec4(vColor + sp * 0.5, alpha);
+          gl_FragColor = vec4(vColor, a * 0.9);
         }`,
       transparent: true, depthWrite: false, blending: THREE.NormalBlending,
     });
