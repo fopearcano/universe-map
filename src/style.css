@@ -416,6 +416,54 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 #focuschip .fc-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 4px; }
 #focuschip .fc-x:hover { color: var(--red); }
 
+/* ---- Solaris.Ai NAVCOM agent chat ---- */
+.navcom-ai-btn { border-color: rgba(92,225,255,0.5); color: var(--cyan); }
+.navcom-ai-btn:hover { border-color: var(--cyan); color: #d6f6ff; box-shadow: 0 0 12px rgba(92,225,255,0.4); }
+#navcom-ai {
+  position: fixed; right: 12px; top: 56px; z-index: 30; width: min(400px, 94vw); height: min(72vh, 660px);
+  display: flex; flex-direction: column; background: var(--panel-solid); border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); backdrop-filter: blur(10px); overflow: hidden;
+}
+#navcom-ai[hidden] { display: none; }
+.na-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(92,225,255,0.08), rgba(139,125,216,0.06)); }
+.na-title { color: var(--cyan); font-size: 11px; letter-spacing: 0.14em; }
+.na-head-btns { display: flex; gap: 2px; }
+.na-ic { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 2px 5px; border-radius: 4px; }
+.na-ic:hover { color: var(--cyan); background: rgba(92,225,255,0.1); }
+.na-log { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.na-msg { max-width: 88%; padding: 7px 10px; border-radius: 9px; font-size: 11.5px; line-height: 1.5; word-wrap: break-word; }
+.na-user { align-self: flex-end; background: rgba(92,225,255,0.14); border: 1px solid rgba(92,225,255,0.28); color: #eaf9ff; }
+.na-assistant { align-self: flex-start; background: rgba(139,125,216,0.12); border: 1px solid rgba(139,125,216,0.28); }
+.na-assistant code { background: rgba(0,0,0,0.35); padding: 0 3px; border-radius: 3px; color: var(--cyan); font-size: 10.5px; }
+.na-assistant .na-li { display: block; margin: 1px 0; }
+.na-sys { align-self: center; font-size: 10px; text-align: center; padding: 2px 8px; }
+.na-tool { align-self: flex-start; font-size: 10px; color: var(--dim); letter-spacing: 0.04em; padding-left: 2px; }
+.na-gear { color: var(--amber); display: inline-block; animation: na-spin 2s linear infinite; }
+@keyframes na-spin { to { transform: rotate(360deg); } }
+.na-dots i { display: inline-block; width: 5px; height: 5px; margin: 0 1px; border-radius: 50%; background: var(--cyan); opacity: 0.4; animation: na-blink 1.2s infinite; }
+.na-dots i:nth-child(2) { animation-delay: 0.2s; } .na-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes na-blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+.na-suggest { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 6px; }
+.na-chip { background: rgba(92,225,255,0.08); border: 1px solid var(--line); color: var(--dim); border-radius: 12px; padding: 3px 9px; font-size: 10px; cursor: pointer; font-family: var(--mono); }
+.na-chip:hover { color: var(--cyan); border-color: var(--line-strong); }
+.na-input { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
+.na-input input { flex: 1; background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); padding: 7px 9px; font-family: var(--mono); font-size: 11.5px; }
+.na-input input:focus { outline: none; border-color: var(--cyan); }
+.na-send { background: var(--cyan); border: 0; color: #001018; border-radius: 6px; width: 34px; cursor: pointer; font-size: 13px; }
+.na-send:hover { box-shadow: 0 0 10px rgba(92,225,255,0.5); }
+.na-settings { position: absolute; inset: 40px 10px 10px; background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 8px; padding: 12px; overflow-y: auto; z-index: 2; }
+.na-settings[hidden] { display: none; }
+.na-set-h { color: var(--cyan); font-size: 10px; letter-spacing: 0.1em; margin-bottom: 10px; }
+.na-set-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.na-set-row label { width: 62px; color: var(--dim); font-size: 10px; flex-shrink: 0; }
+.na-set-row input, .na-set-row select { flex: 1; background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 5px; color: var(--ink); padding: 5px 7px; font-family: var(--mono); font-size: 11px; min-width: 0; }
+.na-model-wrap { flex: 1; display: flex; gap: 4px; }
+.na-set-note { font-size: 9.5px; line-height: 1.5; margin: 8px 0; }
+.na-mchip, .na-set-note .na-mchip { display: inline-block; background: rgba(92,225,255,0.1); border: 1px solid var(--line); color: var(--cyan); border-radius: 4px; padding: 1px 5px; margin: 2px 2px 0 0; cursor: pointer; font-size: 9px; }
+.na-set-btns { display: flex; gap: 6px; margin-top: 6px; }
+.na-set-btns .btn { flex: 1; }
+.na-set-btns .na-save { background: var(--cyan); color: #001018; border-color: var(--cyan); }
+
 #routepanel {
   position: fixed; right: 12px; bottom: 40px; z-index: 13; width: 288px; max-height: calc(100vh - 96px); overflow-y: auto;
   background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px;

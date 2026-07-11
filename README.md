@@ -374,6 +374,40 @@ LOCAL mode is metrically exact throughout.
 You can also **◎ focus** any object to re-centre the orbit pivot on it (navigate
 around *it* instead of the Sun).
 
+### ✦ Solaris.Ai — the NAVCOM agent
+
+The **✦ NAVCOM AI** button opens a chat with **Solaris.Ai**, the NAVCOM core of the
+*Tekné* — a colloquial navigator that both **answers questions** (real astronomy
+*and* the QTR canon) and **actually flies the ship**. Ask it things like:
+
+- *"plot Sol → Andromeda Galaxy → Virgo Cluster"* — it resolves the names, builds the
+  course, and reports the path, coordinate & crew time and bridge count.
+- *"take me to the Great Attractor at Class II"* — it sets the drive and lays in a
+  course; add *"and engage"* and it threads the seam.
+- *"what is the Sōrn drive?"* / *"where is the Boötes Void?"* — it consults the Codex
+  and the sky index and answers in the ship's voice.
+
+Under the hood it's an **agent with tools**: `search_sky`, `lookup_qtr`, `plot_route`,
+`add_stop`, `set_drive`, `engage`, `set_mode`, `focus`, `set_layer`, `get_state`,
+`clear_route` — so anything it says it will do, it does, live on the map.
+
+**Bring your own model.** The agent speaks the **OpenAI-compatible** chat API, so it
+works with a local model on your own GPU or a hosted API — click **⚙** to set the
+endpoint:
+
+| Provider | Base URL | Key |
+| --- | --- | --- |
+| **LM Studio** (local) | `http://localhost:1234/v1` | none |
+| **vLLM** (local) | `http://localhost:8000/v1` | none |
+| **Ollama** (local) | `http://localhost:11434/v1` | none |
+| **OpenAI** | `https://api.openai.com/v1` | `sk-…` |
+| **Anthropic** (OpenAI-compat) | `https://api.anthropic.com/v1` | `sk-ant-…` |
+
+Everything stays in your browser (the endpoint, model and any key live only in
+`localStorage`); pick a **tool-calling capable** model. For local servers, enable CORS
+(LM Studio and vLLM do by default). The **list** button pulls the served model ids and
+**test connection** checks it's reachable.
+
 Also plotted: **star clusters** (open + globular) in both modes, and named
 **large-scale structures** in COSMOS — the Virgo & Coma clusters, the Great
 Attractor, the Shapley & Laniakea superclusters, the Sloan Great Wall, the Boötes

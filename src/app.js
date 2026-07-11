@@ -8,7 +8,7 @@ import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
-import { driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
+import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
 import { loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, pickSurveyImage } from './render/galaxyImage.js';
@@ -1042,6 +1042,134 @@ export class App {
       return null;
     }
     return null;
+  }
+
+  // ================= NAVCOM AI agent API =================
+  // A small, stable surface the Solaris.Ai NAVCOM agent drives via tool calls.
+  _localMaxLy() { return this.catalog.meta.bounds.maxRadiusPc * PC_TO_LY; }
+
+  // Resolve a plain name to { label, ra(hours), dec(deg), distLy } — objects first
+  // (galaxies, clusters, structures, atlas), then the star catalogue.
+  agentResolve(name) {
+    if (!name) return null;
+    return this._resolveWaypoint({ obj: name }) || this._resolveWaypoint({ star: name }) || null;
+  }
+
+  _agentWaypoint(r) {
+    const distPc = Math.max((r.distLy || 0) / PC_TO_LY, 0);
+    const ra = r.ra * 15 * Math.PI / 180, dec = r.dec * Math.PI / 180, cd = Math.cos(dec);
+    const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
+    const truePos = dir.clone().multiplyScalar(distPc);
+    const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    const worldPos = this.mode === 'cosmos' ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
+    return { worldPos, truePos, label: r.label, kind: 'agent' };
+  }
+
+  _resolveStop(s) {
+    if (s && s.ra != null && s.dec != null) return { label: s.label || 'waypoint', ra: +s.ra, dec: +s.dec, distLy: +s.distLy || 0 };
+    return s && s.name ? this.agentResolve(s.name) : null;
+  }
+
+  _agentSummary() {
+    const s = this._routeSummary();
+    return { crossings: s.crossings, path_ly: Math.round(s.totalLy), coordinate_years: s.years, crew_years: s.shipYears,
+      drive: `${s.drive.name} · Class ${s.drive.cls}`, stops: s.points.map((p) => p.label) };
+  }
+
+  // Build a whole course from a list of stops ({name} or {ra,dec,distLy,label}).
+  agentPlotRoute(stops) {
+    const resolved = [], unresolved = [];
+    for (const s of (stops || [])) { const r = this._resolveStop(s); if (r) resolved.push(r); else unresolved.push(s?.name || 'waypoint'); }
+    if (resolved.length < 1) return { ok: false, error: 'none of the stops could be resolved', unresolved };
+    if (resolved.some((r) => (r.distLy || 0) > this._localMaxLy()) && this.mode !== 'cosmos') this.setMode('cosmos');
+    if (this.autopilot) this.stopRoute();
+    this.clearSelection(); this.clearRoute();
+    this.route = resolved.map((r) => this._agentWaypoint(r));
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+    if (this.route.length) this._fitRouteView();
+    return { ok: true, ...this._agentSummary(), unresolved };
+  }
+
+  agentAddStop(stop) {
+    const r = this._resolveStop(stop);
+    if (!r) return { ok: false, error: `could not resolve "${stop?.name || 'waypoint'}"` };
+    if ((r.distLy || 0) > this._localMaxLy() && this.mode !== 'cosmos') this.setMode('cosmos');
+    this._addRoute(this._agentWaypoint(r));
+    if (this.route.length) this._fitRouteView();
+    return { ok: true, added: r.label, ...this._agentSummary() };
+  }
+
+  agentFocus(name) {
+    const r = this.agentResolve(name);
+    if (!r) return { ok: false, error: `could not find "${name}"` };
+    if ((r.distLy || 0) > this._localMaxLy() && this.mode !== 'cosmos') this.setMode('cosmos');
+    const wp = this._agentWaypoint(r);
+    this.scene.flyTo(wp.worldPos.clone());
+    this.focus = { worldPos: wp.worldPos.clone(), truePos: wp.truePos.clone(), label: r.label };
+    this.emit('focus', { label: r.label });
+    return { ok: true, focused: r.label, ra: r.ra, dec: r.dec, distLy: r.distLy };
+  }
+
+  // Search the sky (stars + galaxies + Local Group + clusters + structures) by name.
+  agentSearchSky(query, limit = 8) {
+    const q = String(query || '').toLowerCase().trim(); if (!q) return [];
+    const out = [];
+    const add = (name, type, ra, dec, distLy, note) => out.push({ name, type, ra, dec, distLy: distLy != null ? Math.round(distLy) : null, note });
+    for (const s of (this.catalog.search || [])) if ((s.name || '').toLowerCase().includes(q)) { add(s.name, `star ${s.spect || ''}`.trim(), null, null, (s.dist || 0) * PC_TO_LY, `mag ${s.mag}${s.con ? ' · ' + s.con : ''}`); if (out.length > 60) break; }
+    for (const o of (this.atlas || [])) if ((o.name || '').toLowerCase().includes(q)) add(o.name, o.categoryLabel || o.type || 'atlas', o.ra, o.dec, o.distLy, o.type);
+    for (const o of (this.cosmosData.localGroup || [])) if ((o.name || '').toLowerCase().includes(q)) add(o.name, 'Local Group galaxy', o.ra / 15, o.dec, o.distLy, o.type);
+    for (const o of (this.extras.clusters || [])) if ((o.name || '').toLowerCase().includes(q)) add(o.name, `${o.type || ''} cluster`.trim(), o.ra, o.dec, o.distLy, o.note);
+    for (const o of (this.extras.structures || [])) if ((o.name || '').toLowerCase().includes(q)) add(o.name, o.type, o.ra, o.dec, o.distGly != null ? o.distGly * 1e9 : (o.distMpc || 0) * 3.2615638e6, o.note);
+    for (const v of (this.supervoids || [])) if ((v.name || '').toLowerCase().includes(q)) add(v.name, 'supervoid', v.ra, v.dec, (v.distMpc || 0) * 3.2615638e6, v.note);
+    const seen = new Set();
+    const ranked = [...out.filter((o) => o.name.toLowerCase() === q), ...out.filter((o) => o.name.toLowerCase() !== q)];
+    return ranked.filter((o) => { const k = o.name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, limit);
+  }
+
+  // Select a QTR drive by id, class ('I','ω'), class-name ('bridge-runner') or name.
+  agentSetDrive(q) {
+    const s = String(q || '').toLowerCase().trim();
+    const d = DRIVES.find((x) => x.id === s || x.cls.toLowerCase() === s || `class ${x.cls}`.toLowerCase() === s)
+      || DRIVES.find((x) => x.klass.toLowerCase().includes(s) || x.name.toLowerCase().includes(s) || s.includes(x.klass.toLowerCase()));
+    if (!d) return { ok: false, error: `unknown drive "${q}"`, available: DRIVES.map((x) => `Class ${x.cls} · ${x.klass}`) };
+    this.setDrive(d.id);
+    return { ok: true, drive: this._driveInfo() };
+  }
+
+  agentSetLayer(layer, on) {
+    const k = String(layer || '').toLowerCase().replace(/[^a-z]/g, '');
+    const v = !!on;
+    const map = {
+      sector: () => this.setSectorGrid(v), sectorgrid: () => this.setSectorGrid(v),
+      voids: () => this.setVoids(v), supervoids: () => this.setVoids(v), supervoidzones: () => this.setVoids(v),
+      imagery: () => this.setGalaxyImagery(v), galaxyimagery: () => this.setGalaxyImagery(v),
+      clustershapes: () => this.setClusterShapes(v), starclustershapes: () => this.setClusterShapes(v),
+      resolve: () => this.setResolveStructures(v), resolvegalaxies: () => this.setResolveStructures(v), structures: () => this.setResolveStructures(v),
+      procedural: () => this.setCosmosFilter({ show: { procedural: v } }), fill: () => this.setCosmosFilter({ show: { procedural: v } }),
+      bridge: () => this.setCosmosFilter({ show: { bridge: v } }), galacticbridge: () => this.setCosmosFilter({ show: { bridge: v } }),
+      cmb: () => this.setCosmosFilter({ show: { cmb: v } }),
+    };
+    if (!map[k]) return { ok: false, error: `unknown layer "${layer}"`, available: ['sector', 'voids', 'imagery', 'clusterShapes', 'resolveGalaxies', 'procedural', 'bridge', 'cmb'] };
+    map[k]();
+    return { ok: true, layer: k, on: v };
+  }
+
+  agentState() {
+    const sel = this.selection?.info;
+    const routeSum = this.route.length ? this._routeSummary() : null;
+    return {
+      mode: this._inGalaxy ? 'galaxy-interior' : this.mode,
+      insideGalaxy: this._inGalaxy ? (this.interior?.name || null) : null,
+      drive: this._driveInfo(), engaged: !!this.autopilot,
+      selection: sel ? { name: sel.name || sel.designation, type: sel.sub || sel.type || sel.kind, distLy: sel.distLy } : null,
+      route: routeSum ? { crossings: routeSum.crossings, path_ly: Math.round(routeSum.totalLy), coordinate_years: routeSum.years, crew_years: routeSum.shipYears, stops: routeSum.points.map((p) => p.label) } : null,
+      layers: {
+        sectorGrid: !!this.showSectorGrid, voids: !!this.showVoids, imagery: !!this.showGalaxyImagery,
+        clusterShapes: !!this.showClusterShapes, resolveGalaxies: !!this.resolveStructures,
+        procedural: this.cosmos ? !!this.cosmos.state.show.procedural : false,
+        bridge: this.cosmos ? this.cosmos.state.show.bridge !== false : false,
+      },
+    };
   }
 
   // Load a preset expedition into the route (mode-aware), ready to ENGAGE.

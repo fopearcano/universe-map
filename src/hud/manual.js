@@ -39,6 +39,7 @@ const SECTIONS = [
     ['TEKNÉ · NAVCOM', 'the ship\'s navigation computer, from the QTR "Immeasurable Spaces" canon. Pick a DRIVE — a depth rung on the Ship-Relative Speed Law, where speed is a function of vacuum depth, not thrust: Class 0 sub-light (real time dilation) up to the Class ω Idrenes Composite ·Tekné at ~10²⁰c. It reads out the path along the seam 𝔍, coordinate (home-frame) time, crew (proper) time, and the number of Idrenes-bridge crossings.'],
     ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. A blinking reticle marks the tracked point; ▤ track (or T) opens a live panel with its position, heading, speed and route progress. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
     ['Save / load', 'name routes (persisted), reload, and import/export as JSON.'],
+    ['✦ NAVCOM AI', 'chat with Solaris.Ai — a colloquial navigator that answers universe & QTR-canon questions and plots/flies courses for you ("plot Sol → Andromeda → Virgo", "take me to the Great Attractor at Class II"). Bring your own model via ⚙ — any OpenAI-compatible endpoint (LM Studio / vLLM / Ollama / OpenAI / Anthropic); everything stays in your browser.'],
   ]],
   ['Expeditions', [
     ['Expedition Log', 'the VOYAGES tab holds 25 preset story-routes. ▶ cruise runs a narrated, stepped tour; ◈ trace loads it into the NAV COMPUTER to fly yourself.'],
