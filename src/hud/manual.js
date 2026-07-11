@@ -33,6 +33,7 @@ const SECTIONS = [
     ['Select', 'click an object; double-click to fly to it. Hover for a quick label.'],
     ['Search', 'top box — by name, HIP/HD id, or constellation.'],
     ['Focus', 'select → ◎ focus (or F) re-centres the orbit pivot on that object.'],
+    ['Move / hide panels', 'every floating panel (Controls, Info, NavCom, Solaris.Ai, Track) drags by its header and stays where you leave it (remembered across reloads). The top-centre dock toolbar shows one lit button per panel — click to hide or bring it back — with ↺ to reset the whole layout.'],
   ]],
   ['Navigate & route', [
     ['Plot a course', 'toggle ◉ plot (P) and click to drop waypoints, or select an object and ＋ route (R). Legs draw as gentle curved arcs (bowed away from Sol) so a route reads as a flight path, not a straight chord skewering whatever lines up between its ends.'],

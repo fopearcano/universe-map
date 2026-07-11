@@ -112,6 +112,42 @@ aside {
 .tabpanel { display: none; padding: 12px 14px; overflow-y: auto; }
 .tabpanel.active { display: block; }
 
+/* ---------- movable / hideable panels + top dock toolbar ---------- */
+.pnl-off { display: none !important; }
+.pnl-drag { opacity: 0.92; box-shadow: 0 16px 44px rgba(0,0,0,0.6) !important; }
+/* header strips that act as drag handles */
+.pnl-grip, .na-head, .rp-top, .tp-h, #leftdock .tabs { cursor: move; touch-action: none; }
+/* the tracking panel is click-through except for its header, so it can be dragged */
+#trackpanel .tp-h { pointer-events: auto; }
+.pnl-grip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 6px 5px 11px; border-bottom: 1px solid var(--line);
+  color: var(--cyan); font-size: 9.5px; letter-spacing: 0.18em; user-select: none;
+  background: linear-gradient(90deg, rgba(92,225,255,0.08), rgba(92,225,255,0));
+  border-radius: 8px 8px 0 0;
+}
+.pnl-grip .pnl-gt { opacity: 0.85; }
+.pnl-grip .pnl-gx { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; line-height: 1; padding: 1px 4px; border-radius: 4px; }
+.pnl-grip .pnl-gx:hover { color: var(--red); background: rgba(255,107,107,0.12); }
+
+#dockbar {
+  display: flex; align-items: center; gap: 3px; padding: 3px; height: 30px; flex: 0 1 auto; min-width: 0;
+  background: rgba(6,12,20,0.72); border: 1px solid var(--line); border-radius: 8px;
+  backdrop-filter: blur(8px); box-shadow: 0 4px 18px rgba(0,0,0,0.4); overflow-x: auto;
+}
+#topbar .brand { flex: 0 1 auto; min-width: 0; }
+#topbar .telemetry { flex: 1 1 auto; }
+.db-btn {
+  display: flex; align-items: center; gap: 5px; background: none; border: 1px solid transparent;
+  color: var(--dim); cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+}
+.db-btn .db-i { font-size: 11px; opacity: 0.9; }
+.db-btn:hover { color: var(--ink); border-color: var(--line-strong); background: rgba(255,255,255,0.04); }
+.db-btn.on { color: var(--cyan); border-color: rgba(92,225,255,0.4); background: rgba(92,225,255,0.1); }
+.db-reset { color: var(--dim); padding: 3px 7px; margin-left: 2px; border-left: 1px solid var(--line); border-radius: 0 6px 6px 0; }
+.db-reset:hover { color: var(--amber); }
+
 /* controls */
 .ctl { margin-bottom: 14px; }
 .ctl > label { display: flex; justify-content: space-between; color: var(--dim); letter-spacing: 0.1em; font-size: 10px; margin-bottom: 6px; text-transform: uppercase; }
@@ -602,4 +638,5 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
   .brand .tag { display: none; }
   #searchwrap { width: 70vw; }
   #hintbar span:not(#fps):not(.grow) { display: none; }
+  #dockbar .db-l { display: none; }
 }
