@@ -52,6 +52,7 @@ function renderStar(s) {
 }
 
 function renderCosmos(o) {
+  if (o.kind === 'bridge') return renderBridge(o);
   const isQ = o.kind === 'quasar' || (o.kind === 'procedural' && o.pType === 'quasar');
   const isLG = o.kind === 'localgalaxy';
   const isProc = o.kind === 'procedural';
@@ -74,6 +75,23 @@ function renderCosmos(o) {
   const note = (o.kind === 'galaxy' || isLG)
     ? '<div class="muted" style="margin-top:8px;line-height:1.5">◌ resolved into an illustrative star cloud. Use ⛶ enter galaxy to fly inside it (star field mirrors a real sky cutout).</div>' : '';
   return head(o.name, o.sub || o.survey, swatch) + grid(rows) + actions({ simbad: o.kind === 'localgalaxy', enter: canEnter }) + note;
+}
+
+function renderBridge(o) {
+  const dpc = o.distPc || o.comovingMpc * 1e6;
+  const dist = dpc >= 1e6 ? `${(dpc / 1e6).toFixed(2)} Mpc` : `${(dpc / 1e3).toFixed(1)} kpc`;
+  const ly = o.distLy >= 1e6 ? `${(o.distLy / 1e6).toFixed(2)} Mly` : `${(o.distLy / 1e3).toFixed(0)} kly`;
+  const rows = [
+    ['Structure', o.field],
+    ['Type', o.type],
+    ['Distance', dist, 'hl'],
+    ['', ly],
+    ['Right ascension', fmtRA(o.ra)],
+    ['Declination', fmtDec(o.dec)],
+    ['Catalogue', o.survey],
+  ];
+  const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
+  return head('✦ ' + o.name, o.sub, '#5fd0ff') + grid(rows) + facts + actions({});
 }
 
 function renderExtra(o) {

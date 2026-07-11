@@ -52,7 +52,9 @@ const SECTIONS = [
     ['Sector grid (S)', 'a 3-D block cage — the bright cosmic-plane (celestial equator) with radial spokes, 9 ring-planes above and 9 below, and vertical pillars through every node. Blocks map to the live SECTOR code in the telemetry bar.'],
     ['Galaxy imagery (B)', 'flat billboards of real galaxy cutouts at their positions.'],
     ['Resolve structures (V)', 'clusters & notable galaxies bloom into their shapes as you approach.'],
-    ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined) — green, or matched to real data.'],
+    ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined), draped onto a gravity-shaped cosmic web (filaments, walls & voids) that reflects the real data — green, or matched to real data.'],
+    ['Galactic bridge', 'cyan · fills the gap between the ~1 kpc local star bubble and the Local Group with a modelled Milky Way — disk & spiral arms, bar/bulge, halo, the Magellanic Clouds and a reach toward Andromeda. Selectable & route-able.'],
+    ['CMB radiation image', 'the WMAP boundary shell — off by default; enable it in Layers (COSMOS).'],
   ]],
   ['Knowledge bases', [
     ['ATLAS tab', 'a curated set of real objects across every class; resolve any name live from SIMBAD, or ◈ grow whole catalogues.'],

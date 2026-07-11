@@ -1469,6 +1469,7 @@ function surveyLabel(hips) {
 }
 function hoverCosmos(o) {
   if (o.kind === 'localgalaxy') return `${esc(o.name)} · ${(o.distLy / 1e6).toFixed(1)} Mly`;
+  if (o.kind === 'bridge') { const dpc = o.distPc || o.comovingMpc * 1e6; return `${esc(o.name)} · ${dpc >= 1e6 ? (dpc / 1e6).toFixed(2) + ' Mpc' : (dpc / 1e3).toFixed(1) + ' kpc'} · bridge`; }
   if (o.kind === 'procedural') return `✦ ${esc(o.name)} · z=${o.z.toFixed(3)} · imagined`;
   return `${o.kind === 'quasar' ? 'Quasar' : 'Galaxy'} · z=${o.z.toFixed(3)} · ${(o.comovingMpc * 3.2615638e6 / 1e9).toFixed(2)} Gly`;
 }

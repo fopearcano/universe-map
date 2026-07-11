@@ -15,6 +15,7 @@ export function buildCosmosFilters(app) {
     <div class="ctl">
       <label>Object catalogues</label>
       <div class="toggle on" data-l="starCore"><span>Milky Way stars</span><span class="sw"></span></div>
+      <div class="toggle on" data-l="bridge"><span>Galactic bridge <span class="muted">· cyan · modelled</span></span><span class="sw"></span></div>
       <div class="toggle on" data-l="localGroup"><span>Local Group galaxies</span><span class="sw"></span></div>
       <div class="toggle on" data-l="twomrs"><span>2MRS galaxies · ${fmt(layers.twomrs.count)}</span><span class="sw"></span></div>
       <div class="toggle on" data-l="sdssGal"><span>SDSS galaxies · ${fmt(layers.sdssGal.count)}</span><span class="sw"></span></div>
@@ -35,7 +36,7 @@ export function buildCosmosFilters(app) {
     app.setCosmosFilter({ zMax: val });
   };
 
-  const show = { starCore: true, localGroup: true, twomrs: true, sdssGal: true, sdssQso: true };
+  const show = { starCore: true, bridge: true, localGroup: true, twomrs: true, sdssGal: true, sdssQso: true };
   root.querySelectorAll('.toggle').forEach((el) => {
     el.onclick = () => { el.classList.toggle('on'); show[el.dataset.l] = el.classList.contains('on'); app.setCosmosFilter({ show: { ...show } }); };
   });
@@ -48,10 +49,10 @@ export function buildCosmosFilters(app) {
     size.value = 1; sv.textContent = '1.0×';
     for (const k in show) show[k] = true;
     root.querySelectorAll('.toggle').forEach((el) => el.classList.add('on'));
-    app.setCosmosFilter({ zMax: 6, sizeScale: 1, show: { ...show, cmb: true } });
+    app.setCosmosFilter({ zMax: 6, sizeScale: 1, show: { ...show, cmb: false } });
   };
 
-  app.setCosmosFilter({ zMax: 6, sizeScale: 1, show: { ...show, cmb: true } });
+  app.setCosmosFilter({ zMax: 6, sizeScale: 1, show: { ...show, cmb: false } });
 }
 
 export function buildCosmosLayers(app) {
@@ -72,7 +73,7 @@ export function buildCosmosLayers(app) {
       <button class="segbtn ${app.cosmos.procMode === 'match' ? 'on' : ''}" data-pc="match">match data</button>
     </div>
     <div class="muted" id="c-proc-note" style="margin:-2px 0 6px"></div>
-    <div class="toggle on" data-l="cmb"><span>CMB boundary shell</span><span class="sw"></span></div>
+    <div class="toggle ${app.cosmos.state.show.cmb ? 'on' : ''}" data-l="cmb"><span>CMB radiation image <span class="muted">· off by default</span></span><span class="sw"></span></div>
     <div class="ctl" style="margin-top:10px">
       <label>CMB radiation opacity <span class="val" id="c-cmb-v">auto</span></label>
       <input type="range" id="c-cmb-op" min="0" max="100" step="1" value="0" />

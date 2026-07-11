@@ -39,6 +39,7 @@ cosmos becomes a navigable onion centred on the Sun:
 | Shell | Source | Objects |
 | --- | --- | --- |
 | Our galaxy's stars | HYG (log-radialised) | 100,000 |
+| Galactic bridge | modelled Milky Way + inner Local Group (cyan) | ~122,000 |
 | Local Group galaxies | curated, direct distances | 20 (named, searchable) |
 | Nearby galaxies | **2MRS** (all-sky) | 43,500 |
 | Cosmic web | **SDSS** galaxies | 189,000 |
@@ -46,10 +47,12 @@ cosmos becomes a navigable onion centred on the Sun:
 | The horizon | **real WMAP 9-yr CMB** shell at z≈1100 | boundary at 45.4 Gly |
 
 Objects are coloured by distance (cyan near → crimson far, mirroring redshift).
-A **redshift slider peels back the universe** by look-back distance; a manual
-**CMB opacity** control overrides the auto-fade; toggle each catalogue; click any
-galaxy/quasar for its redshift, comoving distance (Gly & Mpc), look-back time,
-RA/Dec, survey and a derived **IAU-style designation** (e.g. `SDSS J120702.4−024415`).
+A **redshift slider peels back the universe** by look-back distance; toggle each
+catalogue; click any galaxy/quasar for its redshift, comoving distance (Gly & Mpc),
+look-back time, RA/Dec, survey and a derived **IAU-style designation** (e.g.
+`SDSS J120702.4−024415`). The **CMB radiation image is off by default** (the boundary
+shell is a texture-heavy backdrop); enable **CMB radiation image** in Layers to show
+it, and a manual **CMB opacity** control overrides the auto-fade.
 
 ### On object counts, "galaxies made of stars", and LOD
 
@@ -87,14 +90,37 @@ The map is drawn like an annotated chart, not a uniform dot-field:
   direction is brought **up to the peak surface density of the best-surveyed real
   regions** (≈650k synthetic objects), so the sky reads as completely mapped —
   filling the Zone of Avoidance behind the Milky Way and the unsurveyed hemisphere
-  — while **catalogued voids stay empty** (Boötes, the Local Void…). Crucially,
-  these objects are **usable exactly like real data**: each is placed at a true
-  distance (from a sampled redshift), is **selectable**, carries a generated
-  **imagined identity** (a name + `KUC J…` designation, a morphology, distance and
-  a lore line), and can be **added to a route** with correct relativistic travel
-  times. It's clearly imagined — tinted **green** by default with a **green ↔
-  match-data** switch (match makes it read as a real, complete survey). Selectable
-  on click (kept out of the hover scan for smoothness at ~650k points).
+  — while **catalogued voids stay empty** (Boötes, the Local Void…). The fill is
+  **gravity-shaped**, not a smooth haze: points are draped onto a **cosmic web**
+  that reflects the real data. Two fields drive placement — a box-blurred 3-D map
+  of the **real galaxy density** (so procedural structure continues and thickens
+  the observed filaments and clusters), and a **Worley/Voronoi void field** whose
+  seed points are dropped into the real voids, so even blank regions grow **walls,
+  filaments and cluster-nodes around empty voids** (void diameters ~40 Mpc, the
+  observed scale). Crucially, these objects are **usable exactly like real data**:
+  each is placed at a true distance (from a sampled redshift), is **selectable**,
+  carries a generated **imagined identity** (a name + `KUC J…` designation, a
+  morphology, distance and a lore line), and can be **added to a route** with
+  correct relativistic travel times. It's clearly imagined — tinted **green** by
+  default with a **green ↔ match-data** switch (match makes it read as a real,
+  complete survey). Selectable on click (kept out of the hover scan for smoothness
+  at ~650k points).
+
+- **Galactic bridge — the missing middle scale (cyan, modelled).** Between the
+  ~1 kpc local star bubble (all the HYG catalogue reaches) and the Local Group /
+  extragalactic data (which begins at Mpc scales) sits an **empty shell** — the
+  body of our own Galaxy and the inner Local Group, which no per-object catalogue
+  maps at this fidelity. The **Galactic bridge** layer fills it with a *modelled*
+  Milky Way: an exponential **disk with four logarithmic spiral arms** (pitch 12.8°)
+  and a **boxy bar/bulge**, a **globular-cluster + stellar halo** (157 clusters,
+  most within 40 kpc, rare outliers to ~150 kpc), the **Magellanic Clouds** and the
+  Magellanic Bridge between them, and a scatter reaching out to **Andromeda (M31)**
+  and **Triangulum (M33)**. It is built in galactic coordinates — Sun at the origin,
+  the Galactic Centre 8.2 kpc toward Sagittarius — then rotated into the scene's
+  equatorial frame (standard IAU J2000 matrix), so the band of the Milky Way crosses
+  the sky at the correct tilt and the Clouds sit at their true positions. Tinted
+  **cyan** to set it apart from the real (pink/orange) and imagined (green) data, and
+  it's **selectable & route-able** like any other object.
 
 ### Enter a galaxy — real imagery & interior exploration
 
