@@ -8,6 +8,7 @@ import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
+import { driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
 import { loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, pickSurveyImage } from './render/galaxyImage.js';
@@ -63,7 +64,8 @@ export class App {
     this.voyage = null;         // { source, def, index }
     this.focus = null;          // { worldPos, truePos, label }
     this.route = [];            // [{ worldPos, truePos, label, kind }]
-    this.cruiseSpeed = 0.1;     // cruise velocity as a fraction of c
+    this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
+    this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
     this.plotCourse = false;    // click-to-add-waypoint mode
     this.autopilot = null;      // active flythrough state
     this.routeStore = new RouteStore();
@@ -564,7 +566,7 @@ export class App {
       from: R[i].label, to: R[i + 1].label, seg: i + 1, total: R.length - 1, progress: ap.t, paused: ap.paused,
       posRa: ra, posDec: dec, distLy: r * PC_TO_LY, hdgRa: h.ra, hdgDec: h.dec,
       cruiseC: this.cruiseSpeed, legRemainLy, doneLy, remainLy, totalLy: doneLy + remainLy,
-      etaLeg: this._legTimes(legRemainLy), etaTotal: this._legTimes(remainLy),
+      etaLeg: this._legTimes(legRemainLy), etaTotal: this._legTimes(remainLy), drive: this._driveInfo(),
     };
   }
 
@@ -815,15 +817,20 @@ export class App {
     this.route = [];
     this._redrawRoute(); this.emit('route', this._routeSummary());
   }
-  setCruiseSpeed(fracC) { this.cruiseSpeed = Math.max(1e-7, Math.min(1, fracC)); this.emit('route', this._routeSummary()); }
+  // Tekné NAVCOM: select a QTR drive (depth rung) — sets the crossing speed & regime.
+  setDrive(id) { this.drive = driveById(id); this.cruiseSpeed = this.drive.sc; this.emit('route', this._routeSummary()); }
+  // Snap to the nearest ladder drive for an arbitrary saved/authored crossing speed.
+  _applyDriveSpeed(sc) { this.drive = nearestDriveBySc(sc); this.cruiseSpeed = this.drive.sc; }
   setPlotCourse(on) { this.plotCourse = !!on; this.emit('plot', this.plotCourse); }
 
-  // distance -> travel time. Light travels 1 ly/yr, so coordinate years = ly / (v/c).
-  // Ship (proper) time is dilated by the Lorentz factor.
+  // distance -> travel time under the Ship-Relative Speed Law. Coordinate (home-frame)
+  // years = ly / sc, where sc is the drive's crossing speed in multiples of c. Crew
+  // (proper) time is the real Lorentz dilation for a sub-light run, or the drive's
+  // determinate-regime offset (ptf) for a faster-than-light Idrenes-bridge crossing.
   _legTimes(ly) {
-    const beta = this.cruiseSpeed;
-    const years = ly / beta;
-    const shipYears = years * Math.sqrt(Math.max(0, 1 - beta * beta));
+    const sc = this.drive.sc;
+    const years = ly / sc;
+    const shipYears = sc < 1 ? years * Math.sqrt(Math.max(0, 1 - sc * sc)) : years * (this.drive.ptf ?? 1);
     return { years, shipYears };
   }
 
@@ -841,7 +848,14 @@ export class App {
     return {
       points: this.route.map((r) => ({ label: r.label, kind: r.kind })),
       legs, totalLy: total, cruiseC: this.cruiseSpeed, years, shipYears,
+      drive: this._driveInfo(), crossings: Math.max(0, this.route.length - 1),
     };
+  }
+
+  // Compact snapshot of the active drive for the NAVCOM UI.
+  _driveInfo() {
+    const d = this.drive;
+    return { id: d.id, cls: d.cls, klass: d.klass, name: d.name, jp: d.jp, sc: d.sc, ptf: d.ptf, regime: d.regime, drive: d.drive, note: d.note };
   }
 
   // ================= navigation: autopilot flythrough =================
@@ -971,7 +985,7 @@ export class App {
     return {
       active: true, paused: ap.paused, seg: i + 1, total: this.route.length - 1,
       toLabel: this.route[i + 1].label, ra, dec, rangeLy, rangeLyTotal: remLy, cruiseC: this.cruiseSpeed,
-      etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy),
+      etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy), drive: this._driveInfo(),
     };
   }
   _navReadoutFinal() { this.emit('nav', { arrived: true, at: this.route[this.route.length - 1].label }); }
@@ -990,7 +1004,7 @@ export class App {
   loadRoute(id) {
     const rec = this.routeStore.get(id); if (!rec) return;
     if (this.autopilot) this.stopRoute();
-    this.cruiseSpeed = rec.cruiseC || 0.1;
+    this._applyDriveSpeed(rec.cruiseC || this.drive.sc);
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
     this.route = rec.waypoints.map((w, i) => {
       const distPc = Math.max((w.distLy || 0) / PC_TO_LY, 0);
@@ -1040,7 +1054,7 @@ export class App {
     if (this.mode !== scale) this.setMode(scale);
     if (this.autopilot) this.stopRoute();
     this.clearSelection(); this.clearRoute();
-    this.cruiseSpeed = exp.cruiseC || this.cruiseSpeed;
+    if (exp.cruiseC) this._applyDriveSpeed(exp.cruiseC);
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
     this.route = [];
     (exp.stops || []).forEach((stop, i) => {

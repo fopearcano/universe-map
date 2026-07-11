@@ -317,10 +317,12 @@ Dec-row / distance-tier cell, e.g. `N04·10`) alongside heading and scale. The
 cage scales with the mode — out to the CMB in COSMOS, to the stellar
 neighbourhood in LOCAL.
 
-## Navigation — plot & fly a course
+## Navigation — TEKNÉ · NAVCOM
 
-The map doubles as a **spaceship navigation computer**. You are not limited to the
-preset voyages — you can plot arbitrary routes:
+The map doubles as a **spaceship navigation computer**, re-skinned as the NAVCOM of
+the *Tekné* — the Idrenes Composite from the imported QTR **"Immeasurable Spaces"**
+canon (see the Codex). You are not limited to the preset voyages — you can plot
+arbitrary routes:
 
 - **Plot a course**: toggle **◉ plot** and click the map to drop waypoints (they
   snap to an object under the cursor, or land in free space at the focal depth),
@@ -333,18 +335,34 @@ preset voyages — you can plot arbitrary routes:
   curve, so the flown path and the drawn line stay identical — and it's a one-off
   spline build, no per-frame cost.
 - **Edit the course**: reorder (▲▼), remove (✕) or reverse (⇄) any waypoint.
-- **Cruise speed → travel time**: pick a cruise velocity (Voyager's 17 km/s up to
-  light speed). Each leg then shows its **distance, heading (RA/Dec) and travel
-  time**, and the totals show the **mission time** *and* the **relativistic ship
-  (proper) time** — at 0.99 c a 700-year crossing is only ~100 years for the crew.
-- **⏵ ENGAGE autopilot**: flies the plotted course with a live nav HUD (current
-  leg, heading, range to next, ETA, ship time); hold / step / disengage. You can
-  **orbit and zoom freely** while it flies, and a **blinking reticle** marks the
-  tracked point on the route.
+- **Pick a DRIVE → travel time**: instead of a raw cruise speed, choose a QTR
+  **drive** — a depth rung on the *Ship-Relative Speed Law*, where velocity is a
+  function of vacuum **depth**, not thrust, and a ship's *class* is the maximum depth
+  it can reach:
+
+  | Class | Drive | Crossing speed | Regime |
+  | --- | --- | --- | --- |
+  | 0 | Casimir Sailer | 0.1 c | sub-light (real dilation) |
+  | 0 | Relativistic run | 0.994 c | sub-light (real dilation) |
+  | I | Idrenes–Sōrn · OCT-0 | ~10¹⁰ c | determinate |
+  | II | Unruh Catamaran | ~10¹³ c | determinate |
+  | III | Squeezing Bathyscaphe | ~10¹⁶ c | indeterminate |
+  | ω | **Idrenes Composite · Tekné** | ~10²⁰ c | seam-locked |
+
+  Each leg is an **Idrenes-bridge crossing**; the console shows its distance, heading
+  and time, and the totals give the **coordinate (home-frame) time**, the **crew
+  (proper) time**, and the number of bridges. Sub-light classes use real Lorentz
+  dilation; the faster-than-light classes discount crew time by the drive's
+  determinate-regime offset. At Class I a 12 Gly crossing is ~1 coordinate year / ~5
+  crew-months — the *Tekné* is the only NAVCOM that runs this fast.
+- **⏵ ENGAGE · thread 𝔍**: flies the plotted course with a live nav HUD (current
+  crossing, heading, range to next, coordinate & crew time); hold / step / disengage.
+  You can **orbit and zoom freely** while it flies, and a **blinking reticle** marks
+  the tracked point on the route.
 - **▤ track panel** (or `T`): a linked, transparent panel with live telemetry of
   the tracked point — its **position** (RA/Dec + distance from Sol), **heading**,
-  **speed** (c and km/s), current **leg & progress**, and route **travelled /
-  remaining** with ETA and ship time.
+  **drive** (class & crossing speed), current **crossing & progress**, and route
+  **travelled / remaining** with coordinate and crew time.
 - **Save / load**: name and save routes (persisted in localStorage), reload them,
   and import/export the whole set as JSON.
 

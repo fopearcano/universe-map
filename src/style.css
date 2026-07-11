@@ -422,8 +422,11 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
   backdrop-filter: blur(8px); box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
 .rp-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.rp-title { color: var(--green); letter-spacing: 0.08em; font-size: 11px; }
+.rp-title { color: var(--green); letter-spacing: 0.16em; font-size: 11px; }
 .rp-title b { color: var(--ink); }
+.rp-sub { font-size: 9px; letter-spacing: 0.1em; margin: -4px 0 7px; }
+.rp-cls { color: var(--cyan); font-weight: 600; min-width: 20px; text-align: center; }
+.rp-drivenote { font-size: 9.5px; line-height: 1.5; margin: -3px 0 8px; }
 .rp-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px; }
 .rp-x:hover { color: var(--red); }
 .rp-tools { display: flex; gap: 4px; margin-bottom: 6px; }

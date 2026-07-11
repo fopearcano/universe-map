@@ -1,14 +1,12 @@
 import { fmtRA, fmtDec } from '../util/astro.js';
+import { DRIVES, fmtDriveSpeed } from '../data/drives.js';
 
-// The nautical-chart / spaceship navigation console: a focus chip, a NAV COMPUTER
-// (plot course, edit waypoints, cruise speed → travel & ship time, save/load) and
-// an AUTOPILOT heads-up display shown while flying a plotted course.
-const SPEEDS = [
-  { label: 'Voyager 1 · 17 km/s', beta: 17 / 299792.458 },
-  { label: '0.01 c', beta: 0.01 }, { label: '0.1 c', beta: 0.1 }, { label: '0.5 c', beta: 0.5 },
-  { label: '0.9 c', beta: 0.9 }, { label: '0.99 c', beta: 0.99 }, { label: '0.999 c', beta: 0.999 },
-  { label: 'light speed · c', beta: 1 },
-];
+// TEKNÉ · NAVCOM — the spaceship navigation console, re-skinned as the navigation
+// computer of the Idrenes Composite *Tekné* from the QTR "Immeasurable Spaces" canon.
+// You plot a course, pick a DRIVE (a depth rung on the Ship-Relative Speed Law: speed
+// is a function of vacuum depth, not thrust), and the console reads out the path along
+// the seam 𝔍, the coordinate (home-frame) time, the crew (proper) time, and the number
+// of Idrenes-bridge crossings. An AUTOPILOT HUD threads the course while you fly it.
 
 export function initNavChart(app) {
   const focusChip = el('div', 'focuschip'); focusChip.hidden = true; document.body.appendChild(focusChip);
@@ -39,10 +37,10 @@ export function initNavChart(app) {
     if (!s || !s.points.length) { panel.hidden = true; panel.innerHTML = ''; expedition = null; return; }
     panel.hidden = false;
     const expHdr = expedition ? `<div class="rp-exped"><div class="rp-exped-t">◈ ${esc(expedition.title)}</div><div class="rp-exped-p">${esc(expedition.premise)}</div></div>` : '';
-    const beta = s.cruiseC, gamma = beta >= 1 ? Infinity : 1 / Math.sqrt(1 - beta * beta);
+    const dr = s.drive || { id: '', cls: '', klass: '', name: '', regime: '', note: '', sc: s.cruiseC };
     const wpRows = s.points.map((p, i) => {
       const leg = i > 0 ? s.legs[i - 1] : null;
-      const legInfo = leg ? `<div class="rp-leginfo">↳ ${fmtLy(leg.ly)} · ${fmtRA(leg.ra)} ${fmtDec(leg.dec)} · ${fmtYr(leg.years)}</div>` : '';
+      const legInfo = leg ? `<div class="rp-leginfo">⟿ crossing ${i} · ${fmtLy(leg.ly)} · ${fmtRA(leg.ra)} ${fmtDec(leg.dec)} · ${fmtYr(leg.years)}</div>` : '';
       return `<div class="rp-wp">
           <span class="rp-wi">${i}</span>
           <span class="rp-wn">${esc(p.label)}${p.kind === 'free' ? ' <span class="rp-free">◇</span>' : ''}</span>
@@ -54,41 +52,44 @@ export function initNavChart(app) {
 
     panel.innerHTML = `
       <div class="rp-top">
-        <div class="rp-title">◈ NAV COMPUTER · <b>${s.points.length}</b> wp</div>
-        <button class="rp-x" title="clear route">✕</button>
+        <div class="rp-title">◈ TEKNÉ · NAVCOM</div>
+        <button class="rp-x" title="clear course">✕</button>
       </div>
+      <div class="rp-sub muted">Sōrn depth-rung navigator · Solaris.Ai core</div>
       ${expHdr}
       <div class="rp-tools">
         <button class="btn sm ${app.plotCourse ? 'on' : ''}" id="rp-plot" title="click the map to drop waypoints">◉ plot</button>
         <button class="btn sm" id="rp-viewpt" title="drop a free-space waypoint where you're looking">＋ pt</button>
         <button class="btn sm" id="rp-rev" title="reverse">⇄</button>
-        <button class="btn sm" id="rp-save" title="save route">💾</button>
+        <button class="btn sm" id="rp-save" title="save course">💾</button>
       </div>
       <div class="rp-cruise">
-        <span>cruise</span>
-        <select id="rp-speed">${SPEEDS.map((sp) => `<option value="${sp.beta}" ${near(sp.beta, beta) ? 'selected' : ''}>${sp.label}</option>`).join('')}</select>
-        <span class="muted">γ=${gamma === Infinity ? '∞' : gamma.toFixed(2)}</span>
+        <span>drive</span>
+        <select id="rp-drive">${DRIVES.map((d) => `<option value="${d.id}" ${d.id === dr.id ? 'selected' : ''}>Class ${d.cls} · ${d.klass} · ${fmtDriveSpeed(d.sc)}</option>`).join('')}</select>
+        <span class="rp-cls" title="ship class = maximum vacuum depth">${dr.cls}</span>
       </div>
+      <div class="rp-drivenote muted">${esc(dr.note)}</div>
       <div class="rp-wps">${wpRows}</div>
       <div class="rp-total">
-        <div><span>path</span><span class="v">${fmtLy(s.totalLy)}</span></div>
-        <div><span>mission time</span><span class="v">${fmtYr(s.years)}</span></div>
-        <div><span>ship time (relativistic)</span><span class="v">${beta >= 1 ? '0 (photon)' : fmtYr(s.shipYears)}</span></div>
+        <div><span>path · seam 𝔍</span><span class="v">${fmtLy(s.totalLy)}</span></div>
+        <div><span>coordinate time</span><span class="v">${fmtYr(s.years)}</span></div>
+        <div><span>crew time · ${esc(dr.regime)}</span><span class="v">${fmtYr(s.shipYears)}</span></div>
+        <div><span>Idrenes bridges</span><span class="v">${s.crossings ?? Math.max(0, s.points.length - 1)}</span></div>
       </div>
       <div class="rp-ctrls">
-        <button class="btn sm rp-engage" id="rp-engage" ${s.points.length < 2 ? 'disabled' : ''}>⏵ ENGAGE</button>
+        <button class="btn sm rp-engage" id="rp-engage" ${s.points.length < 2 ? 'disabled' : ''}>⏵ ENGAGE · thread 𝔍</button>
       </div>
-      <div class="rp-saved-h muted">saved routes <span class="rp-io"><button id="rp-imp">⇩</button><button id="rp-exp">⇧</button></span></div>
+      <div class="rp-saved-h muted">saved courses <span class="rp-io"><button id="rp-imp">⇩</button><button id="rp-exp">⇧</button></span></div>
       <div class="rp-saved-list">${savedRows}</div>
       <input id="rp-file" type="file" accept="application/json,.json" hidden />
-      <div class="rp-hint muted">plot: ◉ then click · or select an object → <b>＋ route</b></div>`;
+      <div class="rp-hint muted">ΛL beacon lock · plot ◉ then click, or select an object → <b>＋ route</b></div>`;
 
     panel.querySelector('.rp-x').onclick = () => app.clearRoute();
     panel.querySelector('#rp-plot').onclick = () => app.setPlotCourse(!app.plotCourse);
     panel.querySelector('#rp-viewpt').onclick = () => app.addViewPoint();
     panel.querySelector('#rp-rev').onclick = () => app.reverseRoute();
     panel.querySelector('#rp-engage').onclick = () => app.engageRoute();
-    panel.querySelector('#rp-speed').onchange = (e) => app.setCruiseSpeed(+e.target.value);
+    panel.querySelector('#rp-drive').onchange = (e) => app.setDrive(e.target.value);
     panel.querySelector('#rp-save').onclick = () => { const n = prompt('Name this route:', `route ${app.routeStore.all().length + 1}`); if (n) app.saveRoute(n); };
     panel.querySelectorAll('[data-up]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.up, -1); });
     panel.querySelectorAll('[data-down]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.down, 1); });
@@ -126,19 +127,20 @@ export function initNavChart(app) {
       hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
       return;
     }
+    const dv = n.drive || { cls: '', name: '', sc: n.cruiseC };
     hud.innerHTML = `
       <div class="nh-row nh-top">
-        <span class="nh-leg">LEG ${n.seg}/${n.total}</span>
+        <span class="nh-leg">CROSSING ${n.seg}/${n.total}</span>
         <span class="nh-to">→ ${esc(n.toLabel)}</span>
-        <span class="nh-v">${fmtC(n.cruiseC)}</span>
+        <span class="nh-v" title="${esc(dv.name)}">${dv.cls ? dv.cls + ' · ' : ''}${fmtDriveSpeed(dv.sc)}</span>
       </div>
       <div class="nh-row nh-data">
         <span><i>HDG</i> ${fmtRA(n.ra)} ${fmtDec(n.dec)}</span>
         <span><i>RANGE</i> ${fmtLy(n.rangeLy)}</span>
-        <span><i>ETA</i> ${fmtYr(n.etaNext.years)}</span>
-        <span><i>SHIP</i> ${n.cruiseC >= 1 ? '0' : fmtYr(n.etaNext.shipYears)}</span>
+        <span><i>COORD</i> ${fmtYr(n.etaNext.years)}</span>
+        <span><i>CREW</i> ${fmtYr(n.etaNext.shipYears)}</span>
       </div>
-      <div class="nh-row nh-total muted"><span>remaining ${fmtLy(n.rangeLyTotal ?? 0)}</span><span>mission left ${fmtYr(n.etaTotal.years)} · ship ${n.cruiseC >= 1 ? '0' : fmtYr(n.etaTotal.shipYears)}</span></div>
+      <div class="nh-row nh-total muted"><span>seam left ${fmtLy(n.rangeLyTotal ?? 0)}</span><span>coord ${fmtYr(n.etaTotal.years)} · crew ${fmtYr(n.etaTotal.shipYears)}</span></div>
       <div class="nh-ctrls">
         <button class="btn sm" id="nh-prev">◀</button>
         <button class="btn sm" id="nh-pause">${n.paused ? '⏵ resume' : '❚❚ hold'}</button>
@@ -166,25 +168,24 @@ function initTrackPanel(app) {
       panel.innerHTML = `<div class="tp-h">◎ TRACKING</div><div class="tp-idle muted">engage a route to begin tracking</div>`;
       return;
     }
-    const kms = (t.cruiseC * 299792.458);
+    const dv = t.drive || { cls: '', name: '', regime: '', sc: t.cruiseC };
     panel.innerHTML = `
-      <div class="tp-h">◎ TRACKING <span class="tp-leg">${t.paused ? '❚❚ ' : ''}LEG ${t.seg}/${t.total}</span></div>
+      <div class="tp-h">◎ TRACKING <span class="tp-leg">${t.paused ? '❚❚ ' : ''}CROSSING ${t.seg}/${t.total}</span></div>
       <div class="tp-route">${esc(t.from)} <span class="muted">→</span> <b>${esc(t.to)}</b></div>
       <div class="tp-bar"><i style="width:${Math.round(t.progress * 100)}%"></i></div>
       <dl class="tp-dl">
         <dt>position</dt><dd>${fmtRA(t.posRa)} ${fmtDec(t.posDec)}</dd>
         <dt></dt><dd class="muted">${fmtLy(t.distLy)} from Sol</dd>
         <dt>heading</dt><dd>${fmtRA(t.hdgRa)} ${fmtDec(t.hdgDec)}</dd>
-        <dt>speed</dt><dd>${fmtC(t.cruiseC)} <span class="muted">· ${kms >= 1e6 ? (kms / 1e6).toFixed(0) + 'M' : Math.round(kms).toLocaleString('en-US')} km/s</span></dd>
+        <dt>drive</dt><dd>${esc(dv.name)} <span class="muted">· Class ${dv.cls}</span></dd>
+        <dt>crossing v</dt><dd>${fmtDriveSpeed(dv.sc)} <span class="muted">· ${esc(dv.regime)}</span></dd>
         <dt>to next</dt><dd>${fmtLy(t.legRemainLy)} · ${fmtYr(t.etaLeg.years)}</dd>
         <dt>travelled</dt><dd>${fmtLy(t.doneLy)} <span class="muted">/ ${fmtLy(t.totalLy)}</span></dd>
-        <dt>remaining</dt><dd>${fmtLy(t.remainLy)} · ${fmtYr(t.etaTotal.years)} <span class="muted">(ship ${t.cruiseC >= 1 ? '0' : fmtYr(t.etaTotal.shipYears)})</span></dd>
+        <dt>remaining</dt><dd>${fmtLy(t.remainLy)} · ${fmtYr(t.etaTotal.years)} <span class="muted">(crew ${fmtYr(t.etaTotal.shipYears)})</span></dd>
       </dl>`;
   });
 }
 
-function near(a, b) { return Math.abs(a - b) < Math.max(1e-9, b * 1e-3); }
-function fmtC(b) { return b >= 1 ? 'c' : b >= 0.01 ? b.toFixed(2) + 'c' : (b * 299792.458).toFixed(0) + ' km/s'; }
 function fmtLy(ly) {
   if (ly >= 1e9) return `${(ly / 1e9).toFixed(2)} Gly`;
   if (ly >= 1e6) return `${(ly / 1e6).toFixed(2)} Mly`;
