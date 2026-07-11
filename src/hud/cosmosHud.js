@@ -129,31 +129,41 @@ export function buildCosmosLayers(app) {
   const ways = root.querySelector('[data-l="ways"]');
   const waysBox = root.querySelector('#c-ways');
   ways.classList.toggle('on', !!app.showRouteNetwork);
+  const MAX_ROWS = 220;
   const buildWays = () => {
-    const list = app.tradeRouteList();
+    // flagships (curated) first, then the procedural spread
+    const list = app.tradeRouteList().sort((a, b) => (a.id.startsWith('way-') ? 1 : 0) - (b.id.startsWith('way-') ? 1 : 0));
     const cat = { commercial: true, military: true };
+    let text = '';
+    const nComm = list.filter((r) => r.category === 'commercial').length;
     const chip = (c, col) => `<button class="ways-chip on" data-cat="${c}" style="--wc:${col}">${c}</button>`;
     const row = (r) => `<div class="ways-row" data-way="${r.id}" title="${esc(r.lore)}">
         <div class="ways-r1"><span class="ways-dot" style="background:${r.category === 'military' ? '#ff6b6b' : '#ffb454'}"></span><span class="ways-name">${esc(r.name)}</span><button class="ways-load" data-load="${r.id}" title="load into NAV COMPUTER">▶</button></div>
         <div class="ways-r2 muted">${esc(r.kind)} · ${esc(r.operator)} · Class ${esc(r.driveClass)} · ${esc(r.traffic)}</div>
       </div>`;
     waysBox.innerHTML = `
-      <div class="ways-h muted">${list.length} charted ways · click to trace, ▶ to load</div>
+      <div class="ways-h muted">${fmt(list.length)} charted ways · ${fmt(nComm)} commercial · ${fmt(list.length - nComm)} military</div>
       <div class="ways-filter">${chip('commercial', '#ffb454')}${chip('military', '#ff6b6b')}</div>
-      <input class="ways-search" id="c-ways-search" type="text" placeholder="filter by name, operator, kind…" />
-      <div class="ways-list">${list.map(row).join('')}</div>`;
-    const byId = new Map(list.map((r) => [r.id, r]));
-    let text = '';
-    const applyRows = () => waysBox.querySelectorAll('.ways-row').forEach((rw) => {
-      const rr = byId.get(rw.dataset.way); if (!rr) return;
-      const okCat = cat[rr.category];
-      const okText = !text || `${rr.name} ${rr.kind} ${rr.operator} ${rr.lore}`.toLowerCase().includes(text);
-      rw.style.display = okCat && okText ? '' : 'none';
-    });
-    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); applyRows(); }; });
-    waysBox.querySelector('#c-ways-search').oninput = (e) => { text = e.target.value.toLowerCase().trim(); applyRows(); };
-    waysBox.querySelectorAll('.ways-row').forEach((rw) => { rw.onclick = (e) => { if (e.target.closest('.ways-load')) return; waysBox.querySelectorAll('.ways-row').forEach((x) => x.classList.remove('sel')); rw.classList.add('sel'); app.highlightTradeRoute(rw.dataset.way); }; });
-    waysBox.querySelectorAll('.ways-load').forEach((b) => { b.onclick = () => { app.loadTradeRoute(b.dataset.load); }; });
+      <input class="ways-search" id="c-ways-search" type="text" placeholder="search ${fmt(list.length)} ways by name, operator, kind…" />
+      <div class="ways-count muted" id="c-ways-count"></div>
+      <div class="ways-list" id="c-ways-list"></div>`;
+    const listEl = waysBox.querySelector('#c-ways-list');
+    const countEl = waysBox.querySelector('#c-ways-count');
+    const render = () => {
+      const matches = list.filter((r) => cat[r.category] && (!text || `${r.name} ${r.kind} ${r.operator} ${r.lore}`.toLowerCase().includes(text)));
+      listEl.innerHTML = matches.slice(0, MAX_ROWS).map(row).join('');
+      countEl.textContent = matches.length > MAX_ROWS ? `showing ${MAX_ROWS} of ${fmt(matches.length)} — search to narrow` : `${fmt(matches.length)} shown`;
+    };
+    render();
+    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); render(); }; });
+    waysBox.querySelector('#c-ways-search').oninput = (e) => { text = e.target.value.toLowerCase().trim(); render(); };
+    // event delegation (rows are re-rendered on every filter)
+    listEl.onclick = (e) => {
+      const loadBtn = e.target.closest('.ways-load'); if (loadBtn) { app.loadTradeRoute(loadBtn.dataset.load); return; }
+      const rw = e.target.closest('.ways-row'); if (!rw) return;
+      listEl.querySelectorAll('.ways-row').forEach((x) => x.classList.remove('sel')); rw.classList.add('sel');
+      app.highlightTradeRoute(rw.dataset.way);
+    };
   };
   ways.onclick = () => {
     ways.classList.toggle('on');

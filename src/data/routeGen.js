@@ -3,11 +3,11 @@
 // crossings, each with a poetic name and every waypoint anchored to a real object
 // from the supplied pool. Deterministic (seeded), so the map is the same every load.
 
-const ADJ = ['Amber', 'Silent', 'Cold', 'Broken', 'Drowned', 'Ashen', 'Iron', 'Pale', 'Long', 'Quiet', 'Hollow', 'Gilded', 'Salt', 'Widowed', 'Lantern', 'Threadbare', 'Crimson', 'Golden', 'Weeping', 'Sunless', 'Starless', 'Faded', 'Bitter', 'Sacred', 'Forsaken', 'Endless', 'Whispering', 'Frozen', 'Emberlit', 'Moonless', 'Grave', 'Dawnless', 'Kestrel', 'Serpent', 'Deepwater', 'Wandering', 'Nameless', 'Sable', 'Vermillion', 'Hallowed', 'Sombre', 'Glass', 'Tidal', 'Sundered', 'Ivory', 'Obsidian', 'Lonesome', 'Errant', 'Brine', 'Windward'];
-const NOUN = ['Ladder', 'Ferry', 'Reach', 'Circuit', 'Walk', 'Road', 'Run', 'Line', 'String', 'Coil', 'Meridian', 'Bastion', 'Vigil', 'March', 'Screen', 'Picket', 'Tithe', 'Barter', 'Loop', 'Cut', 'Watch', 'Way', 'Passage', 'Crossing', 'Span', 'Bridge', 'Thread', 'Furrow', 'Channel', 'Lane', 'Trail', 'Wake', 'Gauntlet', 'Pilgrimage', 'Errand', 'Furlong', 'Reckoning', 'Descent', 'Verge', 'Trace'];
-const NOUN2 = ['Suns', 'Ash', 'Salt', 'Bones', 'Silk', 'Glass', 'Embers', 'Widows', 'Saints', 'Reavers', 'Pilgrims', 'Sorrows', 'Lanterns', 'Mirrors', 'Tides', 'Whispers', 'the Drowned', 'the Faithful', 'the Lost', 'the Deep', 'the Long Night', 'Cinders', 'Vespers', 'Thorns', 'Mourning', 'the Nameless', 'the Fallen', 'Winter', 'the Quiet', 'Exiles', 'Wolves', 'the Meek'];
-const NAME = ['Widow', 'Hangman', 'Ferryman', 'Reaver', 'Cartographer', 'Pilgrim', 'Kestrel', 'Serpent', 'Diver', 'Crosser', 'Warden', 'Exile', 'Saint', 'Sister', 'Factor', 'Envoy', 'Marshal', 'Verderer', 'Beggar', 'Sentinel', 'Corsair', 'Wanderer', 'Almoner', 'Steward', 'Widower', 'Cantor'];
-const ROUTEWORD = ['Road', 'Route', 'Run', 'Way', 'Passage', 'Circuit', 'Line', 'March', 'Corridor', 'Reach', 'Trail', 'Lane', 'Course', 'Track'];
+const ADJ = ['Amber', 'Silent', 'Cold', 'Broken', 'Drowned', 'Ashen', 'Iron', 'Pale', 'Long', 'Quiet', 'Hollow', 'Gilded', 'Salt', 'Widowed', 'Lantern', 'Threadbare', 'Crimson', 'Golden', 'Weeping', 'Sunless', 'Starless', 'Faded', 'Bitter', 'Sacred', 'Forsaken', 'Endless', 'Whispering', 'Frozen', 'Emberlit', 'Moonless', 'Grave', 'Dawnless', 'Kestrel', 'Serpent', 'Deepwater', 'Wandering', 'Nameless', 'Sable', 'Vermillion', 'Hallowed', 'Sombre', 'Glass', 'Tidal', 'Sundered', 'Ivory', 'Obsidian', 'Lonesome', 'Errant', 'Brine', 'Windward', 'Ember', 'Silver', 'Leaden', 'Rimed', 'Ochre', 'Fallow', 'Wintered', 'Verdant', 'Ashgrey', 'Molten', 'Slack', 'Turning', 'Hungering', 'Patient', 'Mourned', 'Gallowed', 'Featherlight', 'Cindered', 'Salted', 'Stormworn', 'Quicksilver', 'Wormwood', 'Marbled', 'Dustbound', 'Ninefold', 'Twilit', 'Umbral', 'Candled', 'Reliquary', 'Beggared', 'Honeyed', 'Spiced', 'Coral', 'Onyx', 'Cobalt', 'Rusted', 'Mistbound', 'Waning', 'Owl-eyed', 'Thornbound', 'Sea-grey'];
+const NOUN = ['Ladder', 'Ferry', 'Reach', 'Circuit', 'Walk', 'Road', 'Run', 'Line', 'String', 'Coil', 'Meridian', 'Bastion', 'Vigil', 'March', 'Screen', 'Picket', 'Tithe', 'Barter', 'Loop', 'Cut', 'Watch', 'Way', 'Passage', 'Crossing', 'Span', 'Bridge', 'Thread', 'Furrow', 'Channel', 'Lane', 'Trail', 'Wake', 'Gauntlet', 'Pilgrimage', 'Errand', 'Furlong', 'Reckoning', 'Descent', 'Verge', 'Trace', 'Artery', 'Girdle', 'Tether', 'Stitch', 'Weave', 'Seam', 'Ribbon', 'Vein', 'Skein', 'Halter', 'Gallows-walk', 'Rondel', 'Sluice', 'Conduit', 'Causeway', 'Corridor', 'Approach', 'Traverse', 'Sounding', 'Draught'];
+const NOUN2 = ['Suns', 'Ash', 'Salt', 'Bones', 'Silk', 'Glass', 'Embers', 'Widows', 'Saints', 'Reavers', 'Pilgrims', 'Sorrows', 'Lanterns', 'Mirrors', 'Tides', 'Whispers', 'the Drowned', 'the Faithful', 'the Lost', 'the Deep', 'the Long Night', 'Cinders', 'Vespers', 'Thorns', 'Mourning', 'the Nameless', 'the Fallen', 'Winter', 'the Quiet', 'Exiles', 'Wolves', 'the Meek', 'Spice', 'Amber', 'Coral', 'the Sleepless', 'Relics', 'the Patient', 'Furnaces', 'the Forsaken', 'Vellum', 'Beacons', 'the Unlit', 'Harvest', 'the Owl', 'the Debtors', 'the Ninefold', 'Dust', 'the Threadbare', 'the Grey'];
+const NAME = ['Widow', 'Hangman', 'Ferryman', 'Reaver', 'Cartographer', 'Pilgrim', 'Kestrel', 'Serpent', 'Diver', 'Crosser', 'Warden', 'Exile', 'Saint', 'Sister', 'Factor', 'Envoy', 'Marshal', 'Verderer', 'Beggar', 'Sentinel', 'Corsair', 'Wanderer', 'Almoner', 'Steward', 'Widower', 'Cantor', 'Glassmaker', 'Salter', 'Lamplighter', 'Reliquar', 'Drover', 'Chandler', 'Vintner', 'Netmaker', 'Bellringer', 'Cooper', 'Wright', 'Harrier', 'Verger', 'Coster', 'Ostler', 'Fletcher', 'Weaver', 'Mourner', 'Prowman'];
+const ROUTEWORD = ['Road', 'Route', 'Run', 'Way', 'Passage', 'Circuit', 'Line', 'March', 'Corridor', 'Reach', 'Trail', 'Lane', 'Course', 'Track', 'Crossing', 'Traverse', 'Round', 'Circuit', 'Walk', 'Haul'];
 
 const COMM_OPS = ["the Amber Syndics", "the Ferryman's Guild", 'the Cloud Factors', 'the Salt Factors', 'the Lantern Wardens', 'the Dwarf Leagues', 'the Furnace Cartel', 'the Kestrel Wing', 'the Silk Assembly', 'the Glassmakers', 'the Spice Concord', 'the Free Haulers', 'the Pilgrim Trust', 'Pelagian Assembly', 'the Irrationals', 'the Reliquary Fund'];
 const MIL_OPS = ['the Iron Synod', 'the Kestrel Wing', 'the Nūbi', 'the Drowned Legion', 'the Grey Marshals', 'the Verge Wardens', 'the Ashen Guard', 'the Ninth Fleet', 'the Serpent Corps', 'Pelagian Assembly', 'the Sīli', 'the Bastion Order', 'the Long Watch', 'the Sable Cohort'];
@@ -20,7 +20,7 @@ const CLASSES = ['0', 'I', 'I', 'I', 'I', 'I', 'I', 'II', 'II', 'II', 'II', 'III
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function generateRoutes(pool, { count, seed = 1234, existingNames = [] } = {}) {
+export function generateRoutes(pool, { commercial = 0, military = 0, seed = 1234, existingNames = [] } = {}) {
   let s = seed >>> 0;
   const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
   const pick = (a) => a[Math.floor(rnd() * a.length)];
@@ -54,9 +54,9 @@ export function generateRoutes(pool, { count, seed = 1234, existingNames = [] } 
   const pickHub = () => { let r = rnd() * hubSum; for (let i = 0; i < N; i++) { r -= hubW[i]; if (r <= 0) return i; } return 0; };
 
   const routes = [];
-  for (let i = 0; i < count; i++) {
-    const commercial = rnd() < 0.56;
-    const cat = commercial ? 'commercial' : 'military';
+  let id = 0;
+  const makeOne = (cat) => {
+    const comm = cat === 'commercial';
     const len = 2 + (rnd() < 0.5 ? 0 : rnd() < 0.6 ? 1 : rnd() < 0.7 ? 2 : 3); // 2..5, mostly 2-3
     const trunk = rnd() < 0.14;                                 // a few long-haul trunks
     const chain = [pickHub()];
@@ -67,16 +67,18 @@ export function generateRoutes(pool, { count, seed = 1234, existingNames = [] } 
       else { const cands = near[cur].filter((j) => !chain.includes(j)); nxt = cands.length ? pick(cands) : Math.floor(rnd() * N); }
       if (!chain.includes(nxt)) chain.push(nxt);
     }
-    if (chain.length < 2) continue;
+    if (chain.length < 2) return null;
     const objs = chain.map((j) => pool[j]);
-    routes.push({
-      id: `way-${i.toString(36)}`, name: name(), category: cat,
-      kind: commercial ? pick(COMM_KINDS) : pick(MIL_KINDS),
-      operator: commercial ? pick(COMM_OPS) : pick(MIL_OPS),
+    return {
+      id: `way-${(id++).toString(36)}`, name: name(), category: cat,
+      kind: comm ? pick(COMM_KINDS) : pick(MIL_KINDS),
+      operator: comm ? pick(COMM_OPS) : pick(MIL_OPS),
       driveClass: pick(CLASSES), traffic: pick(TRAFFIC),
-      lore: commercial ? pick(COMM_LORE) : pick(MIL_LORE),
+      lore: comm ? pick(COMM_LORE) : pick(MIL_LORE),
       stops: objs.map((o) => o.name), positions: objs.map((o) => o.pos.slice()),
-    });
-  }
+    };
+  };
+  for (let c = 0; c < commercial; c++) { const r = makeOne('commercial'); if (r) routes.push(r); }
+  for (let m = 0; m < military; m++) { const r = makeOne('military'); if (r) routes.push(r); }
   return routes;
 }

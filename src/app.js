@@ -1051,6 +1051,8 @@ export class App {
       if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: o.distGly != null ? o.distGly * 1e9 : (o.distMpc || 0) * 3.2615638e6, note: w.note };
       o = find(this.extras.clusters || []);
       if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: o.distLy, note: w.note };
+      o = find(this.supervoids || []);
+      if (o) return { label: w.label || o.name, ra: o.ra, dec: o.dec, distLy: (o.distMpc || 0) * 3.2615638e6, note: w.note }; // supervoid ra already in hours
       return null;
     }
     return null;
@@ -1217,10 +1219,16 @@ export class App {
     for (const o of (this.atlas || [])) addPool(o.name, o.ra, o.dec, o.distLy, /galaxy|quasar|smbh/.test(o.category || '') ? 2.2 : 0.8);
     for (const v of (this.supervoids || [])) addPool(v.name, v.ra, v.dec, (v.distMpc || 0) * 3.2615638e6, 0.6);
 
-    // 3) procedurally fill the ledger out to a full spread of 500 charted ways
-    const need = Math.max(0, 500 - this.tradeRoutes.length);
-    if (need > 0 && pool.length > 4) {
-      for (const g of generateRoutes(pool, { count: need, seed: 987654321, existingNames: this.tradeRoutes.map((r) => r.name) })) {
+    // 3) procedurally fill the ledger to its full spread — commercial vastly
+    //    outnumbers military (a peacetime galaxy runs on trade), so aim for the
+    //    per-category targets, counting whatever the flagships already cover.
+    const TARGET = { commercial: 2679, military: 268 };
+    const have = { commercial: 0, military: 0 };
+    for (const r of this.tradeRoutes) if (r.category in have) have[r.category]++;
+    const commercial = Math.max(0, TARGET.commercial - have.commercial);
+    const military = Math.max(0, TARGET.military - have.military);
+    if ((commercial || military) && pool.length > 4) {
+      for (const g of generateRoutes(pool, { commercial, military, seed: 987654321, existingNames: this.tradeRoutes.map((r) => r.name) })) {
         add({ id: g.id, name: g.name, category: g.category, kind: g.kind, operator: g.operator, driveClass: g.driveClass, traffic: g.traffic, lore: g.lore, stops: g.stops }, g.positions.map((p) => new THREE.Vector3(p[0], p[1], p[2])), g.stops);
       }
     }
