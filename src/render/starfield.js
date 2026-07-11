@@ -51,14 +51,20 @@ export class Starfield {
         uniform float uSizeScale;
         varying vec3 vColor;
         varying float vVisible;
+        varying float vBright;
         void main() {
           vColor = aColor;
           vVisible = aVisible;
+          // aSize encodes apparent magnitude (brighter star ⇒ bigger). Gate the
+          // diffraction shards to the brightest, ramping in from aSize≈3 (~mag 2.5).
+          vBright = clamp((aSize - 3.0) / 6.0, 0.0, 1.0);
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           float dist = max(-mv.z, 0.001);
           float att = 190.0 / dist;
           float px = aSize * (0.55 + att) * uSizeScale * uPixelRatio;
           px = clamp(px, 1.0 * uPixelRatio, 21.0 * uPixelRatio);
+          // give the brightest a little extra room so the shards can radiate
+          px *= 1.0 + 0.7 * vBright;
           gl_PointSize = vVisible > 0.5 ? px : 0.0;
           gl_Position = projectionMatrix * mv;
         }
@@ -66,14 +72,26 @@ export class Starfield {
       fragmentShader: /* glsl */ `
         varying vec3 vColor;
         varying float vVisible;
+        varying float vBright;
         void main() {
           if (vVisible < 0.5) discard;
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
-          if (d > 0.5) discard;
           float core = smoothstep(0.5, 0.0, d);
           float glow = pow(core, 2.1);
-          gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow), glow);
+          // subtle four-point diffraction shards (+ fainter diagonals), brightest-only
+          float sp = 0.0;
+          vec2 av = abs(uv);
+          sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
+          sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
+          vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678;
+          vec2 ar = abs(r);
+          sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
+          sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
+          float shard = sp * vBright;
+          float a = clamp(glow + shard * 0.8, 0.0, 1.0);
+          if (a < 0.003) discard;
+          gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow + shard), a);
         }
       `,
       transparent: true,

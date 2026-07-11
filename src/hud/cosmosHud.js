@@ -67,7 +67,9 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
     <div class="toggle" data-l="sector"><span>Sector grid <span class="muted">· map</span></span><span class="sw"></span></div>
-    <div class="toggle on" data-l="resolve"><span>Resolve structures (shapes)</span><span class="sw"></span></div>
+    <div class="toggle on" data-l="resolve"><span>Resolve galaxies (shapes)</span><span class="sw"></span></div>
+    <div class="toggle" data-l="clustershapes"><span>Star cluster shapes</span><span class="sw"></span></div>
+    <div class="toggle" data-l="voids"><span>Supervoid zones <span class="muted">· shapes</span></span><span class="sw"></span></div>
     <div class="toggle" data-l="imagery"><span>Galaxy imagery <span class="muted">· HiPS</span></span><span class="sw"></span></div>
     <div class="toggle ${app.cosmos.state.show.procedural ? 'on' : ''}" data-l="procedural"><span>Procedural fill <span class="muted">· imagined</span></span><span class="sw"></span></div>
     <div class="seg" id="c-proc-color" ${app.cosmos.state.show.procedural ? '' : 'hidden'}>
@@ -115,6 +117,12 @@ export function buildCosmosLayers(app) {
   const res = root.querySelector('[data-l="resolve"]');
   res.classList.toggle('on', !!app.resolveStructures);
   res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };
+  const clsh = root.querySelector('[data-l="clustershapes"]');
+  clsh.classList.toggle('on', !!app.showClusterShapes);
+  clsh.onclick = () => { clsh.classList.toggle('on'); app.setClusterShapes(clsh.classList.contains('on')); };
+  const voids = root.querySelector('[data-l="voids"]');
+  voids.classList.toggle('on', !!app.showVoids);
+  voids.onclick = () => { voids.classList.toggle('on'); app.setVoids(voids.classList.contains('on')); };
   const imagery = root.querySelector('[data-l="imagery"]');
   imagery.classList.toggle('on', !!app.showGalaxyImagery);
   imagery.onclick = () => { imagery.classList.toggle('on'); app.setGalaxyImagery(imagery.classList.contains('on')); };

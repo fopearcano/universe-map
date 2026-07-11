@@ -39,7 +39,7 @@ cosmos becomes a navigable onion centred on the Sun:
 | Shell | Source | Objects |
 | --- | --- | --- |
 | Our galaxy's stars | HYG (log-radialised) | 100,000 |
-| Galactic bridge | modelled Milky Way + inner Local Group (cyan) | ~122,000 |
+| Galactic bridge | modelled Milky Way + inner Local Group (cyan) | ~314,000 |
 | Local Group galaxies | curated, direct distances | 20 (named, searchable) |
 | Nearby galaxies | **2MRS** (all-sky) | 43,500 |
 | Cosmic web | **SDSS** galaxies | 189,000 |
@@ -80,11 +80,20 @@ The map is drawn like an annotated chart, not a uniform dot-field:
   than a pulsar or exoplanet); local stars scale by apparent magnitude; and the
   327k-point cosmic cloud sizes each point by proximity so the nearer cosmic web
   reads with depth.
-- **Resolve structures (LOD).** Toggle **Resolve structures** (Layers) and fly in:
-  clusters, Local Group galaxies and notable atlas galaxies **bloom into their
-  shapes as you approach** — a spiral/elliptical/irregular disc from the galaxy's
-  Hubble type, a dense sphere for a globular, a loose scatter for an open cluster —
-  fading back to a single icon as you pull away. GPU-driven, so it's one draw call.
+- **Glow shards by magnitude.** The brightest objects grow subtle four-point
+  diffraction shards (with fainter diagonals), their intensity scaled by apparent
+  magnitude — so Sol, Sirius and the other luminaries sparkle while faint stars stay
+  clean points. Drawn procedurally in the point shader, so it costs nothing extra.
+- **Resolve galaxies & clusters (LOD).** Two independent Layers toggles. **Resolve
+  galaxies** blooms notable galaxies into a spiral/elliptical/irregular disc from
+  their Hubble type as you approach; **Star cluster shapes** blooms globulars into a
+  dense sphere and open clusters into a loose scatter. Both fade back to a single
+  icon as you pull away. GPU-driven, so each is one draw call.
+- **Supervoid zones.** Toggle **Supervoid zones** to mark the great cosmic voids
+  (Boötes, the Local Void, the Eridanus Supervoid behind the CMB Cold Spot, the
+  Giant Void…) as translucent wireframe bubbles — flattened along the line of sight
+  to match the log-radial depth compression. The imagined fill also stays empty
+  inside them, so the voids read as voids at every layer.
 - **Procedural fill — a "known universe" (imagined).** Toggle **Procedural fill**
   to complete the map into a fully-charted universe for storytelling. Every
   direction is brought **up to the peak surface density of the best-surveyed real
@@ -317,6 +326,12 @@ preset voyages — you can plot arbitrary routes:
   snap to an object under the cursor, or land in free space at the focal depth),
   or select any object and hit **＋ route**. **＋ pt** drops a free-space waypoint
   where you're looking, so you can route through empty space.
+- **Curved legs**: each leg is drawn as a gentle arc (a Catmull-Rom spline through
+  the waypoints, bowed outward from Sol) rather than a straight chord, so a route
+  reads as a flight path instead of appearing to skewer every object that happens to
+  line up between its two ends. The autopilot and the tracked reticle follow the same
+  curve, so the flown path and the drawn line stay identical — and it's a one-off
+  spline build, no per-frame cost.
 - **Edit the course**: reorder (▲▼), remove (✕) or reverse (⇄) any waypoint.
 - **Cruise speed → travel time**: pick a cruise velocity (Voyager's 17 km/s up to
   light speed). Each leg then shows its **distance, heading (RA/Dec) and travel

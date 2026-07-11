@@ -18,7 +18,7 @@ const KEYS = [
   ['[ / ]', 'Previous / next stop — cruise · voyage · autopilot'],
   ['S', 'Toggle the sector grid'],
   ['B', 'Toggle galaxy imagery (billboards)'],
-  ['V', 'Toggle resolve-structures (galaxy/cluster shapes)'],
+  ['V', 'Toggle resolve-galaxies (Hubble-type shapes)'],
   ['T', 'Toggle the tracking panel (live flight telemetry)'],
   ['Esc', 'Close overlay · exit galaxy · disengage · clear selection'],
 ];
@@ -35,7 +35,7 @@ const SECTIONS = [
     ['Focus', 'select → ◎ focus (or F) re-centres the orbit pivot on that object.'],
   ]],
   ['Navigate & route', [
-    ['Plot a course', 'toggle ◉ plot (P) and click to drop waypoints, or select an object and ＋ route (R).'],
+    ['Plot a course', 'toggle ◉ plot (P) and click to drop waypoints, or select an object and ＋ route (R). Legs draw as gentle curved arcs (bowed away from Sol) so a route reads as a flight path, not a straight chord skewering whatever lines up between its ends.'],
     ['NAV COMPUTER', 'shows each leg\'s distance, heading and travel time; pick a cruise speed for the mission & relativistic ship time.'],
     ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. A blinking reticle marks the tracked point; ▤ track (or T) opens a live panel with its position, heading, speed and route progress. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
     ['Save / load', 'name routes (persisted), reload, and import/export as JSON.'],
@@ -51,7 +51,9 @@ const SECTIONS = [
   ['Layers & overlays', [
     ['Sector grid (S)', 'a 3-D block cage — the bright cosmic-plane (celestial equator) with radial spokes, 9 ring-planes above and 9 below, and vertical pillars through every node. Blocks map to the live SECTOR code in the telemetry bar.'],
     ['Galaxy imagery (B)', 'flat billboards of real galaxy cutouts at their positions.'],
-    ['Resolve structures (V)', 'clusters & notable galaxies bloom into their shapes as you approach.'],
+    ['Resolve galaxies (V)', 'notable galaxies bloom into their Hubble-type shapes as you approach.'],
+    ['Star cluster shapes', 'globular & open clusters bloom into their own forms on approach — a separate toggle.'],
+    ['Supervoid zones', 'translucent bubbles marking the great cosmic voids (Boötes, Local, Eridanus…); the imagined fill stays empty inside them.'],
     ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined), draped onto a gravity-shaped cosmic web (filaments, walls & voids) that reflects the real data — green, or matched to real data.'],
     ['Galactic bridge', 'cyan · fills the gap between the ~1 kpc local star bubble and the Local Group with a modelled Milky Way — disk & spiral arms, bar/bulge, halo, the Magellanic Clouds and a reach toward Andromeda. Selectable & route-able.'],
     ['CMB radiation image', 'the WMAP boundary shell — off by default; enable it in Layers (COSMOS).'],

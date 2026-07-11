@@ -40,7 +40,10 @@ export class CosmosWorld {
     this._buildLayer('twomrs', 'galaxy', 2.4);
     this._buildLayer('sdssGal', 'galaxy', 2.1);
     this._buildLayer('sdssQso', 'quasar', 2.7);
-    this._buildProcedural((extras.structures || []).filter((s) => s.type === 'void'));
+    this._buildProcedural([
+      ...(extras.structures || []).filter((s) => s.type === 'void'),
+      ...(extras.supervoids || []),
+    ]);
     this._buildBridge();
     this._buildLocalGroup();
     this._buildRings();
@@ -114,12 +117,13 @@ export class CosmosWorld {
     const scale = ideal > MAX ? MAX / ideal : 1;
     this._procFraction = scale; // <1 means we hit the cap (density = scale × peak)
 
-    // void exclusion zones (angular + radial band around each catalogued void)
-    const voidZ = voids.map((v) => ({ dir: v.dir, r: v.displayR }));
+    // void exclusion zones (angular cap + radial band around each catalogued void;
+    // supervoids carry their own measured extent, others fall back to a default)
+    const voidZ = voids.map((v) => ({ dir: v.dir, r: v.displayR, cosR: v.cosR ?? 0.945, band: v.band ?? 2.2 }));
     const inVoid = (dir, r) => {
       for (const v of voidZ) {
         const dot = dir[0] * v.dir[0] + dir[1] * v.dir[1] + dir[2] * v.dir[2];
-        if (dot > 0.945 && Math.abs(r - v.r) < 2.2) return true;
+        if (dot > v.cosR && Math.abs(r - v.r) < v.band) return true;
       }
       return false;
     };
@@ -294,7 +298,7 @@ export class CosmosWorld {
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     const gauss = () => (rnd() + rnd() + rnd() - 1.5) * 2;    // ≈ unit-variance (σ≈1)
 
-    const CAP = 132000;
+    const CAP = 340000;
     const pos = new Float32Array(CAP * 3), col = new Float32Array(CAP * 3), sz = new Float32Array(CAP);
     const data = new Float32Array(CAP * 4);               // [dx,dy,dz, distPc]
     const knd = new Uint8Array(CAP);                      // 0 disk 1 bulge 2 halo/GC 3 magellanic 4 LG
@@ -332,7 +336,7 @@ export class CosmosWorld {
     };
 
     // 1) thin disk + four logarithmic spiral arms + sparse flared outer disk
-    const DISK = 76000, Rd = 2600, hZ = 300, cotP = 1 / Math.tan(12.8 * Math.PI / 180), ARMS = 4;
+    const DISK = 200000, Rd = 2600, hZ = 300, cotP = 1 / Math.tan(12.8 * Math.PI / 180), ARMS = 4;
     const armPhase = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
     for (let i = 0; i < DISK; i++) {
       const flared = rnd() < 0.06;
@@ -349,41 +353,42 @@ export class CosmosWorld {
       putGal(R0 + Rg * Math.cos(th), Rg * Math.sin(th), z, 0, onArm ? 0.82 + rnd() * 0.18 : 0.5 + rnd() * 0.3, onArm ? 0.85 : 0.68);
     }
     // 2) boxy bar / bulge — triaxial concentration at the GC, tilted to the Sun-GC line
-    const BAR = 15000, ba = 27 * Math.PI / 180, ca = Math.cos(ba), sa = Math.sin(ba);
+    const BAR = 34000, ba = 27 * Math.PI / 180, ca = Math.cos(ba), sa = Math.sin(ba);
     for (let i = 0; i < BAR; i++) {
       const a = gauss() * 2200, b = gauss() * 900, c = gauss() * 700;
       putGal(R0 + (a * ca - b * sa), a * sa + b * ca, c, 1, 0.72 + rnd() * 0.28, 0.8);
     }
-    // 3) globular-cluster system (~157 clusters, 90% within 40 kpc, rare outliers to 150 kpc)
-    for (let g = 0; g < 157; g++) {
+    // 3) globular-cluster system (~200 clusters, 90% within 40 kpc, rare outliers to 150 kpc)
+    for (let g = 0; g < 200; g++) {
       const outlier = rnd() < 0.1;
       const rr = outlier ? 40000 + rnd() * 110000 : 2000 + 38000 * Math.pow(rnd(), 0.8);
       const ct = 2 * rnd() - 1, st = Math.sqrt(Math.max(0, 1 - ct * ct)), ph = 2 * Math.PI * rnd();
       const cx = rr * st * Math.cos(ph), cy = rr * st * Math.sin(ph), cz = rr * ct, cs = 130 + rnd() * 160;
-      for (let j = 0; j < 38; j++) putGal(R0 + cx + gauss() * cs, cy + gauss() * cs, cz + gauss() * cs, 2, 0.8 + rnd() * 0.2, 0.82);
+      for (let j = 0; j < 46; j++) putGal(R0 + cx + gauss() * cs, cy + gauss() * cs, cz + gauss() * cs, 2, 0.8 + rnd() * 0.2, 0.82);
     }
-    // 3b) diffuse stellar halo, number ∝ r^-1.5 dr (density ∝ r^-3.5) out to ~120 kpc
-    for (let i = 0; i < 4000; i++) {
-      const a = Math.pow(5000, -0.5), b = Math.pow(120000, -0.5);
+    // 3b) diffuse stellar halo, number ∝ r^-1.5 dr (density ∝ r^-3.5) out to ~150 kpc
+    for (let i = 0; i < 12000; i++) {
+      const a = Math.pow(5000, -0.5), b = Math.pow(150000, -0.5);
       const rr = Math.pow(a + (b - a) * rnd(), -2);
       const ct = 2 * rnd() - 1, st = Math.sqrt(Math.max(0, 1 - ct * ct)), ph = 2 * Math.PI * rnd();
       putGal(R0 + rr * st * Math.cos(ph), rr * st * Math.sin(ph), rr * ct, 2, 0.4 + rnd() * 0.3, 0.6);
     }
     // 4) Magellanic Clouds + the Magellanic Bridge between them
     const lmc = eqDir(80.894, -69.756), smc = eqDir(13.19, -72.83), lmcD = 49970, smcD = 62440;
-    blob(lmc, lmcD, 3400, 8000, 3, 0.95);
-    blob(smc, smcD, 2300, 4000, 3, 0.88);
-    for (let i = 0; i < 1500; i++) {
+    blob(lmc, lmcD, 3400, 20000, 3, 0.95);
+    blob(smc, smcD, 2300, 10000, 3, 0.88);
+    for (let i = 0; i < 4000; i++) {
       const t = rnd();
       const d = nrm([lmc[0] + (smc[0] - lmc[0]) * t, lmc[1] + (smc[1] - lmc[1]) * t, lmc[2] + (smc[2] - lmc[2]) * t]);
       put(d[0], d[1], d[2], lmcD + (smcD - lmcD) * t + gauss() * 3000, 3, 0.45 + rnd() * 0.3, 0.6);
     }
-    // 5) inner Local Group — blobs toward Andromeda (M31) & Triangulum (M33), plus a diffuse scatter
-    blob(eqDir(10.68, 41.27), 780000, 60000, 3000, 4, 1.1);
-    blob(eqDir(23.46, 30.66), 970000, 45000, 1500, 4, 1.0);
-    for (let i = 0; i < 3500; i++) {
+    // 5) inner Local Group — blobs toward Andromeda (M31) & Triangulum (M33), plus a
+    //    diffuse scatter reaching out to ~3 Mpc so the cyan bridge meets the 2MRS shell
+    blob(eqDir(10.68, 41.27), 780000, 60000, 8000, 4, 1.1);
+    blob(eqDir(23.46, 30.66), 970000, 45000, 4000, 4, 1.0);
+    for (let i = 0; i < 13000; i++) {
       const ct = 2 * rnd() - 1, st = Math.sqrt(Math.max(0, 1 - ct * ct)), ph = 2 * Math.PI * rnd();
-      put(st * Math.cos(ph), st * Math.sin(ph), ct, 200000 + Math.pow(rnd(), 0.7) * 900000, 4, 0.4 + rnd() * 0.3, 0.7);
+      put(st * Math.cos(ph), st * Math.sin(ph), ct, 200000 + Math.pow(rnd(), 0.7) * 2800000, 4, 0.4 + rnd() * 0.3, 0.7);
     }
 
     this.bridgeCount = k;
@@ -484,23 +489,38 @@ export class CosmosWorld {
         attribute vec3 aColor; attribute float aZ; attribute float aSize;
         uniform float uSize, uSizeScale, uPixelRatio, uZMax, uProc;
         uniform vec3 uProcColor;
-        varying vec3 vColor; varying float vHide;
+        varying vec3 vColor; varying float vHide; varying float vBright;
         void main(){
           vColor = mix(aColor, uProcColor, uProc);
           vHide = aZ > uZMax ? 1.0 : 0.0;
+          // shards only on the brightest (nearest, biggest aSize) points, kept subtle
+          vBright = clamp((aSize - 1.08) / 0.4, 0.0, 1.0);
           vec4 mv = modelViewMatrix * vec4(position,1.0);
-          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * aSize * uSizeScale * uPixelRatio);
+          float px = uSize * aSize * uSizeScale * uPixelRatio * (1.0 + 0.6 * vBright);
+          gl_PointSize = (vHide > 0.5 ? 0.0 : px);
           gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: /* glsl */`
-        varying vec3 vColor; varying float vHide;
+        varying vec3 vColor; varying float vHide; varying float vBright;
         void main(){
           if(vHide > 0.5) discard;
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
-          if(d > 0.5) discard;
           float a = smoothstep(0.5, 0.08, d);
-          gl_FragColor = vec4(vColor, a * 0.9);
+          // subtle diffraction shards on the brightest points (four spikes + diagonals)
+          float sp = 0.0;
+          if (vBright > 0.001) {
+            vec2 av = abs(uv);
+            sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
+            sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
+            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678, ar = abs(r);
+            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
+            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
+            sp *= vBright;
+          }
+          float alpha = clamp(a * 0.9 + sp * 0.6, 0.0, 1.0);
+          if (alpha < 0.004) discard;
+          gl_FragColor = vec4(vColor + sp * 0.5, alpha);
         }`,
       transparent: true, depthWrite: false, blending: THREE.NormalBlending,
     });

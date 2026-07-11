@@ -7,6 +7,7 @@ import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
+import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
 import { loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, pickSurveyImage } from './render/galaxyImage.js';
@@ -52,7 +53,9 @@ export class App {
     this.starPicker = new Picker(catalog, this.starfield, this.scene.camera);
     this.voyageLayer = new VoyageLayer(this.scene.scene);
 
-    // cosmos world
+    // cosmos world — compute supervoids first so the fill can stay empty inside them
+    this.supervoids = cosmosData ? computeSupervoids(cosmosData.meta.decadeUnit) : [];
+    if (this.supervoids.length) extras.supervoids = this.supervoids;
     this.cosmos = cosmosData ? new CosmosWorld(this.scene.scene, cosmosData, catalog, extras) : null;
 
     this.labels = new Labels(document.body);
@@ -81,6 +84,7 @@ export class App {
 
     this._buildMarkers();
     this._buildStructureShapes();
+    this._buildVoidShapes();
     this._buildGalaxyBillboards();
     this._buildRouteLayer();
     this._buildSectorGrid();
@@ -255,29 +259,58 @@ export class App {
   // globular = dense sphere, open = loose scatter). Cosmos-mode only.
   _buildStructureShapes() {
     this.resolveStructures = false;
-    if (!this.cosmos) { this.structureShapes = null; return; }
+    this.showClusterShapes = false;
+    if (!this.cosmos) { this.structureShapes = null; this.clusterShapes = null; return; }
     const V = (dir, r) => new THREE.Vector3(dir[0] * r, dir[1] * r, dir[2] * r);
-    const targets = [];
+    // Galaxies bloom into Hubble-type shapes; star clusters bloom into their own
+    // globular/open forms — kept as two independent layers with separate toggles.
+    const galaxyTargets = [], clusterTargets = [];
     for (const c of this.extras.clusters || []) {
       const center = V(c.dir, c.displayR);
-      targets.push({ center, morph: morphFromType(c.type), R: c.type === 'globular' ? 0.22 : 0.3, seed: seedFromVec(center) });
+      clusterTargets.push({ center, morph: morphFromType(c.type), R: c.type === 'globular' ? 0.22 : 0.3, seed: seedFromVec(center) });
     }
     for (const g of this.cosmosData.localGroup || []) {
       const center = V(g.dir, g.displayR);
-      targets.push({ center, morph: morphFromType(g.type), R: 0.36, seed: seedFromVec(center) });
+      galaxyTargets.push({ center, morph: morphFromType(g.type), R: 0.36, seed: seedFromVec(center) });
     }
     for (const o of this.atlas) {
       if (o.category !== 'galaxy') continue;
       const center = V(o.dir, o.displayR);
-      targets.push({ center, morph: morphFromType(o.type), R: 0.34, seed: seedFromVec(center) });
+      galaxyTargets.push({ center, morph: morphFromType(o.type), R: 0.34, seed: seedFromVec(center) });
     }
-    this.structureShapes = new StructureShapes(targets, { near: 1.2, far: 4.5, size: 2.4 });
+    this.structureShapes = new StructureShapes(galaxyTargets, { near: 1.2, far: 4.5, size: 2.4 });
     this.cosmos.group.add(this.structureShapes.points);
+    this.clusterShapes = new StructureShapes(clusterTargets, { near: 1.0, far: 3.6, size: 2.0 });
+    this.cosmos.group.add(this.clusterShapes.points);
   }
 
   setResolveStructures(on) {
     this.resolveStructures = !!on;
     if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
+  }
+
+  setClusterShapes(on) {
+    this.showClusterShapes = !!on;
+    if (this.clusterShapes) this.clusterShapes.setVisible(this.showClusterShapes);
+  }
+
+  // Supervoid zone indicators + shapes (translucent flattened bubbles).
+  _buildVoidShapes() {
+    this.showVoids = false;
+    this.voidLabelItems = [];
+    if (!this.cosmos || !this.supervoids.length) { this.voidShapes = null; return; }
+    this.voidShapes = new VoidShapes(this.supervoids);
+    this.cosmos.group.add(this.voidShapes.group);
+    this.voidLabelItems = this.supervoids.map((v) => ({
+      pos: new THREE.Vector3(v.dir[0] * v.displayR, v.dir[1] * v.displayR, v.dir[2] * v.displayR),
+      text: v.name, cls: 'lbl-void',
+    }));
+  }
+
+  setVoids(on) {
+    this.showVoids = !!on;
+    if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
+    if (this.mode === 'cosmos') this._applyCosmosLabels();
   }
 
   // Flat image billboards (real sky cutouts) for notable galaxies in cosmos view.
@@ -389,6 +422,8 @@ export class App {
     this.cosmos.setVisible(false);
     for (const l of [this.localClusters, this.cosmosClusters, this.cosmosStructures, this.localAtlas, this.cosmosAtlas, this.localCustom, this.cosmosCustom]) l && l.setVisible(false);
     if (this.structureShapes) this.structureShapes.setVisible(false);
+    if (this.clusterShapes) this.clusterShapes.setVisible(false);
+    if (this.voidShapes) this.voidShapes.setVisible(false);
     if (this.routeGroup) this.routeGroup.visible = false;      // hide the cosmos-scale route line
     if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
     this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
@@ -401,6 +436,8 @@ export class App {
       this.cosmosClusters.setVisible(this.showClusters); this.cosmosStructures.setVisible(this.showStructures);
       this.cosmosAtlas.setVisible(this.showAtlas); this.cosmosCustom.setVisible(this.showCustom);
       if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
+      if (this.clusterShapes) this.clusterShapes.setVisible(this.showClusterShapes);
+      if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
       this._applyCosmosLabels();
     } else {
       this.starfield.points.visible = true; this.scene.setReferenceVisible(true);
@@ -555,6 +592,9 @@ export class App {
       this.cosmosAtlas.setVisible(this.showAtlas);
       this.localCustom.setVisible(false);
       this.cosmosCustom.setVisible(this.showCustom);
+      if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
+      if (this.clusterShapes) this.clusterShapes.setVisible(this.showClusterShapes);
+      if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
       this._applyCosmosLabels();
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
@@ -614,7 +654,8 @@ export class App {
 
   _applyCosmosLabels() {
     const { rings, localGroup } = this.cosmos.labelItems();
-    this.labels.setStatic(rings);
+    const statics = this.showVoids && this.voidLabelItems.length ? [...rings, ...this.voidLabelItems] : rings;
+    this.labels.setStatic(statics);
     this.labels.setStars(localGroup);
     this.labels.setVoyage([]);
     this._refreshMarkerLabels();
@@ -881,8 +922,7 @@ export class App {
         this._navReadoutFinal(); this.stopRoute(); return;
       }
     }
-    const a = pts[ap.seg], b = pts[ap.seg + 1];
-    const cur = a.clone().lerp(b, ap.t);
+    const cur = this._routePointAt(ap.seg, ap.t, new THREE.Vector3());
     // follow-cam: shift the camera by exactly how far the target advanced this
     // frame, preserving whatever orbit/zoom offset the user has set. Controls stay
     // enabled, so drag/scroll works while the ship flies. (scene.update() calls
@@ -1113,9 +1153,14 @@ export class App {
 
   _redrawRoute() {
     for (const o of [...this.routeGroup.children]) { this.routeGroup.remove(o); o.geometry?.dispose?.(); o.material?.dispose?.(); }
+    this._rebuildRouteCurve();
     if (this.route.length < 1) return;
-    if (this.route.length >= 2) {
-      const g = new THREE.BufferGeometry().setFromPoints(this.route.map((r) => r.worldPos));
+    if (this._routeCurve) {
+      // draw the smooth curved path (bowed away from Sol) rather than a straight
+      // chord, so a leg reads as a flight arc instead of appearing to skewer every
+      // object that happens to line up between its two endpoints.
+      const samples = Math.min(600, Math.max(24, (this.route.length - 1) * 22));
+      const g = new THREE.BufferGeometry().setFromPoints(this._routeCurve.getPoints(samples));
       const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x7bf0a0, transparent: true, opacity: 0.85 }));
       line.frustumCulled = false; this.routeGroup.add(line);
     }
@@ -1124,6 +1169,49 @@ export class App {
     const mg = new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
     const mk = new THREE.Points(mg, new THREE.PointsMaterial({ size: 15, map: this._routeRing, sizeAttenuation: false, transparent: true, color: 0x7bf0a0, depthWrite: false, blending: THREE.AdditiveBlending }));
     mk.frustumCulled = false; this.routeGroup.add(mk);
+  }
+
+  // A smooth spline through the waypoints. Between each pair we insert a control
+  // point nudged *outward* from Sol (perpendicular to the leg), so the route bows
+  // gently; a Catmull-Rom through waypoints+bows still passes exactly through every
+  // waypoint. The same curve drives the autopilot/tracker (see _updateAutopilot),
+  // so the flown path and the drawn line stay identical. Cost is a one-off build.
+  _rebuildRouteCurve() {
+    this._routeCurve = null; this._routeCurveL = 0;
+    const wps = this.route.map((r) => r.worldPos);
+    if (wps.length < 2) return;
+    const anchors = [];
+    const seg = new THREE.Vector3(), segN = new THREE.Vector3(), radial = new THREE.Vector3(), perp = new THREE.Vector3();
+    for (let i = 0; i < wps.length - 1; i++) {
+      const A = wps[i], B = wps[i + 1];
+      anchors.push(A.clone());
+      seg.subVectors(B, A); const len = seg.length();
+      if (len > 1e-6) {
+        const mid = A.clone().add(B).multiplyScalar(0.5);
+        segN.copy(seg).multiplyScalar(1 / len);
+        radial.copy(mid); const rl = radial.length();
+        if (rl > 1e-6) { radial.multiplyScalar(1 / rl); perp.copy(radial).addScaledVector(segN, -radial.dot(segN)); }
+        else perp.set(0, 0, 0);
+        if (perp.lengthSq() < 1e-9) {                       // radial leg: any perpendicular
+          perp.set(seg.y, -seg.x, 0);
+          if (perp.lengthSq() < 1e-9) perp.set(0, seg.z, -seg.y);
+        }
+        perp.normalize().multiplyScalar(len * 0.12);
+        anchors.push(mid.add(perp));
+      }
+    }
+    anchors.push(wps[wps.length - 1].clone());
+    this._routeCurve = new THREE.CatmullRomCurve3(anchors, false, 'catmullrom', 0.5);
+    this._routeCurveL = anchors.length - 1;                 // param denominator (2·(N−1))
+  }
+
+  // Position on the curved route for autopilot segment `seg` at local fraction `t`.
+  _routePointAt(seg, t, out) {
+    if (this._routeCurve && this._routeCurveL > 0) {
+      return this._routeCurve.getPoint((2 * seg + 2 * t) / this._routeCurveL, out);
+    }
+    const a = this.route[seg].worldPos, b = this.route[seg + 1].worldPos;
+    return out.copy(a).lerp(b, t);
   }
 
   // ================= galaxy LOD "bloom" (illustrative) =================
@@ -1311,6 +1399,7 @@ export class App {
       if (this.mode === 'cosmos') {
         this.cosmos.update(this.scene.camera);
         if (this.resolveStructures && this.structureShapes) this.structureShapes.update(this.scene.camera);
+        if (this.showClusterShapes && this.clusterShapes) this.clusterShapes.update(this.scene.camera);
         if (this.showGalaxyImagery && this.galaxyBillboards) this.galaxyBillboards.update(this.scene.camera);
       }
       this.labels.update(this.scene.camera);
