@@ -782,7 +782,13 @@ export class App {
     this._addRoute({ worldPos, truePos: this._worldToTrue(worldPos), label: `nav point ${this.route.length + 1}`, kind: 'free' });
   }
 
-  _addRoute(wp) { this.route.push(wp); this._redrawRoute(); this.emit('route', this._routeSummary()); }
+  _addRoute(wp) {
+    // skip a waypoint coincident with the last one — a zero-length leg is meaningless
+    // and would make the spline loop back on itself. (e.g. pressing R twice on one pick.)
+    const last = this.route[this.route.length - 1];
+    if (last && last.worldPos.distanceToSquared(wp.worldPos) < 1e-10) return;
+    this.route.push(wp); this._redrawRoute(); this.emit('route', this._routeSummary());
+  }
 
   // Map a display-space point back to a true position in parsecs (mode-aware).
   _worldToTrue(worldPos) {
@@ -908,18 +914,20 @@ export class App {
   _updateAutopilot(dt) {
     const ap = this.autopilot; if (!ap) return;
     if (ap.atGalaxy) return; // descended into a galaxy — the user explores; resume to continue
-    const pts = this.route.map((r) => r.worldPos);
+    const nLeg = this.route.length - 1;
     if (!ap.paused) {
       let remaining = ap.speed * dt * this._routeSpan();
-      while (remaining > 0 && ap.seg < pts.length - 1) {
-        const segLen = Math.max(1e-6, pts[ap.seg].distanceTo(pts[ap.seg + 1]));
+      while (remaining > 0 && ap.seg < nLeg) {
+        // pace by the drawn curve's arc length (not the straight chord), so ap.t is a
+        // true arc-length fraction and the tracked reticle glides uniformly along the arc.
+        const segLen = Math.max(1e-6, this._legArcLen(ap.seg));
         const along = segLen * ap.t + remaining;
         if (along >= segLen) {
           remaining = along - segLen; ap.seg++; ap.t = 0;
           if (this._maybeDescend(ap.seg)) return; // arrived at a galaxy waypoint → drop inside
         } else { ap.t = along / segLen; remaining = 0; }
       }
-      if (ap.seg >= pts.length - 1) {
+      if (ap.seg >= nLeg) {
         if (this._maybeDescend(ap.seg)) return; // final stop is a galaxy → descend before finishing
         this._navReadoutFinal(); this.stopRoute(); return;
       }
@@ -935,9 +943,18 @@ export class App {
   }
 
   _routeSpan() {
+    // total drawn-curve length (falls back to chord sum before the curve is built)
+    if (this._routeCurveTotalLen) return Math.max(1, this._routeCurveTotalLen) * 0.12;
     let s = 0;
     for (let i = 1; i < this.route.length; i++) s += this.route[i].worldPos.distanceTo(this.route[i - 1].worldPos);
     return Math.max(1, s) * 0.12;
+  }
+
+  // Arc length of the drawn curve for leg `seg` (falls back to the straight chord).
+  _legArcLen(seg) {
+    const leg = this._legArc && this._legArc[seg];
+    if (leg) return leg.total;
+    return this.route[seg].worldPos.distanceTo(this.route[seg + 1].worldPos);
   }
 
   _navReadout() {
@@ -1211,12 +1228,40 @@ export class App {
     anchors.push(wps[wps.length - 1].clone());
     this._routeCurve = new THREE.CatmullRomCurve3(anchors, false, 'catmullrom', 0.5);
     this._routeCurveL = anchors.length - 1;                 // param denominator (2·(N−1))
+
+    // Per-leg arc-length tables so autopilot progress (ap.t) is a true arc-length
+    // fraction of the DRAWN curve, not the raw Catmull-Rom parameter. Sample each
+    // leg's spline sub-range once; per frame the ship does a small binary search +
+    // one getPoint — no heavy per-frame cost, and the flown/drawn paths stay identical.
+    this._legArc = []; this._routeCurveTotalLen = 0;
+    const SUB = 32, P = new THREE.Vector3(), Pp = new THREE.Vector3();
+    for (let i = 0; i < wps.length - 1; i++) {
+      const u0 = (2 * i) / this._routeCurveL, u1 = (2 * i + 2) / this._routeCurveL;
+      const params = new Float32Array(SUB + 1), cum = new Float32Array(SUB + 1);
+      this._routeCurve.getPoint(u0, Pp); params[0] = u0; cum[0] = 0;
+      let acc = 0;
+      for (let j = 1; j <= SUB; j++) {
+        const u = u0 + (u1 - u0) * (j / SUB);
+        this._routeCurve.getPoint(u, P);
+        acc += P.distanceTo(Pp); Pp.copy(P);
+        params[j] = u; cum[j] = acc;
+      }
+      this._legArc.push({ params, cum, total: acc, sub: SUB });
+      this._routeCurveTotalLen += acc;
+    }
   }
 
-  // Position on the curved route for autopilot segment `seg` at local fraction `t`.
+  // Position on the curved route for leg `seg` at arc-length fraction `t` (0..1).
   _routePointAt(seg, t, out) {
-    if (this._routeCurve && this._routeCurveL > 0) {
-      return this._routeCurve.getPoint((2 * seg + 2 * t) / this._routeCurveL, out);
+    const leg = this._legArc && this._legArc[seg];
+    if (leg && this._routeCurve && leg.total > 1e-9) {
+      const target = Math.min(1, Math.max(0, t)) * leg.total;
+      const { cum, params, sub } = leg;
+      let lo = 1, hi = sub;                                 // find first cum[j] >= target
+      while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] < target) lo = m + 1; else hi = m; }
+      const j = lo, d = cum[j] - cum[j - 1];
+      const f = d > 1e-9 ? (target - cum[j - 1]) / d : 0;
+      return this._routeCurve.getPoint(params[j - 1] + (params[j] - params[j - 1]) * f, out);
     }
     const a = this.route[seg].worldPos, b = this.route[seg + 1].worldPos;
     return out.copy(a).lerp(b, t);
