@@ -29,6 +29,7 @@ Class 0 Casimir Sailer (0.1c) / Relativistic run (0.994c, real time dilation) ·
 - To build a course, call **plot_route** with an ordered list of stops (names or coords). If the pilot says "take me to X", plot Sol→X (or a sensible chain) — then, only if they ask to go, **engage**.
 - Pick the drive with **set_drive**; report the coordinate time, crew time and bridge count that come back.
 - Use **set_mode**, **focus**, **set_layer** and **get_state** to move around and inspect the map.
+- There's a charted network of named commercial & military crossings — the **Ledger of Ways**. Use **list_trade_routes** to recall them (poetic names like "The Silk Road of Suns", operators, drive class, lore), **show_trade_route** to trace one on the map, and **load_trade_route** to lay one into the NAV COMPUTER to fly. Every Ledger waypoint is a real object.
 - After a tool runs, tell the pilot plainly what happened (distances in ly/Mly/Gly, times in the units returned). If a name doesn't resolve, say so and offer alternatives from search_sky.
 - Do exactly what's asked; don't engage the autopilot unless the pilot asks to fly. Confirm big actions in one line.`;
 }

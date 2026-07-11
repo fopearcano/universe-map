@@ -39,7 +39,17 @@ export const TOOLS = [
   { type: 'function', function: { name: 'focus', description: 'Fly the camera to an object and centre on it (does not add it to the route).', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } } },
   { type: 'function', function: { name: 'set_layer', description: 'Toggle a map overlay on/off.', parameters: { type: 'object', properties: { layer: { type: 'string', description: 'sector | voids | imagery | clusterShapes | resolveGalaxies | procedural | bridge | cmb' }, on: { type: 'boolean' } }, required: ['layer', 'on'] } } },
   { type: 'function', function: { name: 'get_state', description: 'Read the current NAVCOM state: mode, selected drive, whether engaged, current route summary, selection and active overlays.', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'list_trade_routes', description: 'List the charted commercial & military routes in the "Ledger of Ways" overlay (poetic names, operators, drive class, traffic, lore, waypoints). Optionally filter by category or a search term.', parameters: { type: 'object', properties: { category: { type: 'string', enum: ['commercial', 'military'] }, query: { type: 'string', description: 'optional name/lore substring filter' } } } } },
+  { type: 'function', function: { name: 'load_trade_route', description: 'Load one of the charted Ledger routes into the NAV COMPUTER as a flyable course (also sets its drive). Then you may engage to fly it.', parameters: { type: 'object', properties: { id_or_name: { type: 'string', description: 'the route id or (part of) its poetic name, e.g. "silk-of-suns" or "Silk Road of Suns"' } }, required: ['id_or_name'] } } },
+  { type: 'function', function: { name: 'show_trade_route', description: 'Highlight one charted Ledger route on the map and frame it in view (does not load it into the NAV COMPUTER). Turns the overlay on.', parameters: { type: 'object', properties: { id_or_name: { type: 'string' } }, required: ['id_or_name'] } } },
 ];
+
+function matchRoute(app, q) {
+  const s = String(q || '').toLowerCase().trim();
+  const list = app.tradeRouteList();
+  return list.find((r) => r.id === s) || list.find((r) => r.name.toLowerCase() === s)
+    || list.find((r) => r.name.toLowerCase().includes(s)) || list.find((r) => s.includes(r.id));
+}
 
 // Search the QTR knowledge base (name / summary / jp / etymology substring match).
 function lookupQtr(qtr, query, limit = 6) {
@@ -78,6 +88,14 @@ export async function runTool(app, qtr, name, args = {}) {
       case 'focus': return app.agentFocus(args.name);
       case 'set_layer': return app.agentSetLayer(args.layer, args.on);
       case 'get_state': return app.agentState();
+      case 'list_trade_routes': {
+        let list = app.tradeRouteList();
+        if (args.category) list = list.filter((r) => r.category === args.category);
+        if (args.query) { const q = String(args.query).toLowerCase(); list = list.filter((r) => (`${r.name} ${r.kind} ${r.operator} ${r.lore}`).toLowerCase().includes(q)); }
+        return { count: list.length, routes: list.map((r) => ({ id: r.id, name: r.name, category: r.category, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.stops })) };
+      }
+      case 'load_trade_route': { const r = matchRoute(app, args.id_or_name); return r ? app.loadTradeRoute(r.id) : { ok: false, error: `no charted route matching "${args.id_or_name}"` }; }
+      case 'show_trade_route': { const r = matchRoute(app, args.id_or_name); if (!r) return { ok: false, error: `no charted route matching "${args.id_or_name}"` }; app.highlightTradeRoute(r.id); return { ok: true, showing: r.name, stops: r.stops }; }
       default: return { ok: false, error: `unknown tool "${name}"` };
     }
   } catch (e) {

@@ -70,6 +70,8 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="resolve"><span>Resolve galaxies (shapes)</span><span class="sw"></span></div>
     <div class="toggle" data-l="clustershapes"><span>Star cluster shapes</span><span class="sw"></span></div>
     <div class="toggle" data-l="voids"><span>Supervoid zones <span class="muted">· shapes</span></span><span class="sw"></span></div>
+    <div class="toggle" data-l="ways"><span>Trade &amp; war routes <span class="muted">· ⟿ Ledger of Ways</span></span><span class="sw"></span></div>
+    <div class="ways-box" id="c-ways" hidden></div>
     <div class="toggle" data-l="imagery"><span>Galaxy imagery <span class="muted">· HiPS</span></span><span class="sw"></span></div>
     <div class="toggle ${app.cosmos.state.show.procedural ? 'on' : ''}" data-l="procedural"><span>Procedural fill <span class="muted">· imagined</span></span><span class="sw"></span></div>
     <div class="seg" id="c-proc-color" ${app.cosmos.state.show.procedural ? '' : 'hidden'}>
@@ -123,6 +125,34 @@ export function buildCosmosLayers(app) {
   const voids = root.querySelector('[data-l="voids"]');
   voids.classList.toggle('on', !!app.showVoids);
   voids.onclick = () => { voids.classList.toggle('on'); app.setVoids(voids.classList.contains('on')); };
+  // ⟿ Ledger of Ways — the trade & war route overlay + browser
+  const ways = root.querySelector('[data-l="ways"]');
+  const waysBox = root.querySelector('#c-ways');
+  ways.classList.toggle('on', !!app.showRouteNetwork);
+  const buildWays = () => {
+    const list = app.tradeRouteList();
+    const cat = { commercial: true, military: true };
+    const chip = (c, col) => `<button class="ways-chip on" data-cat="${c}" style="--wc:${col}">${c}</button>`;
+    const row = (r) => `<div class="ways-row" data-way="${r.id}" title="${esc(r.lore)}">
+        <div class="ways-r1"><span class="ways-dot" style="background:${r.category === 'military' ? '#ff6b6b' : '#ffb454'}"></span><span class="ways-name">${esc(r.name)}</span><button class="ways-load" data-load="${r.id}" title="load into NAV COMPUTER">▶</button></div>
+        <div class="ways-r2 muted">${esc(r.kind)} · ${esc(r.operator)} · Class ${esc(r.driveClass)} · ${esc(r.traffic)}</div>
+      </div>`;
+    waysBox.innerHTML = `
+      <div class="ways-h muted">${list.length} charted ways · click to trace, ▶ to load</div>
+      <div class="ways-filter">${chip('commercial', '#ffb454')}${chip('military', '#ff6b6b')}</div>
+      <div class="ways-list">${list.map(row).join('')}</div>`;
+    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); waysBox.querySelectorAll(`.ways-row`).forEach((rw) => { const rid = rw.dataset.way; const rr = list.find((x) => x.id === rid); if (rr) rw.style.display = cat[rr.category] ? '' : 'none'; }); }; });
+    waysBox.querySelectorAll('.ways-row').forEach((rw) => { rw.onclick = (e) => { if (e.target.closest('.ways-load')) return; waysBox.querySelectorAll('.ways-row').forEach((x) => x.classList.remove('sel')); rw.classList.add('sel'); app.highlightTradeRoute(rw.dataset.way); }; });
+    waysBox.querySelectorAll('.ways-load').forEach((b) => { b.onclick = () => { app.loadTradeRoute(b.dataset.load); }; });
+  };
+  ways.onclick = () => {
+    ways.classList.toggle('on');
+    const on = ways.classList.contains('on');
+    app.setRouteNetwork(on);
+    waysBox.hidden = !on;
+    if (on && !waysBox.childElementCount) buildWays();
+  };
+  if (app.showRouteNetwork) { waysBox.hidden = false; buildWays(); }
   const imagery = root.querySelector('[data-l="imagery"]');
   imagery.classList.toggle('on', !!app.showGalaxyImagery);
   imagery.onclick = () => { imagery.classList.toggle('on'); app.setGalaxyImagery(imagery.classList.contains('on')); };
@@ -156,3 +186,4 @@ export function buildCosmosLayers(app) {
 }
 
 function fmt(n) { return n.toLocaleString('en-US'); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

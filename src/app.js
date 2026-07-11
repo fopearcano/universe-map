@@ -8,6 +8,7 @@ import { CosmosWorld } from './render/cosmos.js';
 import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
+import { RouteNetwork } from './render/routeNetwork.js';
 import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
@@ -87,6 +88,7 @@ export class App {
     this._buildMarkers();
     this._buildStructureShapes();
     this._buildVoidShapes();
+    this._buildRouteNetwork();
     this._buildGalaxyBillboards();
     this._buildRouteLayer();
     this._buildSectorGrid();
@@ -428,6 +430,7 @@ export class App {
     if (this.structureShapes) this.structureShapes.setVisible(false);
     if (this.clusterShapes) this.clusterShapes.setVisible(false);
     if (this.voidShapes) this.voidShapes.setVisible(false);
+    if (this.routeNetwork) this.routeNetwork.setVisible(false);
     if (this.routeGroup) this.routeGroup.visible = false;      // hide the cosmos-scale route line
     if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
     this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
@@ -442,6 +445,7 @@ export class App {
       if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
       if (this.clusterShapes) this.clusterShapes.setVisible(this.showClusterShapes);
       if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
+      if (this.routeNetwork) this.routeNetwork.setVisible(this.showRouteNetwork);
       this._applyCosmosLabels();
     } else {
       this.starfield.points.visible = true; this.scene.setReferenceVisible(true);
@@ -599,6 +603,7 @@ export class App {
       if (this.structureShapes) this.structureShapes.setVisible(this.resolveStructures);
       if (this.clusterShapes) this.clusterShapes.setVisible(this.showClusterShapes);
       if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
+      if (this.routeNetwork) this.routeNetwork.setVisible(this.showRouteNetwork);
       this._applyCosmosLabels();
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
@@ -658,7 +663,13 @@ export class App {
 
   _applyCosmosLabels() {
     const { rings, localGroup } = this.cosmos.labelItems();
-    const statics = this.showVoids && this.voidLabelItems.length ? [...rings, ...this.voidLabelItems] : rings;
+    const statics = [...rings];
+    if (this.showVoids && this.voidLabelItems.length) statics.push(...this.voidLabelItems);
+    if (this.showRouteNetwork && this._highlightRoute) {
+      const r = this._highlightRoute;
+      statics.push({ pos: r.mid.clone(), text: `⟿ ${r.name}`, cls: 'lbl-route' });
+      r.positions.forEach((p, i) => statics.push({ pos: p.clone(), text: r.resolvedStops[i] || '', cls: 'lbl-route-node' }));
+    }
     this.labels.setStatic(statics);
     this.labels.setStars(localGroup);
     this.labels.setVoyage([]);
@@ -1170,6 +1181,67 @@ export class App {
         bridge: this.cosmos ? this.cosmos.state.show.bridge !== false : false,
       },
     };
+  }
+
+  // ================= Ledger of Ways — trade & war route overlay =================
+  _buildRouteNetwork() {
+    this.showRouteNetwork = false;
+    this.tradeRoutes = [];
+    this.routeNetwork = null;
+    if (!this.cosmos) return;
+    const D = this.cosmos.decadeUnit;
+    const defs = (this.extras.tradeRoutes && this.extras.tradeRoutes.routes) || [];
+    for (const def of defs) {
+      const positions = [], resolvedStops = [];
+      for (const name of (def.stops || [])) {
+        const r = this.agentResolve(name); if (!r) continue;
+        const distPc = Math.max((r.distLy || 0) / PC_TO_LY, 0);
+        const ra = r.ra * 15 * Math.PI / 180, dec = r.dec * Math.PI / 180, cd = Math.cos(dec);
+        const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
+        positions.push(dir.multiplyScalar(D * Math.log10(Math.max(distPc, 1))));
+        resolvedStops.push(r.label || name);
+      }
+      if (positions.length < 2) continue;
+      const mid = positions[Math.floor(positions.length / 2)];
+      this.tradeRoutes.push({ ...def, positions, resolvedStops, mid: mid.clone() });
+    }
+    this.routeNetwork = new RouteNetwork(this.tradeRoutes);
+    this.cosmos.group.add(this.routeNetwork.group);
+  }
+
+  setRouteNetwork(on) {
+    this.showRouteNetwork = !!on;
+    if (this.routeNetwork) this.routeNetwork.setVisible(this.showRouteNetwork);
+    if (!this.showRouteNetwork) this._highlightRoute = null;
+    if (this.mode === 'cosmos') this._applyCosmosLabels();
+  }
+  setRouteNetworkFilter(cat, on) { if (this.routeNetwork) this.routeNetwork.setFilter(cat, on); }
+
+  // Highlight a route on the overlay, label it, and frame it in view.
+  highlightTradeRoute(id) {
+    const r = (this.tradeRoutes || []).find((x) => x.id === id); if (!r) return { ok: false };
+    if (this.mode !== 'cosmos') this.setMode('cosmos');
+    if (!this.showRouteNetwork) this.setRouteNetwork(true);
+    this.routeNetwork.highlight(id);
+    this._highlightRoute = r;
+    this._applyCosmosLabels();
+    const box = new THREE.Box3(); r.positions.forEach((p) => box.expandByPoint(p));
+    const c = box.getCenter(new THREE.Vector3());
+    const radius = Math.max(2, box.getSize(new THREE.Vector3()).length() * 0.5);
+    this.scene.flyTo(c, { camPos: c.clone().add(new THREE.Vector3(0.5, 0.35, 1).setLength(radius * 2.4 + 3)), dur: 1.4 });
+    return { ok: true };
+  }
+
+  // Load a charted route into the NAV COMPUTER (as a flyable course) + set its drive.
+  loadTradeRoute(id) {
+    const r = (this.tradeRoutes || []).find((x) => x.id === id); if (!r) return { ok: false, error: `unknown route "${id}"` };
+    if (r.driveClass) this.agentSetDrive(r.driveClass);
+    const res = this.agentPlotRoute((r.stops || []).map((name) => ({ name })));
+    return { ok: !!res.ok, route: r.name, ...res };
+  }
+
+  tradeRouteList() {
+    return (this.tradeRoutes || []).map((r) => ({ id: r.id, name: r.name, category: r.category, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.resolvedStops }));
   }
 
   // Load a preset expedition into the route (mode-aware), ready to ENGAGE.
