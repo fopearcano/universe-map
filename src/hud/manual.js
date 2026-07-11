@@ -55,7 +55,7 @@ const SECTIONS = [
     ['Resolve galaxies (V)', 'notable galaxies bloom into their Hubble-type shapes as you approach.'],
     ['Star cluster shapes', 'globular & open clusters bloom into their own forms on approach — a separate toggle.'],
     ['Supervoid zones', 'translucent bubbles marking the great cosmic voids (Boötes, Local, Eridanus…); the imagined fill stays empty inside them.'],
-    ['Trade & war routes', '⟿ the Ledger of Ways — a charted network of imagined commercial (amber) & military (crimson) crossings with poetic names, all anchored to real objects. Browse them in Layers; click to trace one, ▶ to load it into the NAV COMPUTER, or ask Solaris.Ai to fly it.'],
+    ['Trade & war routes', '⟿ the Ledger of Ways — a charted network of ~500 imagined commercial (amber) & military (crimson) crossings with unique poetic names, all anchored to real objects. Browse/search them in Layers; click to trace one, ▶ to load it into the NAV COMPUTER, or ask Solaris.Ai to fly it.'],
     ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined), draped onto a gravity-shaped cosmic web (filaments, walls & voids) that reflects the real data — green, or matched to real data.'],
     ['Galactic bridge', 'cyan · fills the gap between the ~1 kpc local star bubble and the Local Group with a modelled Milky Way — disk & spiral arms, bar/bulge, halo, the Magellanic Clouds and a reach toward Andromeda. Selectable & route-able.'],
     ['CMB radiation image', 'the WMAP boundary shell — off by default; enable it in Layers (COSMOS).'],

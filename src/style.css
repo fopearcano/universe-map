@@ -157,6 +157,8 @@ select:focus { outline: none; border-color: var(--cyan); }
 .ways-filter { display: flex; gap: 4px; margin-bottom: 6px; }
 .ways-chip { flex: 1; padding: 3px 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.05em; color: var(--dim); background: none; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .ways-chip.on { color: #04070d; background: var(--wc); border-color: var(--wc); }
+.ways-search { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 5px; color: var(--ink); padding: 4px 7px; font-family: var(--mono); font-size: 10px; margin-bottom: 6px; }
+.ways-search:focus { outline: none; border-color: var(--cyan); }
 .ways-list { max-height: 32vh; overflow-y: auto; margin: 0 -2px; }
 .ways-row { padding: 4px 5px; border-radius: 4px; cursor: pointer; border-left: 2px solid transparent; }
 .ways-row:hover { background: rgba(120,180,210,0.08); }

@@ -9,6 +9,7 @@ import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeRe
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { RouteNetwork } from './render/routeNetwork.js';
+import { generateRoutes } from './data/routeGen.js';
 import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
@@ -1190,21 +1191,40 @@ export class App {
     this.routeNetwork = null;
     if (!this.cosmos) return;
     const D = this.cosmos.decadeUnit;
-    const defs = (this.extras.tradeRoutes && this.extras.tradeRoutes.routes) || [];
-    for (const def of defs) {
+    const posOf = (raH, decD, distLy) => {
+      const distPc = Math.max((distLy || 0) / PC_TO_LY, 0);
+      const ra = raH * 15 * Math.PI / 180, dec = decD * Math.PI / 180, cd = Math.cos(dec);
+      return new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec)).multiplyScalar(D * Math.log10(Math.max(distPc, 1)));
+    };
+    const add = (def, positions, resolvedStops) => {
+      if (positions.length < 2) return;
+      this.tradeRoutes.push({ ...def, positions, resolvedStops, mid: positions[Math.floor(positions.length / 2)].clone() });
+    };
+
+    // 1) hand-authored flagship routes (resolved by object name)
+    for (const def of ((this.extras.tradeRoutes && this.extras.tradeRoutes.routes) || [])) {
       const positions = [], resolvedStops = [];
-      for (const name of (def.stops || [])) {
-        const r = this.agentResolve(name); if (!r) continue;
-        const distPc = Math.max((r.distLy || 0) / PC_TO_LY, 0);
-        const ra = r.ra * 15 * Math.PI / 180, dec = r.dec * Math.PI / 180, cd = Math.cos(dec);
-        const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
-        positions.push(dir.multiplyScalar(D * Math.log10(Math.max(distPc, 1))));
-        resolvedStops.push(r.label || name);
-      }
-      if (positions.length < 2) continue;
-      const mid = positions[Math.floor(positions.length / 2)];
-      this.tradeRoutes.push({ ...def, positions, resolvedStops, mid: mid.clone() });
+      for (const name of (def.stops || [])) { const r = this.agentResolve(name); if (!r) continue; positions.push(posOf(r.ra, r.dec, r.distLy)); resolvedStops.push(r.label || name); }
+      add(def, positions, resolvedStops);
     }
+
+    // 2) build an object pool (real anchors, with display positions & hub weight)
+    const pool = [{ name: 'Sol', pos: [0, 0, 0], distLy: 0, hub: 0.8 }];
+    const addPool = (name, raH, decD, distLy, hub) => { if (!name || raH == null || decD == null) return; const v = posOf(raH, decD, distLy); pool.push({ name, pos: [v.x, v.y, v.z], distLy: distLy || 0, hub }); };
+    for (const o of (this.cosmosData.localGroup || [])) addPool(o.name, o.ra / 15, o.dec, o.distLy, 1.5);
+    for (const o of (this.extras.structures || [])) addPool(o.name, o.ra, o.dec, o.distGly != null ? o.distGly * 1e9 : (o.distMpc || 0) * 3.2615638e6, /supercluster|wall|attractor/.test(o.type || '') ? 3.2 : 2.2);
+    for (const o of (this.extras.clusters || [])) addPool(o.name, o.ra, o.dec, o.distLy, 1.0);
+    for (const o of (this.atlas || [])) addPool(o.name, o.ra, o.dec, o.distLy, /galaxy|quasar|smbh/.test(o.category || '') ? 2.2 : 0.8);
+    for (const v of (this.supervoids || [])) addPool(v.name, v.ra, v.dec, (v.distMpc || 0) * 3.2615638e6, 0.6);
+
+    // 3) procedurally fill the ledger out to a full spread of 500 charted ways
+    const need = Math.max(0, 500 - this.tradeRoutes.length);
+    if (need > 0 && pool.length > 4) {
+      for (const g of generateRoutes(pool, { count: need, seed: 987654321, existingNames: this.tradeRoutes.map((r) => r.name) })) {
+        add({ id: g.id, name: g.name, category: g.category, kind: g.kind, operator: g.operator, driveClass: g.driveClass, traffic: g.traffic, lore: g.lore, stops: g.stops }, g.positions.map((p) => new THREE.Vector3(p[0], p[1], p[2])), g.stops);
+      }
+    }
+
     this.routeNetwork = new RouteNetwork(this.tradeRoutes);
     this.cosmos.group.add(this.routeNetwork.group);
   }

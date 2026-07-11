@@ -140,8 +140,18 @@ export function buildCosmosLayers(app) {
     waysBox.innerHTML = `
       <div class="ways-h muted">${list.length} charted ways · click to trace, ▶ to load</div>
       <div class="ways-filter">${chip('commercial', '#ffb454')}${chip('military', '#ff6b6b')}</div>
+      <input class="ways-search" id="c-ways-search" type="text" placeholder="filter by name, operator, kind…" />
       <div class="ways-list">${list.map(row).join('')}</div>`;
-    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); waysBox.querySelectorAll(`.ways-row`).forEach((rw) => { const rid = rw.dataset.way; const rr = list.find((x) => x.id === rid); if (rr) rw.style.display = cat[rr.category] ? '' : 'none'; }); }; });
+    const byId = new Map(list.map((r) => [r.id, r]));
+    let text = '';
+    const applyRows = () => waysBox.querySelectorAll('.ways-row').forEach((rw) => {
+      const rr = byId.get(rw.dataset.way); if (!rr) return;
+      const okCat = cat[rr.category];
+      const okText = !text || `${rr.name} ${rr.kind} ${rr.operator} ${rr.lore}`.toLowerCase().includes(text);
+      rw.style.display = okCat && okText ? '' : 'none';
+    });
+    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); applyRows(); }; });
+    waysBox.querySelector('#c-ways-search').oninput = (e) => { text = e.target.value.toLowerCase().trim(); applyRows(); };
     waysBox.querySelectorAll('.ways-row').forEach((rw) => { rw.onclick = (e) => { if (e.target.closest('.ways-load')) return; waysBox.querySelectorAll('.ways-row').forEach((x) => x.classList.remove('sel')); rw.classList.add('sel'); app.highlightTradeRoute(rw.dataset.way); }; });
     waysBox.querySelectorAll('.ways-load').forEach((b) => { b.onclick = () => { app.loadTradeRoute(b.dataset.load); }; });
   };

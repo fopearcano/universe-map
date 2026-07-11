@@ -22,10 +22,10 @@ export class RouteNetwork {
         for (let i = 0; i < p.length; i++) { nodes.push(p[i].x, p[i].y, p[i].z); if (i < p.length - 1) verts.push(p[i].x, p[i].y, p[i].z, p[i + 1].x, p[i + 1].y, p[i + 1].z); }
       }
       const lgeo = new THREE.BufferGeometry(); lgeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-      const lmat = new THREE.LineBasicMaterial({ color: CAT_COLOR[cat], transparent: true, opacity: 0.32, depthWrite: false });
+      const lmat = new THREE.LineBasicMaterial({ color: CAT_COLOR[cat], transparent: true, opacity: 0.16, depthWrite: false });
       const seg = new THREE.LineSegments(lgeo, lmat); seg.frustumCulled = false;
       const ngeo = new THREE.BufferGeometry(); ngeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nodes), 3));
-      const nmat = new THREE.PointsMaterial({ color: CAT_COLOR[cat], size: 4, sizeAttenuation: false, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending });
+      const nmat = new THREE.PointsMaterial({ color: CAT_COLOR[cat], size: 3, sizeAttenuation: false, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending });
       const pts = new THREE.Points(ngeo, nmat); pts.frustumCulled = false;
       this.byCat[cat] = { seg, pts };
       this.group.add(seg); this.group.add(pts);

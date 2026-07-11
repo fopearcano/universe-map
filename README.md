@@ -95,16 +95,18 @@ The map is drawn like an annotated chart, not a uniform dot-field:
   to match the log-radial depth compression. The imagined fill also stays empty
   inside them, so the voids read as voids at every layer.
 - **⟿ The Ledger of Ways — trade & war routes.** Toggle **Trade & war routes** for a
-  charted network of **32 imagined crossings** — 17 **commercial** (amber: courier
-  trunks, ore-hauls, pilgrim ways, salvage loops…) and 15 **military** (crimson:
-  war-roads, blockades, deep-strike corridors, funeral patrols…), each with a
-  *poetic name* and QTR-canon operator ("The Silk Road of Suns" · Pelagian Assembly;
-  "The Nūbi Deep-Strike"; "The Widowmaker Picket"…). Every waypoint is a **real
-  catalogued object**, so the whole ledger is flyable. The Layers panel lists them —
-  filter by category, **click to trace** a route (it highlights, labels and frames
-  itself) or hit **▶** to **load it into the NAV COMPUTER** (drive and all) and
-  engage. Solaris.Ai knows the ledger too: *"show me the military routes"*, *"fly the
-  Amber Ladder"*.
+  charted network of **500 imagined crossings** — ~295 **commercial** (amber: courier
+  trunks, ore-hauls, pilgrim ways, salvage loops, spice roads…) and ~205 **military**
+  (crimson: war-roads, blockades, deep-strike corridors, funeral patrols…), each with
+  a *unique poetic name* and a QTR-canon operator ("The Silk Road of Suns" · Pelagian
+  Assembly; "The Nūbi Deep-Strike"; "The Widowmaker Picket"; "The Weeping Gauntlet";
+  "The Watch of Pilgrims"…). A hand-authored core of flagship routes is filled out
+  procedurally to a full spread across the whole object pool — but **every waypoint is
+  a real catalogued object**, so the whole ledger is flyable. The Layers panel lists
+  them with a **search box and category filters**; **click to trace** a route (it
+  highlights, labels and frames itself) or hit **▶** to **load it into the NAV
+  COMPUTER** (drive and all) and engage. Solaris.Ai knows the ledger too: *"show me
+  the military routes near Virgo"*, *"fly the Amber Ladder"*.
 - **Procedural fill — a "known universe" (imagined).** Toggle **Procedural fill**
   to complete the map into a fully-charted universe for storytelling. Every
   direction is brought **up to the peak surface density of the best-surveyed real
