@@ -3,7 +3,7 @@
 // the map through tool calls. Talks to any OpenAI-compatible endpoint (LM Studio /
 // vLLM / Ollama / OpenAI / Anthropic-compat), configured in the ⚙ settings.
 import { NavAgent } from '../ai/agent.js';
-import { loadConfig, saveConfig, listModels, isConfigured, PRESETS } from '../ai/llm.js';
+import { loadConfig, saveConfig, listModels, isConfigured, PRESETS, chatCompletion } from '../ai/llm.js';
 
 const TOOL_VERB = {
   search_sky: 'scanning the sky', lookup_qtr: 'consulting the codex', plot_route: 'plotting a course',
@@ -124,7 +124,6 @@ export function initNavcomAgent(app, qtr) {
       note.textContent = 'testing…';
       saveConfig({ baseUrl: base.value.trim(), model: model.value.trim(), apiKey: key.value.trim(), temperature: +temp.value || 0.7 });
       try {
-        const { chatCompletion } = await import('../ai/llm.js');
         const r = await chatCompletion(loadConfig(), { messages: [{ role: 'user', content: 'Reply with exactly: online' }] });
         note.textContent = `✓ reachable — model said: "${(r.content || '').slice(0, 40)}"`;
       } catch (e) { note.textContent = `✗ ${e.message}`; }
