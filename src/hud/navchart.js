@@ -17,6 +17,11 @@ export function initNavChart(app) {
   document.body.appendChild(plotBanner);
   let summary = null;
   let expedition = null;
+  let navcomVisible = false;   // NAV COMPUTER opens with a course, or on demand from the toolbar
+
+  // Let the dock toolbar open/close the NAV COMPUTER even with no course loaded.
+  app._navcomShow = () => { navcomVisible = true; render(); };
+  app._navcomHide = () => { navcomVisible = false; render(); };
 
   app.on('mode', () => { focusChip.hidden = true; hud.hidden = true; });
   app.on('plot', (on) => { plotBanner.hidden = !on; render(); });
@@ -29,39 +34,51 @@ export function initNavChart(app) {
     focusChip.querySelector('.fc-x').onclick = () => app.home();
   });
 
-  app.on('route', (s) => { summary = s; render(); });
+  app.on('route', (s) => { summary = s; if (s && s.points && s.points.length) navcomVisible = true; render(); });
   app.on('routes', () => render());
 
   function render() {
     const s = summary;
-    if (!s || !s.points.length) { panel.hidden = true; panel.innerHTML = ''; expedition = null; return; }
+    const pts = (s && s.points) || [];
+    const hasRoute = pts.length > 0;
+    // Show whenever a course is loaded, or when opened on demand from the toolbar.
+    if (!navcomVisible) { panel.hidden = true; panel.innerHTML = ''; if (!hasRoute) expedition = null; return; }
     panel.hidden = false;
-    const expHdr = expedition ? `<div class="rp-exped"><div class="rp-exped-t">◈ ${esc(expedition.title)}</div><div class="rp-exped-p">${esc(expedition.premise)}</div></div>` : '';
-    const dr = s.drive || { id: '', cls: '', klass: '', name: '', regime: '', note: '', sc: s.cruiseC };
-    const wpRows = s.points.map((p, i) => {
-      const leg = i > 0 ? s.legs[i - 1] : null;
+    const legs = (s && s.legs) || [];
+    const expHdr = (hasRoute && expedition) ? `<div class="rp-exped"><div class="rp-exped-t">◈ ${esc(expedition.title)}</div><div class="rp-exped-p">${esc(expedition.premise)}</div></div>` : '';
+    const dr = (s && s.drive) || app.drive || { id: '', cls: '', klass: '', name: '', regime: '', note: '', sc: 1 };
+    const wpRows = hasRoute ? pts.map((p, i) => {
+      const leg = i > 0 ? legs[i - 1] : null;
       const legInfo = leg ? `<div class="rp-leginfo">⟿ crossing ${i} · ${fmtLy(leg.ly)} · ${fmtRA(leg.ra)} ${fmtDec(leg.dec)} · ${fmtYr(leg.years)}</div>` : '';
       return `<div class="rp-wp">
           <span class="rp-wi">${i}</span>
           <span class="rp-wn">${esc(p.label)}${p.kind === 'free' ? ' <span class="rp-free">◇</span>' : ''}</span>
           <span class="rp-wc"><button data-up="${i}" title="up">▲</button><button data-down="${i}" title="down">▼</button><button data-del="${i}" title="remove">✕</button></span>
         </div>${legInfo}`;
-    }).join('');
+    }).join('')
+      : `<div class="rp-empty muted">No course plotted yet. Hit <b>◉ plot</b> and click the map, select an object → <b>＋ route</b>, or ask Solaris.Ai to lay one in.</div>`;
     const savedRows = app.routeStore.all().map((r) =>
       `<div class="rp-saved"><span class="rp-sname" data-load="${r.id}">${esc(r.name)}</span><span class="muted">${r.waypoints.length} wp</span><button data-delr="${r.id}" title="delete">🗑</button></div>`).join('') || '<div class="muted" style="padding:2px 0">no saved routes</div>';
+    const totals = hasRoute ? `
+      <div class="rp-total">
+        <div><span>path · seam 𝔍</span><span class="v">${fmtLy(s.totalLy)}</span></div>
+        <div><span>coordinate time</span><span class="v">${fmtYr(s.years)}</span></div>
+        <div><span>crew time · ${esc(dr.regime)}</span><span class="v">${fmtYr(s.shipYears)}</span></div>
+        <div><span>Idrenes bridges</span><span class="v">${s.crossings ?? Math.max(0, pts.length - 1)}</span></div>
+      </div>` : '';
 
     panel.innerHTML = `
       <div class="rp-top">
         <div class="rp-title">◈ TEKNÉ · NAVCOM</div>
-        <button class="rp-x" title="clear course">✕</button>
+        <button class="rp-x" title="${hasRoute ? 'clear course' : 'close'}">✕</button>
       </div>
       <div class="rp-sub muted">Sōrn depth-rung navigator · Solaris.Ai core</div>
       ${expHdr}
       <div class="rp-tools">
         <button class="btn sm ${app.plotCourse ? 'on' : ''}" id="rp-plot" title="click the map to drop waypoints">◉ plot</button>
         <button class="btn sm" id="rp-viewpt" title="drop a free-space waypoint where you're looking">＋ pt</button>
-        <button class="btn sm" id="rp-rev" title="reverse">⇄</button>
-        <button class="btn sm" id="rp-save" title="save course">💾</button>
+        <button class="btn sm" id="rp-rev" title="reverse"${hasRoute ? '' : ' disabled'}>⇄</button>
+        <button class="btn sm" id="rp-save" title="save course"${hasRoute ? '' : ' disabled'}>💾</button>
       </div>
       <div class="rp-cruise">
         <span>drive</span>
@@ -70,27 +87,22 @@ export function initNavChart(app) {
       </div>
       <div class="rp-drivenote muted">${esc(dr.note)}</div>
       <div class="rp-wps">${wpRows}</div>
-      <div class="rp-total">
-        <div><span>path · seam 𝔍</span><span class="v">${fmtLy(s.totalLy)}</span></div>
-        <div><span>coordinate time</span><span class="v">${fmtYr(s.years)}</span></div>
-        <div><span>crew time · ${esc(dr.regime)}</span><span class="v">${fmtYr(s.shipYears)}</span></div>
-        <div><span>Idrenes bridges</span><span class="v">${s.crossings ?? Math.max(0, s.points.length - 1)}</span></div>
-      </div>
+      ${totals}
       <div class="rp-ctrls">
-        <button class="btn sm rp-engage" id="rp-engage" ${s.points.length < 2 ? 'disabled' : ''}>⏵ ENGAGE · thread 𝔍</button>
+        <button class="btn sm rp-engage" id="rp-engage" ${pts.length < 2 ? 'disabled' : ''}>⏵ ENGAGE · thread 𝔍</button>
       </div>
       <div class="rp-saved-h muted">saved courses <span class="rp-io"><button id="rp-imp">⇩</button><button id="rp-exp">⇧</button></span></div>
       <div class="rp-saved-list">${savedRows}</div>
       <input id="rp-file" type="file" accept="application/json,.json" hidden />
       <div class="rp-hint muted">ΛL beacon lock · plot ◉ then click, or select an object → <b>＋ route</b></div>`;
 
-    panel.querySelector('.rp-x').onclick = () => app.clearRoute();
+    panel.querySelector('.rp-x').onclick = () => { navcomVisible = false; app.clearRoute(); render(); };
     panel.querySelector('#rp-plot').onclick = () => app.setPlotCourse(!app.plotCourse);
     panel.querySelector('#rp-viewpt').onclick = () => app.addViewPoint();
-    panel.querySelector('#rp-rev').onclick = () => app.reverseRoute();
+    if (hasRoute) panel.querySelector('#rp-rev').onclick = () => app.reverseRoute();
     panel.querySelector('#rp-engage').onclick = () => app.engageRoute();
     panel.querySelector('#rp-drive').onchange = (e) => app.setDrive(e.target.value);
-    panel.querySelector('#rp-save').onclick = () => { const n = prompt('Name this route:', `route ${app.routeStore.all().length + 1}`); if (n) app.saveRoute(n); };
+    if (hasRoute) panel.querySelector('#rp-save').onclick = () => { const n = prompt('Name this route:', `route ${app.routeStore.all().length + 1}`); if (n) app.saveRoute(n); };
     panel.querySelectorAll('[data-up]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.up, -1); });
     panel.querySelectorAll('[data-down]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.down, 1); });
     panel.querySelectorAll('[data-del]').forEach((b) => { b.onclick = () => app.removeRouteWaypoint(+b.dataset.del); });

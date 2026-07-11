@@ -566,6 +566,8 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .rp-saved button { background: none; border: 0; color: var(--dim); cursor: pointer; }
 .rp-saved button:hover { color: var(--red); }
 .rp-hint { font-size: 9.5px; margin-top: 6px; line-height: 1.5; }
+.rp-empty { padding: 10px 2px; line-height: 1.6; }
+.rp-empty b { color: var(--ink); }
 
 /* ---- linked tracking panel (transparent) ---- */
 #trackpanel {

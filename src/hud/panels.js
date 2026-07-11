@@ -34,20 +34,23 @@ export function initPanels(app) {
   const navBtn = document.getElementById('navcom-ai-btn');
   const isShown = (el) => !!el && !el.hidden && !el.classList.contains('pnl-off');
 
-  // Panel registry. `show`/`hide` route to each panel's natural mechanism where
-  // it has one (the AI chat and the tracking panel own their own visibility);
+  // Panel registry. `show`/`hide` route to each panel's natural mechanism: the
+  // NAV COMPUTER, the AI chat and the tracking panel own their own visibility;
   // the rest use a `.pnl-off` override that always wins over app-driven display.
+  // `bar:false` means "draggable but no toolbar button" — the Solaris.Ai chat is
+  // already opened from the ✦ NAVCOM AI button in the top bar, so it isn't
+  // duplicated here.
   const REG = [
+    { key: 'route', sel: '#routepanel', icon: '❋', label: 'NavCom', handle: '.rp-top',
+      show: () => app._navcomShow?.(), hide: () => app._navcomHide?.() },
     { key: 'leftdock', sel: '#leftdock', icon: '⚙', label: 'Controls', handle: '.pnl-grip',
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'info', sel: '#infodock', icon: 'ⓘ', label: 'Info',
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
-    { key: 'route', sel: '#routepanel', icon: '❋', label: 'NavCom', handle: '.rp-top',
-      show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
-    { key: 'navcom', sel: '#navcom-ai', icon: '✦', label: 'Solaris.Ai', handle: '.na-head',
-      show: (el) => { if (el.hidden && navBtn) navBtn.click(); }, hide: (el) => { if (!el.hidden && navBtn) navBtn.click(); } },
     { key: 'track', sel: '#trackpanel', icon: '◎', label: 'Track', handle: '.tp-h',
       show: () => app.setTrackPanel(true), hide: () => app.setTrackPanel(false) },
+    { key: 'navcom', sel: '#navcom-ai', icon: '✦', label: 'Solaris.Ai', handle: '.na-head', bar: false,
+      show: (el) => { if (el.hidden && navBtn) navBtn.click(); }, hide: (el) => { if (!el.hidden && navBtn) navBtn.click(); } },
   ];
 
   // ---- top-centre dock toolbar ----
@@ -62,6 +65,7 @@ export function initPanels(app) {
 
   const buttons = new Map();
   for (const r of REG) {
+    if (r.bar === false) continue;   // draggable, but not shown in the toolbar
     const b = document.createElement('button');
     b.className = 'db-btn';
     b.dataset.key = r.key;
