@@ -10,6 +10,7 @@ import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { RouteNetwork } from './render/routeNetwork.js';
 import { generateRoutes } from './data/routeGen.js';
+import { routeGroup } from './data/routeGroups.js';
 import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
@@ -1224,7 +1225,8 @@ export class App {
     };
     const add = (def, positions, resolvedStops) => {
       if (positions.length < 2) return;
-      this.tradeRoutes.push({ ...def, positions, resolvedStops, mid: positions[Math.floor(positions.length / 2)].clone() });
+      const group = def.group || routeGroup(def.category, def.kind);
+      this.tradeRoutes.push({ ...def, group, positions, resolvedStops, mid: positions[Math.floor(positions.length / 2)].clone() });
     };
 
     // 1) hand-authored flagship routes (resolved by object name)
@@ -1267,7 +1269,9 @@ export class App {
     if (!this.showRouteNetwork) this._highlightRoute = null;
     if (this.mode === 'cosmos') this._applyCosmosLabels();
   }
-  setRouteNetworkFilter(cat, on) { if (this.routeNetwork) this.routeNetwork.setFilter(cat, on); }
+  // Toggle a route group ("commercial:trade") or a whole category ("commercial").
+  setRouteNetworkFilter(key, on) { if (this.routeNetwork) this.routeNetwork.setGroupVisible(key, on); }
+  setRouteNetworkCategory(cat, on) { if (this.routeNetwork) this.routeNetwork.setCategoryVisible(cat, on); }
 
   // Highlight a route on the overlay, label it, and frame it in view.
   highlightTradeRoute(id) {
@@ -1293,7 +1297,7 @@ export class App {
   }
 
   tradeRouteList() {
-    return (this.tradeRoutes || []).map((r) => ({ id: r.id, name: r.name, category: r.category, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.resolvedStops }));
+    return (this.tradeRoutes || []).map((r) => ({ id: r.id, name: r.name, category: r.category, group: r.group, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.resolvedStops }));
   }
 
   // Load a preset expedition into the route (mode-aware), ready to ENGAGE.

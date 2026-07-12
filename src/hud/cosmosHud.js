@@ -1,4 +1,5 @@
 import { comovingMpc, MPC_TO_LY } from '../util/cosmology.js';
+import { ROUTE_GROUPS } from '../data/routeGroups.js';
 
 // Cosmos-mode dock panels: redshift/object filters, survey layers, and the legend.
 
@@ -133,29 +134,61 @@ export function buildCosmosLayers(app) {
   const buildWays = () => {
     // flagships (curated) first, then the procedural spread
     const list = app.tradeRouteList().sort((a, b) => (a.id.startsWith('way-') ? 1 : 0) - (b.id.startsWith('way-') ? 1 : 0));
-    const cat = { commercial: true, military: true };
     let text = '';
     const nComm = list.filter((r) => r.category === 'commercial').length;
-    const chip = (c, col) => `<button class="ways-chip on" data-cat="${c}" style="--wc:${col}">${c}</button>`;
+    // per-group on/off state, keyed "cat:group" — all on to start
+    const on = {};
+    const count = {};
+    for (const cat of ['commercial', 'military']) for (const g of ROUTE_GROUPS[cat]) { const k = `${cat}:${g.key}`; on[k] = true; count[k] = 0; }
+    for (const r of list) { const k = `${r.category}:${r.group}`; if (k in count) count[k]++; }
+    const catOn = (cat) => ROUTE_GROUPS[cat].every((g) => on[`${cat}:${g.key}`]);
+    const catAny = (cat) => ROUTE_GROUPS[cat].some((g) => on[`${cat}:${g.key}`]);
+
+    const catBlock = (cat, col, name) => `
+      <div class="ways-gcat">
+        <label class="ways-gc-h" style="--wc:${col}"><input type="checkbox" data-catall="${cat}" checked> ${name} <span class="muted">${fmt(list.filter((r) => r.category === cat).length)}</span></label>
+        ${ROUTE_GROUPS[cat].map((g) => `<label class="ways-gc"><input type="checkbox" data-gkey="${cat}:${g.key}" checked> <span class="ways-gdot" style="background:${col}"></span>${esc(g.label)} <span class="muted">${fmt(count[`${cat}:${g.key}`] || 0)}</span></label>`).join('')}
+      </div>`;
+
     const row = (r) => `<div class="ways-row" data-way="${r.id}" title="${esc(r.lore)}">
         <div class="ways-r1"><span class="ways-dot" style="background:${r.category === 'military' ? '#ff6b6b' : '#ffb454'}"></span><span class="ways-name">${esc(r.name)}</span><button class="ways-load" data-load="${r.id}" title="load into NAV COMPUTER">▶</button></div>
         <div class="ways-r2 muted">${esc(r.kind)} · ${esc(r.operator)} · Class ${esc(r.driveClass)} · ${esc(r.traffic)}</div>
       </div>`;
     waysBox.innerHTML = `
       <div class="ways-h muted">${fmt(list.length)} charted ways · ${fmt(nComm)} commercial · ${fmt(list.length - nComm)} military</div>
-      <div class="ways-filter">${chip('commercial', '#ffb454')}${chip('military', '#ff6b6b')}</div>
+      <details class="ways-groups">
+        <summary>▾ groups <span class="muted" id="c-ways-gsum"></span></summary>
+        <div class="ways-gmenu">${catBlock('commercial', '#ffb454', 'Commercial')}${catBlock('military', '#ff6b6b', 'Military')}</div>
+      </details>
       <input class="ways-search" id="c-ways-search" type="text" placeholder="search ${fmt(list.length)} ways by name, operator, kind…" />
       <div class="ways-count muted" id="c-ways-count"></div>
       <div class="ways-list" id="c-ways-list"></div>`;
     const listEl = waysBox.querySelector('#c-ways-list');
     const countEl = waysBox.querySelector('#c-ways-count');
+    const gsum = waysBox.querySelector('#c-ways-gsum');
+    const nGroups = Object.keys(on).length;
     const render = () => {
-      const matches = list.filter((r) => cat[r.category] && (!text || `${r.name} ${r.kind} ${r.operator} ${r.lore}`.toLowerCase().includes(text)));
+      const nOn = Object.values(on).filter(Boolean).length;
+      gsum.textContent = nOn === nGroups ? '(all)' : `(${nOn}/${nGroups})`;
+      const matches = list.filter((r) => on[`${r.category}:${r.group}`] && (!text || `${r.name} ${r.kind} ${r.operator} ${r.lore}`.toLowerCase().includes(text)));
       listEl.innerHTML = matches.slice(0, MAX_ROWS).map(row).join('');
       countEl.textContent = matches.length > MAX_ROWS ? `showing ${MAX_ROWS} of ${fmt(matches.length)} — search to narrow` : `${fmt(matches.length)} shown`;
     };
-    render();
-    waysBox.querySelectorAll('.ways-chip').forEach((b) => { b.onclick = () => { b.classList.toggle('on'); const c = b.dataset.cat; cat[c] = b.classList.contains('on'); app.setRouteNetworkFilter(c, cat[c]); render(); }; });
+    // sync a category's parent checkbox (checked / indeterminate / empty)
+    const syncCat = (cat) => {
+      const cb = waysBox.querySelector(`[data-catall="${cat}"]`); if (!cb) return;
+      cb.checked = catOn(cat); cb.indeterminate = !catOn(cat) && catAny(cat);
+    };
+    render(); syncCat('commercial'); syncCat('military');
+
+    waysBox.querySelectorAll('[data-gkey]').forEach((cb) => { cb.onchange = () => {
+      const k = cb.dataset.gkey; on[k] = cb.checked; app.setRouteNetworkFilter(k, cb.checked); syncCat(k.slice(0, k.indexOf(':'))); render();
+    }; });
+    waysBox.querySelectorAll('[data-catall]').forEach((cb) => { cb.onchange = () => {
+      const cat = cb.dataset.catall; app.setRouteNetworkCategory(cat, cb.checked);
+      for (const g of ROUTE_GROUPS[cat]) { const k = `${cat}:${g.key}`; on[k] = cb.checked; const el = waysBox.querySelector(`[data-gkey="${k}"]`); if (el) el.checked = cb.checked; }
+      cb.indeterminate = false; render();
+    }; });
     waysBox.querySelector('#c-ways-search').oninput = (e) => { text = e.target.value.toLowerCase().trim(); render(); };
     // event delegation (rows are re-rendered on every filter)
     listEl.onclick = (e) => {
