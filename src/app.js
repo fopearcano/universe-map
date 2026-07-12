@@ -9,6 +9,7 @@ import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeRe
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { RouteNetwork } from './render/routeNetwork.js';
+import { SolarSystem } from './render/solarSystem.js';
 import { generateRoutes } from './data/routeGen.js';
 import { routeGroup } from './data/routeGroups.js';
 import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
@@ -61,6 +62,10 @@ export class App {
     this.supervoids = cosmosData ? computeSupervoids(cosmosData.meta.decadeUnit) : [];
     if (this.supervoids.length) extras.supervoids = this.supervoids;
     this.cosmos = cosmosData ? new CosmosWorld(this.scene.scene, cosmosData, catalog, extras) : null;
+
+    // SYSTEM scale — the to-scale Solar System (Sun, planets, moons)
+    this.solarSystem = new SolarSystem();
+    this.scene.scene.add(this.solarSystem.group);
 
     this.labels = new Labels(document.body);
     this.selection = null;      // { kind, worldPos, starIndex?, info }
@@ -589,7 +594,28 @@ export class App {
     this.clearRoute();
     this.clearFocus();
     this.mode = mode;
-    if (mode === 'cosmos') {
+    const hideMap = () => {
+      this.starfield.points.visible = false;
+      this.scene.setReferenceVisible(false);
+      this.voyageLayer.setVisible(false);
+      this.localClusters.setVisible(false); this.localAtlas.setVisible(false); this.localCustom.setVisible(false);
+      if (this.cosmos) this.cosmos.setVisible(false);
+      this.cosmosClusters.setVisible(false); this.cosmosStructures.setVisible(false); this.cosmosAtlas.setVisible(false); this.cosmosCustom.setVisible(false);
+      if (this.structureShapes) this.structureShapes.setVisible(false);
+      if (this.clusterShapes) this.clusterShapes.setVisible(false);
+      if (this.voidShapes) this.voidShapes.setVisible(false);
+      if (this.routeNetwork) this.routeNetwork.setVisible(false);
+    };
+    if (mode === 'system') {
+      hideMap();
+      this.solarSystem.setVisible(true);
+      this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
+      if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
+      const v = this.solarSystem.defaultView();
+      this.scene.controls.maxDistance = 3000;
+      this.scene.setView(v.pos, v.target);
+    } else if (mode === 'cosmos') {
+      this.solarSystem.setVisible(false);
       this.starfield.points.visible = false;
       this.scene.setReferenceVisible(false);
       this.voyageLayer.setVisible(false);
@@ -607,9 +633,11 @@ export class App {
       if (this.voidShapes) this.voidShapes.setVisible(this.showVoids);
       if (this.routeNetwork) this.routeNetwork.setVisible(this.showRouteNetwork);
       this._applyCosmosLabels();
+      this.scene.controls.maxDistance = 6000;
       const v = this.cosmos.defaultView();
       this.scene.setView(v.pos, v.target);
     } else {
+      this.solarSystem.setVisible(false);
       this.cosmos.setVisible(false);
       this.starfield.points.visible = true;
       this.scene.setReferenceVisible(true);
@@ -618,6 +646,7 @@ export class App {
       this.cosmosCustom.setVisible(false);
       this.localCustom.setVisible(this.showCustom);
       this._applyLocalLabels();
+      this.scene.controls.maxDistance = 6000;
       this.scene.setView(new THREE.Vector3(14, 9, 17), new THREE.Vector3(0, 0, 0));
     }
     this._syncSectorGridScale();
@@ -687,6 +716,16 @@ export class App {
     const worldPos = new THREE.Vector3(info.x, info.y, info.z);
     this._setSelection({ kind: 'star', starIndex: i, worldPos, truePos: worldPos.clone(), info });
     if (fly) this.scene.flyTo(worldPos);
+  }
+
+  // Select a Solar-System body (SYSTEM scale). Its position rides its orbit, so
+  // the selection marker & panel track the live mesh (see the loop).
+  selectBody(i, { fly = false } = {}) {
+    const info = this.solarSystem.info(i); if (!info) return;
+    info.kind = 'body';
+    const worldPos = this.solarSystem.worldPos(i);
+    this._setSelection({ kind: 'body', bodyIndex: i, worldPos: worldPos.clone(), truePos: worldPos.clone(), info });
+    if (fly) this.scene.flyTo(worldPos.clone(), { approach: Math.max(2.5, worldPos.length() * 0.12) });
   }
 
   selectObject(hit, { fly = false } = {}) {
@@ -1667,6 +1706,7 @@ export class App {
     const ndc = (e) => ({ x: (e.clientX / window.innerWidth) * 2 - 1, y: -(e.clientY / window.innerHeight) * 2 + 1 });
     const pickAt = (e) => {
       this._ray.setFromCamera(ndc(e), this.scene.camera); this._ray.camera = this.scene.camera;
+      if (this.mode === 'system') { const i = this.solarSystem.pick(this._ray); return i >= 0 ? { body: i } : null; }
       if (this._inGalaxy) { const i = this.interior.pick(this._ray, this.scene.camera); return i >= 0 ? { interiorStar: i } : null; }
       // labelled markers (clusters/structures) take priority when the cursor is on them
       const ex = this._pickExtra();
@@ -1676,7 +1716,8 @@ export class App {
     };
     const dispatch = (hit, fly) => {
       if (!hit) { if (!fly) this.clearSelection(); return; }
-      if (hit.interiorStar != null) this.selectInteriorStar(hit.interiorStar, { fly });
+      if (hit.body != null) this.selectBody(hit.body, { fly });
+      else if (hit.interiorStar != null) this.selectInteriorStar(hit.interiorStar, { fly });
       else if (hit.star != null) this.selectStar(hit.star, { fly });
       else if (hit.extra) this.selectExtra(hit.extra.kind, hit.extra.i, { fly });
       else this.selectObject(hit, { fly });
@@ -1719,6 +1760,10 @@ export class App {
       }
       this.scene.update(dt);
       this._updateTracker(dt);
+      if (this.mode === 'system') {
+        this.solarSystem.update(dt, this.scene.camera);
+        if (this.selection && this.selection.kind === 'body') this.solarSystem.worldPos(this.selection.bodyIndex, this.selection.worldPos);
+      }
       if (this.mode === 'cosmos') {
         this.cosmos.update(this.scene.camera);
         if (this.resolveStructures && this.structureShapes) this.structureShapes.update(this.scene.camera);
@@ -1831,7 +1876,8 @@ export class App {
     else sectorDistLy = cam.position.length() * PC_TO_LY;
     this.emit('frame', {
       mode: this._inGalaxy ? 'galaxy' : this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
-      visible: this.mode === 'local' ? this.starfield.visibleCount : this.cosmos.visibleCount(),
+      visible: this.mode === 'local' ? this.starfield.visibleCount : (this.mode === 'cosmos' ? this.cosmos.visibleCount() : 0),
+      sys: this.mode === 'system' ? { bodies: this.solarSystem.nodes.length, rangeAu: cam.position.length() / this.solarSystem.AU } : null,
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
       focus: this.focus ? this.focus.label : null,
       sector: this.sectorCode(dir.lengthSq() > 1e-9 ? dir : new THREE.Vector3(1, 0, 0), sectorDistLy),

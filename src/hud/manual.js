@@ -5,7 +5,7 @@ const REPO = 'https://github.com/fopearcano/universe-map';
 
 // Keep this table in sync with src/hud/hotkeys.js.
 const KEYS = [
-  ['1 / 2', 'LOCAL / COSMOS mode'],
+  ['1 / 2 / 3', 'LOCAL / COSMOS / SYSTEM mode'],
   ['H', 'Home — recenter on Sol'],
   ['/', 'Focus the search box'],
   ['C', 'Open the CODEX'],
@@ -24,7 +24,8 @@ const KEYS = [
 ];
 
 const SECTIONS = [
-  ['Two scales', [
+  ['Three scales', [
+    ['SYSTEM', 'The Solar System, to scale (☉ SYSTEM or key 3) — the Sun, eight planets, dwarf planets and major moons on their real orbits (AU). Bodies are size-exaggerated so they stay visible; planets revolve and moons circle them. Click a world for its facts; the FILTERS tab is a planet picker.'],
     ['LOCAL', 'The true-scale stellar neighbourhood — 100,000 real stars in parsecs, the Sun at the origin.'],
     ['COSMOS', 'The whole observable universe on a logarithmic radial scale — ~980k real + imagined objects out to the CMB. Direction is exact; only radius is compressed, so real distances (used for routing) are always preserved.'],
   ]],

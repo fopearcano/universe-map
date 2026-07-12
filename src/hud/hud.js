@@ -69,6 +69,11 @@ function initTabs() {
 function buildDock(app) {
   if (app.mode === 'cosmos') {
     buildCosmosFilters(app); buildCosmosVoyageList(app); buildCosmosLayers(app);
+  } else if (app.mode === 'system') {
+    buildSystemPanel(app);
+    const note = (id, txt) => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="muted" style="line-height:1.6">${txt}</div>`; };
+    note('tab-voyages', 'Expeditions apply to the LOCAL & COSMOS scales. Press <b>1</b> or <b>2</b> to leave the Solar System.');
+    note('tab-layers', 'Overlays apply to the LOCAL & COSMOS scales.');
   } else {
     buildLocalFilters(app); buildLocalVoyageList(app); buildLocalLayers(app);
   }
@@ -76,6 +81,22 @@ function buildDock(app) {
   // reset to the filters tab
   document.querySelectorAll('.tab').forEach((x, i) => x.classList.toggle('active', i === 0));
   document.querySelectorAll('.tabpanel').forEach((p, i) => p.classList.toggle('active', i === 0));
+}
+
+// The SYSTEM-mode filters tab: a picker for the Sun, planets & dwarf planets.
+function buildSystemPanel(app) {
+  const root = document.getElementById('tab-filters');
+  const ss = app.solarSystem;
+  const rows = ss.nodes.map((n, i) => ({ n, i })).filter(({ n }) => n.kind !== 'moon');
+  const sw = (i) => { const c = ss.info(i).color || [0.8, 0.8, 0.9]; return `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`; };
+  root.innerHTML = `
+    <div class="muted" style="margin-bottom:10px">The Solar System, to scale — orbits are real (in AU); bodies are size-exaggerated so they stay visible. Planets revolve and moons circle them; click a world to fly to it.</div>
+    <div class="sys-list">${rows.map(({ n, i }) => `<button class="sys-row" data-i="${i}"><span class="sys-sw" style="background:${sw(i)}"></span><span class="sys-nm">${esc(n.name)}</span><span class="muted">${esc(n.kind)}</span></button>`).join('')}</div>
+    <div class="hr"></div>
+    <button class="btn" id="sys-home">⊙ frame the whole system</button>
+    <div class="muted" style="margin-top:12px;line-height:1.6">Sun + ${rows.length - 1} worlds · ${ss.nodes.length} bodies incl. moons.<br>Keys <b>1</b> · <b>2</b> · <b>3</b> switch LOCAL · COSMOS · SYSTEM.</div>`;
+  root.querySelectorAll('.sys-row').forEach((b) => { b.onclick = () => app.selectBody(+b.dataset.i, { fly: true }); });
+  root.querySelector('#sys-home').onclick = () => { const v = ss.defaultView(); app.scene.setView(v.pos, v.target); };
 }
 
 function buildLocalLayers(app) {
@@ -131,6 +152,14 @@ function initTelemetry(app) {
         cell('OBJECTS', fmtNum(f.visible)),
         cell('SCALE', scaleAt(Math.min(f.camRadius, f.cmbR), f.decadeUnit)), sec,
         cell('HDG', `${fmtRA(ra)} ${fmtDec(dec)}`),
+        cell('FOV', `${f.fov.toFixed(0)}°`), focus,
+      ].join('');
+    } else if (f.mode === 'system') {
+      const au = f.sys ? f.sys.rangeAu : 0;
+      el.innerHTML = [
+        cell('SYSTEM', 'Sol'),
+        cell('BODIES', fmtNum(f.sys ? f.sys.bodies : 0)),
+        cell('RANGE', `${au.toFixed(au < 10 ? 2 : au < 100 ? 1 : 0)} AU`),
         cell('FOV', `${f.fov.toFixed(0)}°`), focus,
       ].join('');
     } else {

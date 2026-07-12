@@ -2,8 +2,11 @@
 
 An interactive **3D navigable HUD map of the universe** — from the stars in our
 own neighbourhood out to the cosmic microwave background at the edge of the
-observable universe. It has two modes:
+observable universe. It has three scales:
 
+- **SYSTEM** — the **Solar System, to scale**: the Sun, eight planets, dwarf
+  planets and major moons on their real orbits (AU), Sun-lit, with rings and a
+  live orbital animation. Bodies are size-exaggerated so they stay visible.
 - **LOCAL** — a true-scale map of ~100,000 real stars (HYG catalogue), in
   parsecs, Sol at the origin.
 - **COSMOS** — the whole **observable universe (~93 Gly across)** on a single
@@ -453,7 +456,7 @@ full hotkey reference. The shortcuts:
 
 | Key | Action | | Key | Action |
 | --- | --- | --- | --- | --- |
-| `1` `2` | LOCAL / COSMOS | | `Space` | engage / pause autopilot |
+| `1` `2` `3` | LOCAL / COSMOS / SYSTEM | | `Space` | engage / pause autopilot |
 | `H` | home (recenter on Sol) | | `[` `]` | prev / next stop (cruise·voyage·autopilot) |
 | `/` | focus search | | `S` | sector grid |
 | `C` | open CODEX | | `B` | galaxy imagery |

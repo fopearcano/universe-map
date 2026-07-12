@@ -15,13 +15,14 @@ export function initInfoPanel(app) {
       : o.kind === 'atlas' ? renderAtlas(o)
         : o.kind === 'custom' ? renderCustom(o)
           : o.kind === 'interiorStar' ? renderInteriorStar(o)
-            : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-              : renderCosmos(o);
+            : o.kind === 'body' ? renderBody(o)
+              : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
+                : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
-    dock.querySelector('#i-focus').onclick = () => app.setFocus();
-    dock.querySelector('#i-route').onclick = () => app.addRouteWaypoint();
+    const focusBtn = dock.querySelector('#i-focus'); if (focusBtn) focusBtn.onclick = () => app.setFocus();
+    const routeBtn = dock.querySelector('#i-route'); if (routeBtn) routeBtn.onclick = () => app.addRouteWaypoint();
     const enter = dock.querySelector('#i-enter'); if (enter) enter.onclick = () => app.enterGalaxy(app.selection.info);
     const exo = dock.querySelector('#i-exo'); if (exo) exo.onclick = () => runExo(o, dock);
     const sim = dock.querySelector('#i-simbad'); if (sim) sim.onclick = () => runLookup(o, dock);
@@ -123,6 +124,22 @@ function fmtAtlasDist(ly) {
   if (ly >= 1e6) return `${(ly / 1e6).toFixed(2)} Mly`;
   if (ly >= 1e3) return `${(ly / 1e3).toFixed(1)} kly`;
   return `${ly.toFixed(1)} ly`;
+}
+
+function renderBody(o) {
+  const [r, g, b] = o.color || [0.8, 0.82, 0.9];
+  const swatch = `rgb(${(r * 255) | 0},${(g * 255) | 0},${(b * 255) | 0})`;
+  const sub = o.kind === 'moon' ? `moon of ${o.moonOf}` : o.kind === 'star' ? 'the Sun · G2V' : o.kind === 'dwarf' ? 'dwarf planet' : 'planet';
+  const rows = [];
+  if (o.a != null) rows.push(['Orbit', `${o.a} AU`, 'hl']);
+  if (o.period != null) rows.push(['Period', o.period >= 1 ? `${o.period} yr` : `${Math.round(o.period * 365.25)} d`]);
+  if (o.e != null) rows.push(['Eccentricity', o.e.toFixed(3)]);
+  if (o.inc != null) rows.push(['Inclination', `${o.inc}°`]);
+  if (o.radiusKm != null) rows.push(['Radius', `${Math.round(o.radiusKm).toLocaleString('en-US')} km`]);
+  if (o.moons) rows.push(['Major moons', String(o.moons)]);
+  const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
+  return head(o.name, sub, swatch) + grid(rows) + facts +
+    `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button><button class="btn sm" id="i-focus" title="orbit around this body">◎ focus</button></div>`;
 }
 
 function head(name, sub, swatch) {
