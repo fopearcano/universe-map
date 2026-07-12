@@ -875,7 +875,7 @@ export class App {
     if (this.route.length < 2) return;
     this.stopCruise(); this.stopVoyage();   // only one guided mode drives the camera
     this.clearSelection();
-    this.autopilot = { seg: 0, t: 0, paused: false, speed: 0.11, descended: new Set(), atGalaxy: null };
+    this.autopilot = { seg: 0, t: 0, paused: false, descended: new Set(), atGalaxy: null, physLy: this._routePhysicalLy() };
     // initial follow offset: behind & above the first leg. Controls stay enabled
     // so you can orbit / zoom around the ship while it flies.
     const a = this.route[0].worldPos, b = this.route[1].worldPos;
@@ -935,14 +935,14 @@ export class App {
     ap.paused = false;
     this.emit('nav', this._navReadout());
   }
-  navSetSpeed(v) { if (this.autopilot) this.autopilot.speed = v; }
-
   _updateAutopilot(dt) {
     const ap = this.autopilot; if (!ap) return;
     if (ap.atGalaxy) return; // descended into a galaxy — the user explores; resume to continue
     const nLeg = this.route.length - 1;
     if (!ap.paused) {
-      let remaining = ap.speed * dt * this._routeSpan();
+      // pace so the whole drawn curve is flown in _flightDuration() seconds — a
+      // wall-clock time that scales with the route's real length and the drive.
+      let remaining = (this._routeCurveLen() / this._flightDuration()) * dt;
       while (remaining > 0 && ap.seg < nLeg) {
         // pace by the drawn curve's arc length (not the straight chord), so ap.t is a
         // true arc-length fraction and the tracked reticle glides uniformly along the arc.
@@ -968,12 +968,36 @@ export class App {
     this.scene.controls.target.copy(cur);
   }
 
-  _routeSpan() {
-    // total drawn-curve length (falls back to chord sum before the curve is built)
-    if (this._routeCurveTotalLen) return Math.max(1, this._routeCurveTotalLen) * 0.12;
+  // Total drawn-curve length in world units (falls back to the chord sum before
+  // the curve is built).
+  _routeCurveLen() {
+    if (this._routeCurveTotalLen) return Math.max(1, this._routeCurveTotalLen);
     let s = 0;
     for (let i = 1; i < this.route.length; i++) s += this.route[i].worldPos.distanceTo(this.route[i - 1].worldPos);
-    return Math.max(1, s) * 0.12;
+    return Math.max(1, s);
+  }
+
+  // Real (physical) length of the whole course in light-years, from the true
+  // parsec positions — honest even though the COSMOS display is log-compressed.
+  _routePhysicalLy() {
+    let ly = 0;
+    for (let i = 1; i < this.route.length; i++) ly += this.route[i].truePos.distanceTo(this.route[i - 1].truePos) * PC_TO_LY;
+    return ly;
+  }
+
+  // How long (wall-clock seconds) the autopilot should take to fly the current
+  // course. Two knobs, both log-scaled and clamped so the flight always stays
+  // watchable: the time grows with the route's real length, and shrinks as the
+  // selected DRIVE gets faster — so a Class ω run visibly outruns a sub-light
+  // crawl, and a crossing of the observable universe reads as longer than a hop
+  // next door. (Old behaviour: a fixed ~76 s regardless of distance or drive.)
+  _flightDuration() {
+    const ly = (this.autopilot && this.autopilot.physLy) || this._routePhysicalLy();
+    const sc = this.drive ? this.drive.sc : 1;
+    const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
+    const lenMult = clamp(0.45, 2.8, 1 + 0.42 * Math.log10(Math.max(1, ly) / 1e4));    // ≈1 at 10k ly
+    const driveMult = clamp(1, 4, 1 + 0.16 * Math.log10(Math.max(1e-3, sc) / 0.1));    // 0.1c → 1×, ≳1e20c → 4×
+    return clamp(7, 75, 24 * lenMult / driveMult);
   }
 
   // Arc length of the drawn curve for leg `seg` (falls back to the straight chord).
