@@ -40,7 +40,7 @@ cosmos becomes a navigable onion centred on the Sun:
 | --- | --- | --- |
 | Our galaxy's stars | HYG (log-radialised) | 100,000 |
 | Galactic bridge | modelled Milky Way + inner Local Group (cyan) | ~314,000 |
-| Local Group galaxies | curated, direct distances | 20 (named, searchable) |
+| Local Group galaxies | curated (McConnachie 2012), direct distances | 63 (named, searchable) |
 | Nearby galaxies | **2MRS** (all-sky) | 43,500 |
 | Cosmic web | **SDSS** galaxies | 189,000 |
 | The quasar era | **SDSS** quasars (to z≈3.9) | 95,000 |
