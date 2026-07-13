@@ -18,6 +18,7 @@ export function initNavChart(app) {
   let summary = null;
   let expedition = null;
   let navcomVisible = false;   // NAV COMPUTER opens with a course, or on demand from the toolbar
+  let optsOpen = false;        // ⚙ options disclosure — remembered across re-renders
 
   // Let the dock toolbar open/close the NAV COMPUTER even with no course loaded.
   app._navcomShow = () => { navcomVisible = true; render(); };
@@ -90,8 +91,15 @@ export function initNavChart(app) {
         <span class="rp-cls" title="ship class = maximum vacuum depth">${dr.cls}</span>
       </div>
       <div class="rp-drivenote muted">${esc(dr.note)}</div>
-      <div class="toggle rp-vtime ${app.voyageRealistic ? 'on' : ''}" id="rp-vtime" title="count the threading, bridge crossings, approach and port cycles — a voyage takes months; off shows raw drive-transit time only">
-        <span>Realistic voyage time <span class="muted">· ${app.voyageRealistic ? 'lived · months' : 'raw transit'}</span></span><span class="sw"></span></div>
+      <details class="rp-opts" ${optsOpen ? 'open' : ''}>
+        <summary>⚙ options</summary>
+        <div class="toggle rp-opt ${app.voyageRealistic ? 'on' : ''}" id="rp-vtime" title="count the threading, bridge crossings, approach and port cycles — a voyage takes months; off shows raw drive-transit time only">
+          <span>Realistic voyage time <span class="muted">· ${app.voyageRealistic ? 'lived · months' : 'raw transit'}</span></span><span class="sw"></span></div>
+        <div class="toggle rp-opt ${app.showShipTag ? 'on' : ''}" id="rp-shiptag" title="a compact info card that rides the ship on screen while flying">
+          <span>Ship tag <span class="muted">· card on the ship</span></span><span class="sw"></span></div>
+        <div class="toggle rp-opt ${app.autoTrack ? 'on' : ''}" id="rp-autotrack" title="open the live tracking-telemetry panel automatically when you ENGAGE">
+          <span>Auto-open tracking <span class="muted">· on engage</span></span><span class="sw"></span></div>
+      </details>
       <div class="rp-wps">${wpRows}</div>
       ${totals}
       <div class="rp-ctrls">
@@ -109,6 +117,9 @@ export function initNavChart(app) {
     panel.querySelector('#rp-engage').onclick = () => app.engageRoute();
     panel.querySelector('#rp-drive').onchange = (e) => app.setDrive(e.target.value);
     panel.querySelector('#rp-vtime').onclick = () => app.setVoyageRealistic(!app.voyageRealistic);
+    panel.querySelector('#rp-shiptag').onclick = () => app.setShipTag(!app.showShipTag);
+    panel.querySelector('#rp-autotrack').onclick = () => app.setAutoTrack(!app.autoTrack);
+    const opts = panel.querySelector('.rp-opts'); if (opts) opts.ontoggle = () => { optsOpen = opts.open; };
     if (hasRoute) panel.querySelector('#rp-save').onclick = () => { const n = prompt('Name this route:', `route ${app.routeStore.all().length + 1}`); if (n) app.saveRoute(n); };
     panel.querySelectorAll('[data-up]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.up, -1); });
     panel.querySelectorAll('[data-down]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.down, 1); });

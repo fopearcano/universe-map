@@ -100,7 +100,7 @@ export class App {
     this.showCustom = true;
     this.showScaleBar = true;   // TRUE-SCALE ribbon (cosmos)
     // cinematic render options (persisted): bloom glow, star twinkle, filmic tone map
-    this.cine = (() => { try { return { bloom: true, twinkle: true, tone: false, ...(JSON.parse(localStorage.getItem('ui.cine')) || {}) }; } catch { return { bloom: true, twinkle: true, tone: false }; } })();
+    this.cine = (() => { const def = { bloom: true, twinkle: true, tone: false, glow: 0.5 }; try { return { ...def, ...(JSON.parse(localStorage.getItem('ui.cine')) || {}) }; } catch { return def; } })();
     this.localCustom = null; this.cosmosCustom = null;
 
     this._buildMarkers();
@@ -552,6 +552,8 @@ export class App {
     this.showTrackPanel = false;
     // A compact info card that rides the ship on screen (toggleable, persisted).
     this.showShipTag = (() => { try { const v = localStorage.getItem('ui.shiptag'); return v === null ? true : v === '1'; } catch { return true; } })();
+    // Open the tracking-telemetry panel automatically on ENGAGE (persisted).
+    this.autoTrack = (() => { try { return localStorage.getItem('ui.autotrack') === '1'; } catch { return false; } })();
     this._shiptag = document.createElement('div'); this._shiptag.id = 'shiptag'; this._shiptag.hidden = true;
     document.body.appendChild(this._shiptag);
     this._shipTagKey = '';
@@ -562,7 +564,10 @@ export class App {
     this._shipReticle.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">
       <circle class="rt-ring" cx="50" cy="50" r="30">
         <animate attributeName="r" values="27;32;27" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
-        <animate attributeName="stroke-opacity" values="0.7;1;0.7" dur="${D}" repeatCount="indefinite"/>
+        <animate attributeName="stroke-opacity" values="0.78;1;0.78" dur="${D}" repeatCount="indefinite"/>
+      </circle>
+      <circle class="rt-ring2" cx="50" cy="50" r="30">
+        <animate attributeName="r" values="27;32;27" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
       </circle>
       <line class="rt-tick" x1="13" y1="50" x2="25" y2="50"/>
       <line class="rt-tick" x1="75" y1="50" x2="87" y2="50"/>
@@ -588,6 +593,12 @@ export class App {
     try { localStorage.setItem('ui.shiptag', this.showShipTag ? '1' : '0'); } catch { /* ignore */ }
     if (this._shiptag && !this.showShipTag) this._shiptag.hidden = true;
     if (this.autopilot) this.emit('nav', this._navReadout());   // refresh the HUD toggle state
+    this.emit('route', this._routeSummary());                   // refresh the options panel
+  }
+  setAutoTrack(on) {
+    this.autoTrack = !!on;
+    try { localStorage.setItem('ui.autotrack', this.autoTrack ? '1' : '0'); } catch { /* ignore */ }
+    this.emit('route', this._routeSummary());
   }
 
   // Ride a compact ship card at the tracked point on screen: position it every
@@ -1020,6 +1031,7 @@ export class App {
     const back = Math.max(0.5, segLen * 0.28);
     this.scene.setView(a.clone().addScaledVector(fwd, -back).addScaledVector(up, back * 0.5), a.clone());
     this.scene.controls.enabled = true;
+    if (this.autoTrack && !this.showTrackPanel) this.setTrackPanel(true);
     this._navCache = this._navReadout();
     this.emit('nav', this._navCache);
   }
@@ -1524,12 +1536,18 @@ export class App {
   setScaleBar(on) { this.showScaleBar = !!on; this.emit('scalebar', this.showScaleBar); }
 
   // Cinematic render options (bloom glow / star twinkle / filmic tone map), persisted.
-  _applyCine() { this.scene.setBloom(this.cine.bloom); this.starfield.setTwinkle(this.cine.twinkle); this.scene.setToneMap(this.cine.tone); }
+  _applyCine() { this.scene.setBloom(this.cine.bloom); this.scene.setBloomParams({ strength: this.cine.glow }); this.starfield.setTwinkle(this.cine.twinkle); this.scene.setToneMap(this.cine.tone); }
   setCinematic(key, on) {
     this.cine[key] = !!on;
     if (key === 'bloom') this.scene.setBloom(on);
     else if (key === 'twinkle') this.starfield.setTwinkle(on);
     else if (key === 'tone') this.scene.setToneMap(on);
+    try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ }
+  }
+  // Glow (bloom) strength slider — 0.1 (subtle) … 1.6 (blazing).
+  setGlow(v) {
+    this.cine.glow = Math.max(0.1, Math.min(1.6, +v || 0.5));
+    this.scene.setBloomParams({ strength: this.cine.glow });
     try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ }
   }
 
