@@ -29,7 +29,7 @@ export class CosmosWorld {
 
     this.state = {
       zMax: 6, sizeScale: 1,
-      show: { twomrs: true, sdssGal: true, sdssQso: true, localGroup: true, starCore: true, bridge: true, cmb: false, procedural: false },
+      show: { twomrs: true, sdssGal: true, sdssQso: true, localGroup: true, starCore: true, bridge: true, cmb: false, procedural: true },
     };
     this.procMode = 'green'; // 'green' | 'match'
 
@@ -95,7 +95,24 @@ export class CosmosWorld {
     let zsum = 0; for (let i = 0; i < ZBINS; i++) zsum += zh[i];
     const zcdf = new Float64Array(ZBINS); let acc = 0;
     for (let i = 0; i < ZBINS; i++) { acc += zh[i] / zsum; zcdf[i] = acc; }
+    // A coarse z↔displayR table, so a fraction of the fill can be spread uniformly
+    // across the radial range instead of following the survey depth. Real surveys
+    // thin out with distance, leaving an unexplored-looking gap between the nearby
+    // cloud and the deep shells; the uniform component fills that middle so the
+    // charted universe reads as broadly explored (imagined), not half-empty.
+    const zGrid = [], rGrid = [];
+    for (let zz = 0.004; zz <= zHi * 1.02; zz *= 1.06) { zGrid.push(zz); rGrid.push(displayRadiusFromMpc(comovingMpc(zz), this.decadeUnit)); }
+    const Rlo = displayRadiusFromMpc(comovingMpc(0.006), this.decadeUnit);
+    const Rhi = rGrid[rGrid.length - 1];
+    const zFromR = (tr) => {
+      let i = 0; while (i < rGrid.length - 1 && rGrid[i + 1] < tr) i++;
+      const j = Math.min(i + 1, rGrid.length - 1), r0 = rGrid[i], r1 = rGrid[j];
+      const t = r1 > r0 ? (tr - r0) / (r1 - r0) : 0;
+      return zGrid[i] + t * (zGrid[j] - zGrid[i]);
+    };
+    const FILL_UNIFORM = 0.42;   // share drawn uniformly in display radius (fills the gap)
     const sampleZ = () => {
+      if (rnd() < FILL_UNIFORM) return Math.max(0.004, zFromR(Rlo + rnd() * (Rhi - Rlo)));
       const u = rnd(); let lo = 0, hi = ZBINS - 1;
       while (lo < hi) { const m = (lo + hi) >> 1; if (zcdf[m] < u) lo = m + 1; else hi = m; }
       return Math.max(0.004, ((lo + rnd()) / ZBINS) * zHi);
@@ -112,7 +129,9 @@ export class CosmosWorld {
       const latC = ((bj + 0.5) / MB) * Math.PI - Math.PI / 2;
       const area = Math.max(0.06, Math.cos(latC));
       for (let bi = 0; bi < NB; bi++) {
-        const def = Math.max(0, peak * area - grid[bj * NB + bi]);
+        // fill each cell to ~1.3× the densest real region, so the charted sky is a
+        // touch richer than the best-surveyed patches (a well-explored universe)
+        const def = Math.max(0, peak * area * 1.3 - grid[bj * NB + bi]);
         cellDeficit[bj * NB + bi] = def; ideal += def;
       }
     }
