@@ -467,7 +467,7 @@
       "scale": "cosmos",
       "length": "epic",
       "cruiseC": 0.999,
-      "drive": "unruh",
+      "drive": "bridge",
       "premise": "Look outward and you look backward. Sail toward the quasars — young galaxies blazing in the early universe.",
       "stops": [
         {
@@ -494,7 +494,7 @@
       "scale": "cosmos",
       "length": "epic",
       "cruiseC": 0.9999,
-      "drive": "tekne",
+      "drive": "bridge",
       "premise": "The longest voyage of all — outward through every scale until the map itself ends at the first light of the Big Bang.",
       "stops": [
         {
