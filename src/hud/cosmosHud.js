@@ -1,5 +1,6 @@
 import { comovingMpc, MPC_TO_LY } from '../util/cosmology.js';
 import { ROUTE_GROUPS } from '../data/routeGroups.js';
+import { cinematicSection, wireCinematic } from './cinematic.js';
 
 // Cosmos-mode dock panels: redshift/object filters, survey layers, and the legend.
 
@@ -88,6 +89,7 @@ export function buildCosmosLayers(app) {
       <div class="muted">0 = auto-fade with distance</div>
     </div>
     <button class="btn" id="c-home" style="margin-top:6px">⌂ recenter on the Sun</button>
+    ${cinematicSection(app)}
     <div class="hr"></div>
     <div class="muted" style="line-height:1.7">
       <b style="color:var(--cyan)">Distance colour</b><br>
@@ -120,6 +122,7 @@ export function buildCosmosLayers(app) {
   sector.onclick = () => { sector.classList.toggle('on'); app.setSectorGrid(sector.classList.contains('on')); };
   const scalebar = root.querySelector('[data-l="scalebar"]');
   scalebar.onclick = () => { scalebar.classList.toggle('on'); app.setScaleBar(scalebar.classList.contains('on')); };
+  wireCinematic(root, app);
   const res = root.querySelector('[data-l="resolve"]');
   res.classList.toggle('on', !!app.resolveStructures);
   res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };

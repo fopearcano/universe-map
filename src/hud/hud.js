@@ -3,6 +3,7 @@ import { buildLocalFilters } from './filters.js';
 import { buildLocalVoyageList, buildCosmosVoyageList } from './voyages.js';
 import { buildCosmosFilters, buildCosmosLayers } from './cosmosHud.js';
 import { buildAtlasBrowser } from './atlasBrowser.js';
+import { cinematicSection, wireCinematic } from './cinematic.js';
 
 export function initHUD(app) {
   initModeSwitch(app);
@@ -137,6 +138,7 @@ function buildLocalLayers(app) {
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
     <div class="hr"></div>
     <button class="btn" id="l-home">⌂ recenter on Sol</button>
+    ${cinematicSection(app)}
     <div class="muted" style="margin-top:12px;line-height:1.6">100,000 stars · HYG v4.1<br>positions in parsecs, equatorial J2000<br>Sol fixed at origin.</div>`;
   const handlers = {
     grid: (on) => app.scene.setReferenceVisible(on),
@@ -148,10 +150,11 @@ function buildLocalLayers(app) {
     atlas: (on) => app.setLayerVisible('atlas', on),
     custom: (on) => app.setLayerVisible('custom', on),
   };
-  root.querySelectorAll('.toggle').forEach((el) => { if (el.dataset.l === 'sector') el.classList.toggle('on', !!app.showSectorGrid); });
-  root.querySelectorAll('.toggle').forEach((el) => {
+  root.querySelectorAll('.toggle[data-l]').forEach((el) => { if (el.dataset.l === 'sector') el.classList.toggle('on', !!app.showSectorGrid); });
+  root.querySelectorAll('.toggle[data-l]').forEach((el) => {
     el.onclick = () => { el.classList.toggle('on'); handlers[el.dataset.l](el.classList.contains('on')); };
   });
+  wireCinematic(root, app);
   root.querySelector('#l-home').onclick = () => app.home();
 }
 

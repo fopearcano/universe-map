@@ -95,6 +95,8 @@ export class App {
     this._glyphAtlas = makeGlyphAtlas(); // shared icon atlas for every marker layer
     this.showCustom = true;
     this.showScaleBar = true;   // TRUE-SCALE ribbon (cosmos)
+    // cinematic render options (persisted): bloom glow, star twinkle, filmic tone map
+    this.cine = (() => { try { return { bloom: true, twinkle: true, tone: false, ...(JSON.parse(localStorage.getItem('ui.cine')) || {}) }; } catch { return { bloom: true, twinkle: true, tone: false }; } })();
     this.localCustom = null; this.cosmosCustom = null;
 
     this._buildMarkers();
@@ -108,6 +110,7 @@ export class App {
     this._rebuildCustom();
     this._applyLocalLabels();
     this._bindPointer(canvas);
+    this._applyCine();
   }
 
   // ---- user-contributed objects (imagined + live-discovered), persisted ----
@@ -1378,6 +1381,16 @@ export class App {
   setRouteNetworkCategory(cat, on) { if (this.routeNetwork) this.routeNetwork.setCategoryVisible(cat, on); }
   setScaleBar(on) { this.showScaleBar = !!on; this.emit('scalebar', this.showScaleBar); }
 
+  // Cinematic render options (bloom glow / star twinkle / filmic tone map), persisted.
+  _applyCine() { this.scene.setBloom(this.cine.bloom); this.starfield.setTwinkle(this.cine.twinkle); this.scene.setToneMap(this.cine.tone); }
+  setCinematic(key, on) {
+    this.cine[key] = !!on;
+    if (key === 'bloom') this.scene.setBloom(on);
+    else if (key === 'twinkle') this.starfield.setTwinkle(on);
+    else if (key === 'tone') this.scene.setToneMap(on);
+    try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ }
+  }
+
   // Highlight a route on the overlay, label it, and frame it in view.
   highlightTradeRoute(id) {
     const r = (this.tradeRoutes || []).find((x) => x.id === id); if (!r) return { ok: false };
@@ -1825,6 +1838,7 @@ export class App {
         }
       }
       this.scene.update(dt);
+      if (this.cine.twinkle) this.starfield.tick(dt);
       this._updateTracker(dt);
       if (this.mode === 'system') {
         this.solarSystem.update(dt, this.scene.camera);

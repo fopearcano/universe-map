@@ -42,6 +42,8 @@ export class Starfield {
       uniforms: {
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
         uSizeScale: { value: 1.0 },
+        uTime: { value: 0 },
+        uTwinkle: { value: 1 },      // 0/1 — subtle brightness shimmer on bright stars
       },
       vertexShader: /* glsl */ `
         attribute vec3 aColor;
@@ -49,15 +51,22 @@ export class Starfield {
         attribute float aVisible;
         uniform float uPixelRatio;
         uniform float uSizeScale;
+        uniform float uTime;
+        uniform float uTwinkle;
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
+        varying float vTw;
         void main() {
           vColor = aColor;
           vVisible = aVisible;
           // aSize encodes apparent magnitude (brighter star ⇒ bigger). Gate the
           // diffraction shards to the brightest, ramping in from aSize≈3 (~mag 2.5).
           vBright = clamp((aSize - 3.0) / 6.0, 0.0, 1.0);
+          // subtle atmospheric twinkle: a per-star phase (hashed from position) drives
+          // a gentle brightness shimmer, strongest on the brightest stars, off when uTwinkle=0.
+          float phase = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          vTw = 1.0 - uTwinkle * (0.10 + 0.22 * vBright) * (0.5 + 0.5 * sin(uTime * 2.6 + phase * 6.2831));
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           float dist = max(-mv.z, 0.001);
           float att = 190.0 / dist;
@@ -73,6 +82,7 @@ export class Starfield {
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
+        varying float vTw;
         // one diffraction "cross" (horizontal + vertical + fainter diagonals) whose
         // arm length is passed in, so we can render it per-channel for RGB fringing.
         float spike(vec2 av, vec2 ar, float len) {
@@ -104,7 +114,8 @@ export class Starfield {
           if (a < 0.003) discard;
           // core keeps the star's own colour; the spikes fringe toward RGB at the tips
           vec3 spikeCol = mix(vColor, shardRGB, 0.6);
-          gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow) + spikeCol * shard, a);
+          vec3 outCol = (vColor * (0.45 + 0.95 * glow) + spikeCol * shard) * vTw;
+          gl_FragColor = vec4(outCol, a);
         }
       `,
       transparent: true,
@@ -123,6 +134,8 @@ export class Starfield {
   }
 
   setSizeScale(s) { this.material.uniforms.uSizeScale.value = s; }
+  setTwinkle(on) { this.material.uniforms.uTwinkle.value = on ? 1 : 0; }
+  tick(dt) { this.material.uniforms.uTime.value += dt; }
 
   applyFilter(f = {}) {
     Object.assign(this.filter, f);

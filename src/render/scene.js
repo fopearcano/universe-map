@@ -14,7 +14,9 @@ export class Scene {
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x04070d, 1);
+    // Deep near-black background — the bloom lifts the frame a little, so the base
+    // is darker than the object colours to keep the void reading as the void.
+    this.renderer.setClearColor(0x010208, 1);
 
     this.scene = new THREE.Scene();
     this.scene.fog = null;
@@ -42,7 +44,7 @@ export class Scene {
     this.composer = new EffectComposer(this.renderer);
     this.composer.setPixelRatio(pr);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.45, 0.4, 0.7);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.24, 0.78);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.bloomEnabled = true;
@@ -52,12 +54,18 @@ export class Scene {
     window.addEventListener('resize', () => this.resize());
   }
 
-  // Cinematic bloom controls (no UI — programmatic).
+  // Cinematic controls.
   setBloom(on) { this.bloomEnabled = on !== false; }
   setBloomParams({ strength, radius, threshold } = {}) {
     if (strength != null) this.bloom.strength = strength;
     if (radius != null) this.bloom.radius = radius;
     if (threshold != null) this.bloom.threshold = threshold;
+  }
+  // Filmic (ACES) tone mapping — rolls off highlights and deepens the shadows for
+  // a moodier, darker frame. OutputPass reads renderer.toneMapping each frame.
+  setToneMap(on) {
+    this.renderer.toneMapping = on ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = on ? 1.15 : 1.0;
   }
 
   // ---- reference infographic geometry: equatorial plane rings + axes + Sol cross ----

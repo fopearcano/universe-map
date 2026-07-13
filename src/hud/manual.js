@@ -61,6 +61,7 @@ const SECTIONS = [
     ['Procedural fill', 'completes the sky into a navigable "known universe" (imagined), draped onto a gravity-shaped cosmic web (filaments, walls & voids) that reflects the real data — green, or matched to real data.'],
     ['Galactic bridge', 'cyan · fills the gap between the ~1 kpc local star bubble and the Local Group with a modelled Milky Way — disk & spiral arms, bar/bulge, halo, the Magellanic Clouds and a reach toward Andromeda. Selectable & route-able.'],
     ['CMB radiation image', 'the WMAP boundary shell — off by default; enable it in Layers (COSMOS).'],
+    ['Cinematic', 'render options in Layers (LOCAL & COSMOS): Glow (bloom on bright stars, galaxy cores & the Sun), Star twinkle (a gentle shimmer on the brightest stars), and Filmic tone (ACES tone-mapping — rolls off highlights and deepens the shadows for a darker, moodier frame). All persist.'],
   ]],
   ['Knowledge bases', [
     ['ATLAS tab', 'a curated set of real objects across every class; resolve any name live from SIMBAD, or ◈ grow whole catalogues.'],
