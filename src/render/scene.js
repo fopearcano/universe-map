@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { PC_TO_LY } from '../util/astro.js';
 
 // World units = parsecs. Sol at the origin.
@@ -32,9 +36,28 @@ export class Scene {
     this.reference = this._buildReference();
     this.scene.add(this.reference.group);
 
+    // ---- cinematic post-processing: bloom glow over the whole starfield ----
+    // The HUD is DOM overlaid on the canvas, so this never touches the UI.
+    const pr = this.renderer.getPixelRatio();
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.setPixelRatio(pr);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.45, 0.4, 0.7);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+    this.bloomEnabled = true;
+
     this._tween = null;
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  // Cinematic bloom controls (no UI — programmatic).
+  setBloom(on) { this.bloomEnabled = on !== false; }
+  setBloomParams({ strength, radius, threshold } = {}) {
+    if (strength != null) this.bloom.strength = strength;
+    if (radius != null) this.bloom.radius = radius;
+    if (threshold != null) this.bloom.threshold = threshold;
   }
 
   // ---- reference infographic geometry: equatorial plane rings + axes + Sol cross ----
@@ -136,9 +159,13 @@ export class Scene {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (this.composer) { this.composer.setSize(w, h); this.bloom.setSize(w, h); }
   }
 
-  render() { this.renderer.render(this.scene, this.camera); }
+  render() {
+    if (this.bloomEnabled && this.composer) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
+  }
 }
 
 function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }

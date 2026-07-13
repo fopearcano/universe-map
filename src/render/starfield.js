@@ -73,30 +73,38 @@ export class Starfield {
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
+        // one diffraction "cross" (horizontal + vertical + fainter diagonals) whose
+        // arm length is passed in, so we can render it per-channel for RGB fringing.
+        float spike(vec2 av, vec2 ar, float len) {
+          float s = (1.0 - smoothstep(0.0, len, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
+          s += (1.0 - smoothstep(0.0, len, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
+          s += 0.5 * (1.0 - smoothstep(0.0, len, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
+          s += 0.5 * (1.0 - smoothstep(0.0, len, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
+          return s;
+        }
         void main() {
           if (vVisible < 0.5) discard;
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
           float core = smoothstep(0.5, 0.0, d);
           float glow = pow(core, 2.1);
-          // subtle four-point diffraction shards (+ fainter diagonals), brightest-only.
-          // vBright is constant across a point sprite, so this branch lets the GPU skip
-          // the spike math entirely for the (vast majority) faint stars.
-          float shard = 0.0;
+          // RGB chromatic diffraction shards, brightest-only. Per-channel arm lengths
+          // (R longest → B shortest) make the spikes fringe into colour toward the tips,
+          // a cinematic prism/anamorphic flare. vBright is constant across the sprite,
+          // so the branch lets the GPU skip the spike math for the (vast) faint majority.
+          vec3 shardRGB = vec3(0.0);
           if (vBright > 0.001) {
-            float sp = 0.0;
             vec2 av = abs(uv);
-            sp += (1.0 - smoothstep(0.0, 0.5, av.x)) * (1.0 - smoothstep(0.0, 0.05, av.y));
-            sp += (1.0 - smoothstep(0.0, 0.5, av.y)) * (1.0 - smoothstep(0.0, 0.05, av.x));
             vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678;
             vec2 ar = abs(r);
-            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.x)) * (1.0 - smoothstep(0.0, 0.06, ar.y));
-            sp += 0.5 * (1.0 - smoothstep(0.0, 0.5, ar.y)) * (1.0 - smoothstep(0.0, 0.06, ar.x));
-            shard = sp * vBright;
+            shardRGB = vec3(spike(av, ar, 0.55), spike(av, ar, 0.48), spike(av, ar, 0.42)) * vBright;
           }
+          float shard = dot(shardRGB, vec3(0.3333));
           float a = clamp(glow + shard * 0.8, 0.0, 1.0);
           if (a < 0.003) discard;
-          gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow + shard), a);
+          // core keeps the star's own colour; the spikes fringe toward RGB at the tips
+          vec3 spikeCol = mix(vColor, shardRGB, 0.6);
+          gl_FragColor = vec4(vColor * (0.45 + 0.95 * glow) + spikeCol * shard, a);
         }
       `,
       transparent: true,
