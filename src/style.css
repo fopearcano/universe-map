@@ -61,17 +61,18 @@ b { color: var(--ink); font-weight: 600; }
 /* ---------- ship tag: a compact info card anchored to the tracked ship ---------- */
 #shiptag {
   position: fixed; z-index: 7; pointer-events: none; transform: translate(26px, -50%);
-  min-width: 128px; max-width: 200px; padding: 5px 9px;
-  background: rgba(4, 12, 10, 0.55); border: 1px solid rgba(141, 255, 180, 0.45);
+  min-width: 132px; max-width: 224px; padding: 5px 9px;
+  background: rgba(6, 12, 22, 0.58); border: 1px solid rgba(92, 176, 255, 0.5);
   border-radius: 7px; backdrop-filter: blur(3px); box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
   font-size: 10px; line-height: 1.4; letter-spacing: 0.03em; color: var(--ink); white-space: nowrap;
 }
 #shiptag[hidden] { display: none; }
 #shiptag.left { transform: translate(calc(-100% - 26px), -50%); }
-#shiptag .stg-h { color: var(--green); font-size: 10px; letter-spacing: 0.1em; }
+#shiptag .stg-h { color: #7fc0ff; font-size: 11px; letter-spacing: 0.06em; }
+#shiptag .stg-name { display: inline-block; max-width: 166px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 #shiptag .stg-leg { color: var(--dim); letter-spacing: 0.04em; }
-#shiptag .stg-to { color: var(--ink); font-size: 11px; margin: 1px 0; overflow: hidden; text-overflow: ellipsis; }
-#shiptag .stg-sub { color: var(--dim); }
+#shiptag .stg-type { color: rgba(92, 176, 255, 0.75); font-size: 9px; letter-spacing: 0.05em; margin: 1px 0; }
+#shiptag .stg-to { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- top bar ---------- */
 #topbar {

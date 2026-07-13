@@ -551,11 +551,11 @@ export class App {
     this.showShipTag = (() => { try { const v = localStorage.getItem('ui.shiptag'); return v === null ? true : v === '1'; } catch { return true; } })();
     this._shiptag = document.createElement('div'); this._shiptag.id = 'shiptag'; this._shiptag.hidden = true;
     document.body.appendChild(this._shiptag);
-    this._shipTagAcc = 0; this._shipTagKey = '';
+    this._shipTagKey = '';
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     const mat = new THREE.PointsMaterial({
-      size: 56, map: makeReticleTexture('#8dffb4'), sizeAttenuation: false, transparent: true,
+      size: 56, map: makeReticleTexture('#5cb0ff'), sizeAttenuation: false, transparent: true,
       color: 0xffffff, depthWrite: false, depthTest: false, blending: THREE.NormalBlending, opacity: 1,
     });
     this._tracker = new THREE.Points(geo, mat);
@@ -589,33 +589,32 @@ export class App {
   _updateShipTag(dt) {
     const tag = this._shiptag; if (!tag) return;
     const on = this.showShipTag && !!this.autopilot && !this.autopilot.atGalaxy && !!this._navCache && this._navCache.active;
-    if (!on) { if (!tag.hidden) tag.hidden = true; return; }
+    if (!on) { if (!tag.hidden) { tag.hidden = true; this._shipTagKey = ''; } return; }
     this._v.copy(this.scene.controls.target).project(this.scene.camera);
     if (this._v.z > 1) { tag.hidden = true; return; }           // behind the camera
-    const justShown = tag.hidden;
     tag.hidden = false;
     const x = (this._v.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-this._v.y * 0.5 + 0.5) * window.innerHeight;
     // flip the card to the ship's left when it would run off the right edge
-    const left = x > window.innerWidth - 210;
-    tag.classList.toggle('left', left);
+    tag.classList.toggle('left', x > window.innerWidth - 210);
     tag.style.left = `${x}px`; tag.style.top = `${y}px`;
-    this._shipTagAcc += dt;
-    if (justShown || this._shipTagAcc > 0.2) {
-      this._shipTagAcc = 0;
-      const n = this._navCache;
-      const key = n && n.active ? `${n.seg}/${n.total}|${n.toLabel}|${Math.round(n.rangeLy)}|${n.drive?.id}` : '';
-      if (justShown || key !== this._shipTagKey) { this._shipTagKey = key; tag.innerHTML = this._shipTagHTML(n); }
-    }
+    // Rebuild only when the rendered card actually changes (drive swap, next stop,
+    // ticking range) — cheap enough to check every frame, so a ship change shows at once.
+    const html = this._shipTagHTML(this._navCache);
+    if (html !== this._shipTagKey) { this._shipTagKey = html; tag.innerHTML = html; }
   }
+  // The card reflects the *ship* — the selected drive's vessel: its name, class and
+  // crossing speed — so changing the drive (Casimir Sailer → Idrenes Composite ·
+  // Tekné …) re-labels the tag. The refresh key includes the drive id, so the swap
+  // shows up as soon as it happens.
   _shipTagHTML(n) {
     if (!n || !n.active) return '';
     const dv = n.drive || {};
     const ly = n.rangeLy || 0;
     const rng = ly >= 1e9 ? `${(ly / 1e9).toFixed(2)} Gly` : ly >= 1e6 ? `${(ly / 1e6).toFixed(2)} Mly` : ly >= 1e3 ? `${(ly / 1e3).toFixed(1)} kly` : `${ly.toFixed(0)} ly`;
-    return `<div class="stg-h">◈ TEKNÉ <span class="stg-leg">${n.seg}/${n.total}</span></div>
-      <div class="stg-to">→ ${esc(n.toLabel)}</div>
-      <div class="stg-sub">${rng} · ${dv.cls ? esc(dv.cls) + ' · ' : ''}${fmtDriveSpeed(dv.sc ?? this.cruiseSpeed)}</div>`;
+    return `<div class="stg-h">◈ <span class="stg-name">${esc(dv.name || 'ship')}</span> <span class="stg-leg">${n.seg}/${n.total}</span></div>
+      <div class="stg-type">Class ${esc(String(dv.cls ?? '·'))} · ${esc(dv.klass || '')} · ${fmtDriveSpeed(dv.sc ?? this.cruiseSpeed)}</div>
+      <div class="stg-to">→ ${esc(n.toLabel)} · ${rng}</div>`;
   }
 
   setTrackPanel(on) {
@@ -932,7 +931,12 @@ export class App {
     this._redrawRoute(); this.emit('route', this._routeSummary());
   }
   // Tekné NAVCOM: select a QTR drive (depth rung) — sets the crossing speed & regime.
-  setDrive(id) { this.drive = driveById(id); this.cruiseSpeed = this.drive.sc; this.emit('route', this._routeSummary()); }
+  setDrive(id) {
+    this.drive = driveById(id); this.cruiseSpeed = this.drive.sc;
+    this.emit('route', this._routeSummary());
+    // swap the ship mid-flight: refresh the flight HUD + ship tag at once
+    if (this.autopilot) { this._navCache = this._navReadout(); this.emit('nav', this._navCache); }
+  }
   // Snap to the nearest ladder drive for an arbitrary saved/authored crossing speed.
   _applyDriveSpeed(sc) { this.drive = nearestDriveBySc(sc); this.cruiseSpeed = this.drive.sc; }
   setPlotCourse(on) { this.plotCourse = !!on; this.emit('plot', this.plotCourse); }
