@@ -22,6 +22,10 @@ import { UserStore } from './data/userStore.js';
 import { RouteStore } from './data/routeStore.js';
 import { resolveSimbad, growFromCatalogue, fetchAngularSize } from './data/remote.js';
 
+// How much slower (×) the autopilot flies through the log-compressed outer
+// decades vs the inner region — the "constant-real-speed" feel on the log map.
+const FLIGHT_OUTER_SLOWDOWN = 6;
+
 // marker colours by type
 const MARK_COLOR = {
   open: [0.6, 0.82, 1.0], globular: [1.0, 0.82, 0.42],
@@ -923,7 +927,24 @@ export class App {
     if (this.route.length < 2) return;
     this.stopCruise(); this.stopVoyage();   // only one guided mode drives the camera
     this.clearSelection();
-    this.autopilot = { seg: 0, t: 0, paused: false, descended: new Set(), atGalaxy: null, physLy: this._routePhysicalLy() };
+    // display-radius span + a normalisation factor so the flight can slow through
+    // the log-compressed outer decades (constant-ish real speed) yet still total
+    // ≈ _flightDuration() seconds. See _updateAutopilot.
+    let rMin = Infinity, rMax = 0;
+    for (const w of this.route) { const rr = w.worldPos.length(); if (rr < rMin) rMin = rr; if (rr > rMax) rMax = rr; }
+    let paceNorm = 1;
+    if (this.mode === 'cosmos' && this._legArc && this._routeCurve && rMax > rMin + 1e-3) {
+      const span = rMax - rMin, P = new THREE.Vector3();
+      let wsum = 0, dsum = 0;
+      for (const leg of this._legArc) for (let j = 1; j <= leg.sub; j++) {
+        this._routeCurve.getPoint(leg.params[j], P);
+        const ds = leg.cum[j] - leg.cum[j - 1];
+        const f = Math.max(0, Math.min(1, (P.length() - rMin) / span));
+        wsum += ds * (1 + (FLIGHT_OUTER_SLOWDOWN - 1) * f); dsum += ds;
+      }
+      if (dsum > 0) paceNorm = wsum / dsum;                // mean slowness ⇒ total ≈ T
+    }
+    this.autopilot = { seg: 0, t: 0, paused: false, descended: new Set(), atGalaxy: null, physLy: this._routePhysicalLy(), rMin, rMax, paceNorm };
     // initial follow offset: behind & above the first leg. Controls stay enabled
     // so you can orbit / zoom around the ship while it flies.
     const a = this.route[0].worldPos, b = this.route[1].worldPos;
@@ -990,7 +1011,19 @@ export class App {
     if (!ap.paused) {
       // pace so the whole drawn curve is flown in _flightDuration() seconds — a
       // wall-clock time that scales with the route's real length and the drive.
-      let remaining = (this._routeCurveLen() / this._flightDuration()) * dt;
+      const T = this._flightDuration();
+      const u = this._routeCurveLen() / T;                 // uniform display speed
+      let speed = u;
+      // constant-real-speed feel: on the log-radial map, each display unit out
+      // near the edge is far more real distance, so fly faster where the map is
+      // zoomed-in (inner) and visibly slower through the compressed outer decades.
+      // Bounded (RATIO×) and normalised so the total stays ≈ T (no teleport/crawl).
+      if (this.mode === 'cosmos' && ap.rMax > ap.rMin + 1e-3) {
+        const r = this.scene.controls.target.length();
+        const f = Math.max(0, Math.min(1, (r - ap.rMin) / (ap.rMax - ap.rMin)));
+        speed = u * ap.paceNorm / (1 + (FLIGHT_OUTER_SLOWDOWN - 1) * f);
+      }
+      let remaining = speed * dt;
       while (remaining > 0 && ap.seg < nLeg) {
         // pace by the drawn curve's arc length (not the straight chord), so ap.t is a
         // true arc-length fraction and the tracked reticle glides uniformly along the arc.

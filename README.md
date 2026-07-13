@@ -380,9 +380,11 @@ arbitrary routes:
   the tracked point on the route. The flythrough **paces itself to the journey**: its
   wall-clock duration grows (log-scaled, ~7–75 s) with the route's real length and
   shrinks as the chosen **drive** gets faster — a hop next door on a Class ω hull is a
-  few seconds, a sub-light crawl to the Great Attractor is over a minute. (This is a
-  watchable map flythrough; the *coordinate* and *crew* years on the HUD are the honest
-  physics, shown separately.)
+  few seconds, a sub-light crawl to the Great Attractor is over a minute. Because the
+  map is log-compressed, the ship also flies **faster through the inner region and
+  visibly slows (~6×) through the outer decades** — a constant-real-speed feel that
+  conveys the true scale. (This is a watchable map flythrough; the *coordinate* and
+  *crew* years on the HUD are the honest physics, shown separately.)
 - **▤ track panel** (or `T`): a linked, transparent panel with live telemetry of
   the tracked point — its **position** (RA/Dec + distance from Sol), **heading**,
   **drive** (class & crossing speed), current **crossing & progress**, and route
