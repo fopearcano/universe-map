@@ -5,7 +5,7 @@ import { Picker } from './render/picking.js';
 import { Labels } from './render/labels.js';
 import { VoyageLayer } from './render/voyagePath.js';
 import { CosmosWorld } from './render/cosmos.js';
-import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeReticleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
+import { MarkerLayer, pickPositions, makeRingTexture, makeSparkleTexture, makeGlyphAtlas, GLYPH, GLYPH_SCALE } from './render/markers.js';
 import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { RouteNetwork } from './render/routeNetwork.js';
@@ -544,37 +544,45 @@ export class App {
   }
   setSectorGrid(on) { this.showSectorGrid = !!on; if (this.sectorGridGroup) this.sectorGridGroup.visible = this.showSectorGrid; }
 
-  // A blinking targeting reticle that rides the tracked point while flying a route.
+  // A blinking targeting reticle that rides the tracked ship on screen: a Klein-blue
+  // ring that pulses, and two carmine triangles above and below that ping inward
+  // toward the centre on the same beat. Built as an SVG overlay (SMIL-animated, so
+  // the pulse stays smooth regardless of frame rate); positioned each frame in JS.
   _buildTracker() {
-    this.showTrackPanel = false; this._blinkT = 0;
+    this.showTrackPanel = false;
     // A compact info card that rides the ship on screen (toggleable, persisted).
     this.showShipTag = (() => { try { const v = localStorage.getItem('ui.shiptag'); return v === null ? true : v === '1'; } catch { return true; } })();
     this._shiptag = document.createElement('div'); this._shiptag.id = 'shiptag'; this._shiptag.hidden = true;
     document.body.appendChild(this._shiptag);
     this._shipTagKey = '';
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
-    const mat = new THREE.PointsMaterial({
-      size: 56, map: makeReticleTexture('#5cb0ff'), sizeAttenuation: false, transparent: true,
-      color: 0xffffff, depthWrite: false, depthTest: false, blending: THREE.NormalBlending, opacity: 1,
-    });
-    this._tracker = new THREE.Points(geo, mat);
-    this._tracker.frustumCulled = false; this._tracker.visible = false; this._tracker.renderOrder = 999;
-    this.scene.scene.add(this._tracker);
+    const D = '1.1s', SPL = '0.4 0 0.6 1;0.4 0 0.6 1', KT = '0;0.5;1';
+    this._shipReticle = document.createElement('div'); this._shipReticle.id = 'shipreticle'; this._shipReticle.hidden = true;
+    this._shipReticle.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="rt-ring" cx="50" cy="50" r="30">
+        <animate attributeName="r" values="27;33;27" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
+        <animate attributeName="stroke-opacity" values="0.7;1;0.7" dur="${D}" repeatCount="indefinite"/>
+      </circle>
+      <line class="rt-tick" x1="13" y1="50" x2="25" y2="50"/>
+      <line class="rt-tick" x1="75" y1="50" x2="87" y2="50"/>
+      <polygon class="rt-tri" points="43,3 57,3 50,14">
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 15;0 0" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
+      </polygon>
+      <polygon class="rt-tri" points="43,97 57,97 50,86">
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 -15;0 0" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
+      </polygon>
+      <circle class="rt-core" cx="50" cy="50" r="4.5"/>
+    </svg>`;
+    document.body.appendChild(this._shipReticle);
   }
-  _updateTracker(dt) {
-    const t = this._tracker; if (!t) return;
+  _updateTracker() {
+    const r = this._shipReticle; if (!r) return;
     const on = !!this.autopilot && !this.autopilot.atGalaxy;
-    if (t.visible !== on) t.visible = on;
-    if (!on) return;
-    const p = this.scene.controls.target, a = t.geometry.attributes.position;
-    a.setXYZ(0, p.x, p.y, p.z); a.needsUpdate = true;
-    // A deliberate ping: opacity never drops out of sight, and the reticle swells a
-    // little on each beat so it reads as a live, blinking lock even on a busy field.
-    this._blinkT += dt;
-    const b = 0.5 + 0.5 * Math.sin(this._blinkT * 5);
-    t.material.opacity = 0.62 + 0.38 * b;
-    t.material.size = 52 + 10 * b;
+    if (!on) { if (!r.hidden) r.hidden = true; return; }
+    this._v.copy(this.scene.controls.target).project(this.scene.camera);
+    if (this._v.z > 1) { if (!r.hidden) r.hidden = true; return; }   // behind the camera
+    r.hidden = false;
+    r.style.left = `${(this._v.x * 0.5 + 0.5) * window.innerWidth}px`;
+    r.style.top = `${(-this._v.y * 0.5 + 0.5) * window.innerHeight}px`;
   }
 
   setShipTag(on) {
@@ -1980,7 +1988,7 @@ export class App {
       }
       this.scene.update(dt);
       if (this.cine.twinkle) this.starfield.tick(dt);
-      this._updateTracker(dt);
+      this._updateTracker();
       this._updateShipTag(dt);
       if (this.mode === 'system') {
         this.solarSystem.update(dt, this.scene.camera);
