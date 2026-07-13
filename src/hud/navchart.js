@@ -59,13 +59,16 @@ export function initNavChart(app) {
       : `<div class="rp-empty muted">No course plotted yet. Hit <b>◉ plot</b> and click the map, select an object → <b>＋ route</b>, or ask Solaris.Ai to lay one in.</div>`;
     const savedRows = app.routeStore.all().map((r) =>
       `<div class="rp-saved"><span class="rp-sname" data-load="${r.id}">${esc(r.name)}</span><span class="muted">${r.waypoints.length} wp</span><button data-delr="${r.id}" title="delete">🗑</button></div>`).join('') || '<div class="muted" style="padding:2px 0">no saved routes</div>';
+    const pct = s.universeLy ? (s.reachLy / s.universeLy * 100) : 0;
     const totals = hasRoute ? `
       <div class="rp-total">
         <div><span>path · seam 𝔍</span><span class="v">${fmtLy(s.totalLy)}</span></div>
         <div><span>coordinate time</span><span class="v">${fmtYr(s.years)}</span></div>
         <div><span>crew time · ${esc(dr.regime)}</span><span class="v">${fmtYr(s.shipYears)}</span></div>
         <div><span>Idrenes bridges</span><span class="v">${s.crossings ?? Math.max(0, pts.length - 1)}</span></div>
-      </div>` : '';
+        <div title="the log-radial map exaggerates distance — this is the route's real reach against the observable universe (~45 Gly radius)"><span>reach · of universe</span><span class="v">${fmtLy(s.reachLy)} · ${pct < 1 ? pct.toFixed(2) : pct.toFixed(1)}%</span></div>
+      </div>
+      <div class="rp-preview muted">▶ ENGAGE plays a map preview — the real crossing takes the coordinate / crew time above.</div>` : '';
 
     panel.innerHTML = `
       <div class="rp-top">

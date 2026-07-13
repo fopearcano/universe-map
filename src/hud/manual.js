@@ -27,7 +27,7 @@ const SECTIONS = [
   ['Three scales', [
     ['SYSTEM', 'The Solar System, to scale (☉ SYSTEM or key 3) — the Sun, eight planets, dwarf planets and major moons on their real orbits (AU). Bodies are size-exaggerated so they stay visible; planets revolve and moons circle them. Click a world for its facts; the FILTERS tab is a planet picker with ❚❚ pause and a time-speed slider. Solaris.Ai can drive it too ("take me to Saturn", "show Jupiter\'s moons", "pause the planets").'],
     ['LOCAL', 'The true-scale stellar neighbourhood — 100,000 real stars in parsecs, the Sun at the origin.'],
-    ['COSMOS', 'The whole observable universe on a logarithmic radial scale — ~980k real + imagined objects out to the CMB. Direction is exact; only radius is compressed, so real distances (used for routing) are always preserved.'],
+    ['COSMOS', 'The whole observable universe on a logarithmic radial scale — ~980k real + imagined objects out to the CMB. Direction is exact; only radius is compressed, so real distances (used for routing) are always preserved. Because the scale is logarithmic, a hop between nearby galaxies looks like it spans the cosmos — the TRUE-SCALE ribbon at the bottom shows a route\'s real reach against the ~45 Gly-radius universe (usually a sliver of a percent).'],
   ]],
   ['Getting around', [
     ['Orbit / pan / zoom', 'drag · right-drag · scroll.'],

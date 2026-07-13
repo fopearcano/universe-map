@@ -15,6 +15,7 @@ import { initManual } from './hud/manual.js';
 import { initHotkeys } from './hud/hotkeys.js';
 import { initNavcomAgent } from './hud/navcomAgent.js';
 import { initPanels } from './hud/panels.js';
+import { initScaleBar } from './hud/scaleBar.js';
 
 const boot = document.getElementById('boot');
 const bootBar = document.getElementById('boot-bar-fill');
@@ -64,6 +65,7 @@ async function main() {
   const qtr = new QtrData();
   initNavcomAgent(app, qtr);   // the Solaris.Ai NAVCOM agent (qtr fills in after load)
   initPanels(app);             // movable / hideable panels + top dock toolbar
+  initScaleBar(app);           // TRUE-SCALE linear ribbon (cosmos)
   qtr.load().then(() => initCodex(qtr, app));
 
   // real ↔ fiction bridge: jumping from a codex class to the real atlas category

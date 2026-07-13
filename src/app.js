@@ -897,10 +897,17 @@ export class App {
       total += ly; years += t.years; shipYears += t.shipYears;
       legs.push({ from: this.route[i - 1].label, to: this.route[i].label, ly, ra, dec, years: t.years, shipYears: t.shipYears });
     }
+    // farthest stop from Sol (real ly) and the observable-universe radius, so the
+    // UI can put the route in true-scale context — the log-radial map makes even a
+    // nearby-galaxy hop look like it spans the cosmos.
+    let reach = 0;
+    for (const r of this.route) reach = Math.max(reach, r.truePos.length() * PC_TO_LY);
+    const universeLy = this.cosmos ? Math.pow(10, this.cosmos.cmbR / this.cosmos.decadeUnit) * PC_TO_LY : 4.5e10;
     return {
       points: this.route.map((r) => ({ label: r.label, kind: r.kind })),
       legs, totalLy: total, cruiseC: this.cruiseSpeed, years, shipYears,
       drive: this._driveInfo(), crossings: Math.max(0, this.route.length - 1),
+      reachLy: reach, universeLy,
     };
   }
 
