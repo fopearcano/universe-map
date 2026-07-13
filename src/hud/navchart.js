@@ -175,12 +175,21 @@ export function initNavChart(app) {
         <span><i>CREW</i> <span id="nh-crew"></span></span>
       </div>
       <div class="nh-row nh-total muted"><span id="nh-seamleft"></span><span id="nh-totaltime"></span></div>
-      <div class="nh-row nh-story" title="STORY is the voyage's real (1:1) lived length. 1× would be real time — you'd wait the whole voyage — so the preview runs at a big time-acceleration; – / + dial it.">
+      <div class="nh-row nh-story" title="STORY is the voyage's real (1:1) lived length. 1× would be real time — you'd wait the whole voyage — so the preview runs at a big time-acceleration.">
         <span><i>STORY</i> <span id="nh-story"></span> <span class="nh-watch" id="nh-watch"></span></span>
-        <span class="nh-rate-ctrl">
-          <button class="btn sm nh-rr" id="nh-slower" title="slower — closer to real time ( - )">–</button>
-          <span class="nh-rate" id="nh-rate" title="time-acceleration vs real (1:1) — 1× is real time"></span>
-          <button class="btn sm nh-rr" id="nh-faster" title="faster ( = )">+</button>
+        <span class="nh-rate" id="nh-rate" title="time-acceleration vs real (1:1) — 1× is real time"></span>
+      </div>
+      <div class="nh-speed" title="playback speed — drag from real time (left) to fast (right), or step ÷8 … ×8">
+        <span class="nh-spd-btns">
+          <button class="btn sm nh-rr" id="nh-s3" title="÷8 — much slower">÷8</button>
+          <button class="btn sm nh-rr" id="nh-s2" title="÷4 slower">÷4</button>
+          <button class="btn sm nh-rr" id="nh-s1" title="÷2 slower ( - )">÷2</button>
+        </span>
+        <input type="range" class="nh-slider" id="nh-slider" min="0" max="1000" step="1" value="1000" title="drag: real time ⟵ … ⟶ fast" />
+        <span class="nh-spd-btns">
+          <button class="btn sm nh-rr" id="nh-f1" title="×2 faster ( = )">×2</button>
+          <button class="btn sm nh-rr" id="nh-f2" title="×4 faster">×4</button>
+          <button class="btn sm nh-rr" id="nh-f3" title="×8 — much faster">×8</button>
         </span>
       </div>
       <div class="nh-ctrls">
@@ -195,8 +204,15 @@ export function initNavChart(app) {
     hud.querySelector('#nh-pause').onclick = () => app.pauseRoute();
     hud.querySelector('#nh-track').onclick = () => app.setTrackPanel(!app.showTrackPanel);
     hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
-    hud.querySelector('#nh-slower').onclick = () => app.setFlightRate((app._flightRate || 1) / 2);
-    hud.querySelector('#nh-faster').onclick = () => app.setFlightRate((app._flightRate || 1) * 2);
+    const mul = (m) => app.setFlightRate((app._flightRate || 1) * m);
+    hud.querySelector('#nh-s3').onclick = () => mul(1 / 8);
+    hud.querySelector('#nh-s2').onclick = () => mul(1 / 4);
+    hud.querySelector('#nh-s1').onclick = () => mul(1 / 2);
+    hud.querySelector('#nh-f1').onclick = () => mul(2);
+    hud.querySelector('#nh-f2').onclick = () => mul(4);
+    hud.querySelector('#nh-f3').onclick = () => mul(8);
+    const slider = hud.querySelector('#nh-slider');
+    slider.oninput = () => app.setFlightRate(sliderToRate(+slider.value));
   }
 
   function patchActive(n) {
@@ -216,8 +232,12 @@ export function initNavChart(app) {
     set('#nh-watch', `· watch ${fmtWatch(n.watchSec)}`);
     set('#nh-rate', fmtAccel(n.accel));
     const acc = hud.querySelector('#nh-rate'); if (acc) acc.title = `watching at ${fmtAccel(n.accel)} real time — this preview ≈ ${fmtWatch(n.watchSec)}; 1× would be the full ${n.storyTime ?? 'voyage'}`;
-    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 1 / 2048 * 1.001;
-    const fa = hud.querySelector('#nh-faster'); if (fa) fa.disabled = (n.rate ?? 1) >= 8;
+    const rate = n.rate ?? 1;
+    const slider = hud.querySelector('#nh-slider');
+    if (slider && document.activeElement !== slider) slider.value = String(Math.round(rateToSlider(rate)));
+    const atFloor = rate <= 1 / 2048 * 1.001, atCeil = rate >= 8 * 0.999;
+    ['#nh-s1', '#nh-s2', '#nh-s3'].forEach((id) => { const b = hud.querySelector(id); if (b) b.disabled = atFloor; });
+    ['#nh-f1', '#nh-f2', '#nh-f3'].forEach((id) => { const b = hud.querySelector(id); if (b) b.disabled = atCeil; });
     const pa = hud.querySelector('#nh-pause'); if (pa) pa.textContent = n.paused ? '⏵ resume' : '❚❚ hold';
     const tr = hud.querySelector('#nh-track'); if (tr) tr.classList.toggle('on', !!app.showTrackPanel);
   }
@@ -267,6 +287,12 @@ function fmtYr(y) {
   if (y >= 1) return `${y.toFixed(0)} yr`;
   return `${(y * 365.25).toFixed(0)} d`;
 }
+// The slider maps its 0–1000 track to the flight-rate range log-uniformly, so each
+// pixel is a constant *ratio* — the natural feel for a speed that spans 1/2048×–8×.
+const RATE_MIN = 1 / 2048, RATE_MAX = 8;
+const sliderToRate = (v) => RATE_MIN * Math.pow(RATE_MAX / RATE_MIN, Math.max(0, Math.min(1000, v)) / 1000);
+const rateToSlider = (r) => 1000 * Math.log(Math.max(RATE_MIN, Math.min(RATE_MAX, r)) / RATE_MIN) / Math.log(RATE_MAX / RATE_MIN);
+
 // The playback speed as an honest time-acceleration vs real time: 1× is 1:1 (you'd
 // wait the whole voyage), so the watchable preview is a big multiple — ×2.6k for a
 // Tekné dash, ×225k for a bridge run, ×100M for a sub-light crawl.
