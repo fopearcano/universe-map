@@ -78,7 +78,7 @@ export class App {
     this.route = [];            // [{ worldPos, truePos, label, kind }]
     this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
     this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
-    this._flightRate = 1;                    // autopilot playback accelerator/decelerator (¼×–8×)
+    this._flightRate = 1;                    // autopilot playback accelerator/decelerator (⅛×–8×)
     this.plotCourse = false;    // click-to-add-waypoint mode
     this.autopilot = null;      // active flythrough state
     this.routeStore = new RouteStore();
@@ -916,7 +916,7 @@ export class App {
       points: this.route.map((r) => ({ label: r.label, kind: r.kind })),
       legs, totalLy: total, cruiseC: this.cruiseSpeed, years, shipYears,
       drive: this._driveInfo(), crossings: Math.max(0, this.route.length - 1),
-      reachLy: reach, universeLy,
+      reachLy: reach, universeLy, voyageStory: this._fmtStoryTime(this._voyageStoryYears()),
     };
   }
 
@@ -960,9 +960,9 @@ export class App {
     this.emit('nav', this._navReadout());
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
-  // Speed up / slow down the flight playback (¼×–8×), persisting for later flights.
+  // Speed up / slow down the flight playback (⅛×–8×), persisting for later flights.
   setFlightRate(r) {
-    this._flightRate = Math.max(0.25, Math.min(8, r));
+    this._flightRate = Math.max(0.125, Math.min(8, r));
     if (this.autopilot) { this.autopilot.rate = this._flightRate; this.emit('nav', this._navReadout()); }
   }
   navStep(d) {
@@ -1075,12 +1075,29 @@ export class App {
     return ly;
   }
 
-  // Total crew (proper) time of the whole crossing under the current drive — the
-  // travellers' lived "story time".
+  // Total crew (proper) time in *transit* under the current drive — pure drive
+  // physics, the number the NAVCOM reports as "crew time".
   _routeCrewYears() {
     let y = 0;
     for (let i = 1; i < this.route.length; i++) y += this._legTimes(this.route[i].truePos.distanceTo(this.route[i - 1].truePos) * PC_TO_LY).shipYears;
     return y;
+  }
+
+  _routeCrossings() { return Math.max(0, this.route.length - 1); }
+
+  // The lived length of the whole voyage in the fiction — the "story time". A real
+  // crossing is never instant even when the transit is: there's the threading of
+  // the seam, opening and riding each Idrenes bridge, the long approach, and port
+  // cycles at every stop. That irreducible overhead is ~a couple of months per
+  // crossing on the civilized bridge, and only the deepest "hot" drives (smaller
+  // proper-time offset) shave it toward days or hours. So a bridge voyage really
+  // takes months, an Unruh run days, a Tekné dash hours — and a sub-light crawl,
+  // whose transit dwarfs all of it, still reads its true centuries.
+  _voyageStoryYears() {
+    const transit = this._routeCrewYears();
+    const factor = Math.min(1, (this.drive?.ptf ?? 0.35) / 0.35);   // 1 on sub-light/bridge; less when hotter
+    const overhead = (0.12 + 0.10 * this._routeCrossings()) * factor;
+    return Math.max(transit, overhead);
   }
 
   // The crew (proper) time as a narrative "story time" — how long the journey
@@ -1105,15 +1122,15 @@ export class App {
     return 'moments';
   }
 
-  // How long (wall-clock seconds) the autopilot should take to fly the course.
-  // Tied to the STORY time — the crew (proper) time of the crossing — log-scaled
-  // and clamped so it stays watchable: a sub-light Class 0 crawl (months → aeons
-  // of crew time) plays long, a deep-rung Idrenes drive (near-instant) plays
-  // short. Reference points: ~1 hr → ~10 s, a year → ~34 s, a Myr → ~71 s, a Gyr
-  // → the ~90 s cap. The user's playback rate then scales the whole thing.
+  // How long (wall-clock seconds) the autopilot should take to fly the course — an
+  // unhurried preview tied to the voyage's STORY time (its lived length), log-scaled
+  // and clamped so it always reads as a real journey rather than a blink: a civilized
+  // bridge voyage (months) plays ~a minute, a sub-light crawl (centuries) runs to the
+  // ~150 s cap, a hot Tekné dash (hours) to the ~22 s floor. The user's playback rate
+  // (⅛×–8×) then stretches or compresses this — ⅛× turns a minute into eight.
   _flightDuration() {
-    const crew = this._routeCrewYears();
-    return Math.max(8, Math.min(90, 34 + 6.2 * Math.log10(Math.max(crew, 1e-9))));
+    const story = this._voyageStoryYears();
+    return Math.max(22, Math.min(150, 66 + 20 * Math.log10(Math.max(story, 1e-9))));
   }
 
   // Arc length of the drawn curve for leg `seg` (falls back to the straight chord).
@@ -1138,7 +1155,7 @@ export class App {
       active: true, paused: ap.paused, seg: i + 1, total: this.route.length - 1,
       toLabel: this.route[i + 1].label, ra, dec, rangeLy, rangeLyTotal: remLy, cruiseC: this.cruiseSpeed,
       etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy), drive: this._driveInfo(),
-      rate: this._flightRate, storyTime: this._fmtStoryTime(this._routeCrewYears()),
+      rate: this._flightRate, storyTime: this._fmtStoryTime(this._voyageStoryYears()),
     };
   }
   _navReadoutFinal() { this.emit('nav', { arrived: true, at: this.route[this.route.length - 1].label }); }

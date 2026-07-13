@@ -65,10 +65,11 @@ export function initNavChart(app) {
         <div><span>path · seam 𝔍</span><span class="v">${fmtLy(s.totalLy)}</span></div>
         <div><span>coordinate time</span><span class="v">${fmtYr(s.years)}</span></div>
         <div><span>crew time · ${esc(dr.regime)}</span><span class="v">${fmtYr(s.shipYears)}</span></div>
+        <div title="the whole voyage as lived — transit plus the threading, bridge crossings, approach and port cycles"><span>voyage · lived</span><span class="v">${esc(s.voyageStory ?? '—')}</span></div>
         <div><span>Idrenes bridges</span><span class="v">${s.crossings ?? Math.max(0, pts.length - 1)}</span></div>
         <div title="the log-radial map exaggerates distance — this is the route's real reach against the observable universe (~45 Gly radius)"><span>reach · of universe</span><span class="v">${fmtLy(s.reachLy)} · ${pct < 1 ? pct.toFixed(2) : pct.toFixed(1)}%</span></div>
       </div>
-      <div class="rp-preview muted">▶ ENGAGE plays a map preview — the real crossing takes the coordinate / crew time above.</div>` : '';
+      <div class="rp-preview muted">▶ ENGAGE plays an unhurried preview — the real voyage takes the lived time above.</div>` : '';
 
     panel.innerHTML = `
       <div class="rp-top">
@@ -118,12 +119,26 @@ export function initNavChart(app) {
   }
 
   // ---- autopilot HUD ----
+  // The nav readout ticks ~5×/s during flight. Rebuilding the whole innerHTML each
+  // tick would replace the control buttons out from under a click (the "had to click
+  // it several times" bug), so we build the skeleton once per HUD *shape* (tracked by
+  // a signature) and only patch the changing text/labels on every tick. The buttons —
+  // and their handlers — persist, so a click always lands.
+  let hudSig = null;
+  const sigOf = (n) => n.arrived ? `arrived:${n.at}` : n.descending ? 'descend' : n.insideGalaxy ? `inside:${n.insideGalaxy}` : 'active';
+
   app.on('nav', (n) => {
-    if (!n) { hud.hidden = true; hud.innerHTML = ''; return; }
+    if (!n) { hud.hidden = true; hud.innerHTML = ''; hudSig = null; return; }
     hud.hidden = false;
+    const sig = sigOf(n);
+    if (sig !== hudSig) { buildNav(n, sig); hudSig = sig; }
+    if (sig === 'active') patchActive(n);
+  });
+
+  function buildNav(n, sig) {
     if (n.arrived) {
       hud.innerHTML = `<div class="nh-arrived">✦ ARRIVED · <b>${esc(n.at)}</b></div>`;
-      setTimeout(() => { hud.hidden = true; }, 2600);
+      setTimeout(() => { if (hudSig === sig) { hud.hidden = true; hudSig = null; } }, 2600);
       return;
     }
     if (n.descending) {
@@ -135,41 +150,42 @@ export function initNavChart(app) {
         <div class="nh-row nh-top"><span class="nh-leg">STOP ${n.seg}/${n.total}</span><span class="nh-to">⛶ inside <b>${esc(n.insideGalaxy)}</b></span></div>
         <div class="nh-row nh-total muted"><span>free-look the interior · continue to rise out and fly on</span></div>
         <div class="nh-ctrls">
-          <button class="btn sm nh-resume" id="nh-continue">▶ continue course</button>
-          <button class="btn sm" id="nh-stop">■ disengage</button>
+          <button class="btn sm nh-resume" id="nh-continue" title="continue course (Space)">▶ continue course</button>
+          <button class="btn sm" id="nh-stop" title="disengage (Esc)">■ disengage</button>
         </div>`;
       hud.querySelector('#nh-continue').onclick = () => app.resumeFromGalaxy();
       hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
       return;
     }
-    const dv = n.drive || { cls: '', name: '', sc: n.cruiseC };
+    // active crossing — stable skeleton; value spans carry ids so patchActive() can
+    // update them in place without touching the buttons.
     hud.innerHTML = `
       <div class="nh-row nh-top">
-        <span class="nh-leg">CROSSING ${n.seg}/${n.total}</span>
-        <span class="nh-to">→ ${esc(n.toLabel)}</span>
-        <span class="nh-v" title="${esc(dv.name)}">${dv.cls ? dv.cls + ' · ' : ''}${fmtDriveSpeed(dv.sc)}</span>
+        <span class="nh-leg" id="nh-crossing"></span>
+        <span class="nh-to" id="nh-to"></span>
+        <span class="nh-v" id="nh-v"></span>
       </div>
       <div class="nh-row nh-data">
-        <span><i>HDG</i> ${fmtRA(n.ra)} ${fmtDec(n.dec)}</span>
-        <span><i>RANGE</i> ${fmtLy(n.rangeLy)}</span>
-        <span><i>COORD</i> ${fmtYr(n.etaNext.years)}</span>
-        <span><i>CREW</i> ${fmtYr(n.etaNext.shipYears)}</span>
+        <span><i>HDG</i> <span id="nh-hdg"></span></span>
+        <span><i>RANGE</i> <span id="nh-range"></span></span>
+        <span><i>COORD</i> <span id="nh-coord"></span></span>
+        <span><i>CREW</i> <span id="nh-crew"></span></span>
       </div>
-      <div class="nh-row nh-total muted"><span>seam left ${fmtLy(n.rangeLyTotal ?? 0)}</span><span>coord ${fmtYr(n.etaTotal.years)} · crew ${fmtYr(n.etaTotal.shipYears)}</span></div>
-      <div class="nh-row nh-story" title="the crew's lived journey time — the flythrough on screen is a compressed preview">
-        <span><i>STORY</i> ${esc(n.storyTime ?? '—')}</span>
+      <div class="nh-row nh-total muted"><span id="nh-seamleft"></span><span id="nh-totaltime"></span></div>
+      <div class="nh-row nh-story" title="the whole voyage as lived in the fiction — the flythrough on screen is an unhurried preview you can slow or speed">
+        <span><i>STORY</i> <span id="nh-story"></span></span>
         <span class="nh-rate-ctrl">
-          <button class="btn sm nh-rr" id="nh-slower" title="slower playback"${(n.rate ?? 1) <= 0.25 ? ' disabled' : ''}>–</button>
-          <span class="nh-rate" title="flythrough playback speed">${fmtRate(n.rate ?? 1)}</span>
-          <button class="btn sm nh-rr" id="nh-faster" title="faster playback"${(n.rate ?? 1) >= 8 ? ' disabled' : ''}>+</button>
+          <button class="btn sm nh-rr" id="nh-slower" title="slower playback ( - )">–</button>
+          <span class="nh-rate" id="nh-rate" title="flythrough playback speed"></span>
+          <button class="btn sm nh-rr" id="nh-faster" title="faster playback ( = )">+</button>
         </span>
       </div>
       <div class="nh-ctrls">
-        <button class="btn sm" id="nh-prev">◀</button>
-        <button class="btn sm" id="nh-pause">${n.paused ? '⏵ resume' : '❚❚ hold'}</button>
-        <button class="btn sm" id="nh-next">▶</button>
-        <button class="btn sm ${app.showTrackPanel ? 'on' : ''}" id="nh-track" title="tracking panel (T)">▤ track</button>
-        <button class="btn sm" id="nh-stop">■ disengage</button>
+        <button class="btn sm" id="nh-prev" title="previous stop ([)">◀</button>
+        <button class="btn sm" id="nh-pause" title="hold / resume (Space)">❚❚ hold</button>
+        <button class="btn sm" id="nh-next" title="next stop (])">▶</button>
+        <button class="btn sm" id="nh-track" title="tracking panel (T)">▤ track</button>
+        <button class="btn sm" id="nh-stop" title="disengage (Esc)">■ disengage</button>
       </div>`;
     hud.querySelector('#nh-prev').onclick = () => app.navStep(-1);
     hud.querySelector('#nh-next').onclick = () => app.navStep(1);
@@ -178,7 +194,28 @@ export function initNavChart(app) {
     hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
     hud.querySelector('#nh-slower').onclick = () => app.setFlightRate((app._flightRate || 1) / 2);
     hud.querySelector('#nh-faster').onclick = () => app.setFlightRate((app._flightRate || 1) * 2);
-  });
+  }
+
+  function patchActive(n) {
+    if (!hud.querySelector('#nh-crossing')) { buildNav(n, 'active'); }   // defensive: skeleton lost
+    const dv = n.drive || { cls: '', name: '', sc: n.cruiseC };
+    const set = (id, text) => { const el = hud.querySelector(id); if (el) el.textContent = text; };
+    set('#nh-crossing', `CROSSING ${n.seg}/${n.total}`);
+    set('#nh-to', `→ ${n.toLabel}`);
+    const v = hud.querySelector('#nh-v'); if (v) { v.textContent = `${dv.cls ? dv.cls + ' · ' : ''}${fmtDriveSpeed(dv.sc)}`; v.title = dv.name || ''; }
+    set('#nh-hdg', `${fmtRA(n.ra)} ${fmtDec(n.dec)}`);
+    set('#nh-range', fmtLy(n.rangeLy));
+    set('#nh-coord', fmtYr(n.etaNext.years));
+    set('#nh-crew', fmtYr(n.etaNext.shipYears));
+    set('#nh-seamleft', `seam left ${fmtLy(n.rangeLyTotal ?? 0)}`);
+    set('#nh-totaltime', `coord ${fmtYr(n.etaTotal.years)} · crew ${fmtYr(n.etaTotal.shipYears)}`);
+    set('#nh-story', n.storyTime ?? '—');
+    set('#nh-rate', fmtRate(n.rate ?? 1));
+    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 0.125;
+    const fa = hud.querySelector('#nh-faster'); if (fa) fa.disabled = (n.rate ?? 1) >= 8;
+    const pa = hud.querySelector('#nh-pause'); if (pa) pa.textContent = n.paused ? '⏵ resume' : '❚❚ hold';
+    const tr = hud.querySelector('#nh-track'); if (tr) tr.classList.toggle('on', !!app.showTrackPanel);
+  }
 
   initTrackPanel(app);
 }
@@ -225,8 +262,9 @@ function fmtYr(y) {
   if (y >= 1) return `${y.toFixed(0)} yr`;
   return `${(y * 365.25).toFixed(0)} d`;
 }
-// Playback rate as a clean fraction / multiple (¼× ½× 1× 2× 4× 8×).
+// Playback rate as a clean fraction / multiple (⅛× ¼× ½× 1× 2× 4× 8×).
 function fmtRate(r) {
+  if (r <= 0.13) return '⅛×';
   if (r <= 0.26) return '¼×';
   if (r <= 0.51) return '½×';
   if (r < 1.5) return '1×';

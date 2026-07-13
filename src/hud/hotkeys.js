@@ -32,6 +32,8 @@ export function initHotkeys(app) {
       case ' ': e.preventDefault(); engageOrPause(app); break;
       case '[': step(app, -1); break;
       case ']': step(app, 1); break;
+      case '-': case '_': if (app.autopilot) app.setFlightRate((app._flightRate || 1) / 2); break;
+      case '=': case '+': if (app.autopilot) app.setFlightRate((app._flightRate || 1) * 2); break;
       case 'Escape': escape(app); break;
       default: return;
     }

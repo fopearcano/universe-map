@@ -20,12 +20,13 @@ const NEW = [
     id: 'term-mission-clock', type: 'concept', kb_group: 'ships',
     name: 'Coordinate time vs crew time (the mission clock)', jp: '座標時と固有時',
     summary:
-      "Every crossing is read on two clocks. Coordinate (home-frame) time is the distance divided by the drive's crossing speed — what the origin and destination measure. Crew (proper) time is what the travellers actually live — the voyage's 'story time': for a sub-light Class 0 run it is the real Lorentz dilation √(1−β²), so the crew badly outlive the mission clock; for an Idrenes-bridge crossing it is a determinate-regime fraction of coordinate time — the offset — and each deeper OCT rung compresses that offset further. The NAVCOM reads crew time out beside the range, and paces a flythrough to it.",
+      "Every crossing is read on two clocks. Coordinate (home-frame) time is the distance divided by the drive's crossing speed — what the origin and destination measure. Crew (proper) transit is what the travellers live in flight — for a sub-light Class 0 run the real Lorentz dilation √(1−β²), so the crew badly outlive the mission clock; for an Idrenes-bridge crossing a determinate-regime fraction of coordinate time (the offset), which each deeper OCT rung compresses further. But a voyage is never instant even when its transit is: threading the seam, opening and riding each bridge, the long approach and port cycles add an irreducible overhead — roughly a couple of months per crossing on the civilized bridge, shaved toward days or hours only by the hottest, deepest drives. So the lived 'story time' the NAVCOM reads out is months for a bridge voyage, days for an Unruh run, hours for a Tekné dash, and true centuries for a sub-light crawl.",
     attributes: [
       { k: 'Coordinate time', v: 'distance ÷ crossing speed (home frame)' },
-      { k: 'Crew time · sub-light', v: 'coordinate time × √(1−β²) — real dilation' },
-      { k: 'Crew time · bridge', v: 'coordinate time × offset (deeper rung ⇒ smaller)' },
+      { k: 'Crew transit · sub-light', v: 'coordinate time × √(1−β²) — real dilation' },
+      { k: 'Crew transit · bridge', v: 'coordinate time × offset (deeper rung ⇒ smaller)' },
       { k: 'Offset by rung', v: 'Idrenes–Sōrn 0.35 · Unruh 0.10 · Squeezing 0.02 · Tekné 0.002' },
+      { k: 'Voyage overhead', v: '~months/crossing on a bridge; days on Unruh, hours on Tekné' },
     ],
     links: [L('term-ship-relative-speed-law'), L('term-the-dive'), L('term-ship-classes-0'), L('tech-idrenes-bridge'), L('term-navcom-drive-ladder')],
     sources: [SRC_NAV],

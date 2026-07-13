@@ -16,6 +16,7 @@ const KEYS = [
   ['P', 'Toggle plot-course (click to drop waypoints)'],
   ['Space', 'Engage / pause autopilot (or resume from a descent)'],
   ['[ / ]', 'Previous / next stop — cruise · voyage · autopilot'],
+  ['- / =', 'Slower / faster flythrough playback (⅛×–8×)'],
   ['S', 'Toggle the sector grid'],
   ['B', 'Toggle galaxy imagery (billboards)'],
   ['V', 'Toggle resolve-galaxies (Hubble-type shapes)'],
@@ -39,7 +40,7 @@ const SECTIONS = [
   ['Navigate & route', [
     ['Plot a course', 'toggle ◉ plot (P) and click to drop waypoints, or select an object and ＋ route (R). Legs draw as gentle curved arcs (bowed away from Sol) so a route reads as a flight path, not a straight chord skewering whatever lines up between its ends.'],
     ['TEKNÉ · NAVCOM', 'the ship\'s navigation computer, from the QTR "Immeasurable Spaces" canon. Pick a DRIVE — a depth rung on the Ship-Relative Speed Law, where speed is a function of vacuum depth, not thrust: Class 0 sub-light (real time dilation) up to the Class ω Idrenes Composite ·Tekné at ~10²⁰c. It reads out the path along the seam 𝔍, coordinate (home-frame) time, crew (proper) time, and the number of Idrenes-bridge crossings.'],
-    ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. The flythrough is a compressed preview of the crew\'s lived journey: it paces itself to the STORY time (the crew / proper time of the crossing), log-scaled ~8–90 s, so a sub-light Ulysses circuit — months to millennia of real travel — plays long, while a deep-rung Idrenes drive that lives the crossing in hours-to-moments plays short. The nav HUD names that STORY time, and – / + scale the playback ¼×–8× if you want it slower or faster. Because the map is log-compressed, the ship also flies visibly faster through the zoomed-in inner region and slows (~6×) through the vast outer decades — a constant-real-speed feel that conveys the true scale. A blinking reticle marks the tracked point; ▤ track (or T) opens a live panel with its position, heading, speed and route progress. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
+    ['ENGAGE', 'flies the route on autopilot — you can still drag / scroll to orbit and zoom around the ship as it flies. The flythrough is an unhurried preview of a much longer voyage: the nav HUD names the STORY time — the whole journey as lived in the fiction, counting not just transit but the threading of the seam, the bridge crossings, the approach and port cycles. So a civilized bridge voyage really takes months, an Unruh run days, a Tekné dash hours, and a sub-light circuit its true centuries. The preview itself runs ~22–150 s; – / + (or the - / = keys) scale it ⅛×–8× if you want to dwell on the crossing or skip ahead. Because the map is log-compressed, the ship also flies visibly faster through the zoomed-in inner region and slows (~6×) through the vast outer decades — a constant-real-speed feel that conveys the true scale. A blinking reticle marks the tracked point; ▤ track (or T) opens a live panel with its position, heading, speed and route progress. On a descent route it pauses at each galaxy and drops you inside — ▶ continue to fly on.'],
     ['Save / load', 'name routes (persisted), reload, and import/export as JSON.'],
     ['✦ NAVCOM AI', 'chat with Solaris.Ai — a colloquial navigator that answers universe & QTR-canon questions, plots/flies courses ("plot Sol → Andromeda → Virgo", "take me to the Great Attractor at Class II"), and drives the Solar System ("take me to Saturn", "pause the planets"). Bring your own model via ⚙ — any OpenAI-compatible endpoint (LM Studio / vLLM / Ollama / OpenAI / Anthropic); everything stays in your browser.'],
   ]],
@@ -108,5 +109,5 @@ export function initManual(app) {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) { e.stopPropagation(); close(); } });
 }
 
-function kbd(s) { return s.split(' ').map((p) => (/^[/?]$|^[A-Za-z0-9]+$|^F1$|^Space$|^Esc$/.test(p) ? `<kbd>${esc(p)}</kbd>` : esc(p))).join(' '); }
+function kbd(s) { return s.split(' ').map((p) => (/^[/?=+\-]$|^[A-Za-z0-9]+$|^F1$|^Space$|^Esc$/.test(p) ? `<kbd>${esc(p)}</kbd>` : esc(p))).join(' '); }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
