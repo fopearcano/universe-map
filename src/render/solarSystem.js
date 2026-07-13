@@ -15,6 +15,8 @@ const col = (c) => new THREE.Color(c[0], c[1], c[2]);
 export class SolarSystem {
   constructor() {
     this.AU = AU;                      // world units per AU (for telemetry)
+    this.paused = false;               // animation controls
+    this.timeScale = 1;
     this.group = new THREE.Group();
     this.group.visible = false;
     this.nodes = [];                   // flat pickable list: { mesh, name, kind, facts, orbit, moonOf }
@@ -90,6 +92,18 @@ export class SolarSystem {
   }
 
   setVisible(v) { this.group.visible = !!v; this.layer.style.display = v ? '' : 'none'; }
+  setPaused(v) { this.paused = !!v; }
+  setTimeScale(v) { this.timeScale = Math.max(0, +v || 0); }
+
+  // Find a body by name (exact, then partial). Returns node index or -1.
+  findByName(q) {
+    const s = String(q || '').toLowerCase().trim(); if (!s) return -1;
+    const norm = (n) => n.toLowerCase();
+    let i = this.nodes.findIndex((n) => norm(n.name) === s);
+    if (i < 0) i = this.nodes.findIndex((n) => norm(n.name).includes(s) || s.includes(norm(n.name)));
+    return i;
+  }
+  names() { return this.nodes.map((n) => n.name); }
 
   _advance(dt) {
     for (const pl of this.planets) {
@@ -102,7 +116,7 @@ export class SolarSystem {
 
   update(dt, camera) {
     if (!this.group.visible) return;
-    this._advance(dt);
+    this._advance(this.paused ? 0 : dt * this.timeScale);
     // labels: planets & Sun always; moons only when the camera is near their planet
     const w = window.innerWidth, h = window.innerHeight;
     const camPos = camera.position;

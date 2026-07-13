@@ -67,6 +67,7 @@ function initTabs() {
 }
 
 function buildDock(app) {
+  app._syncSystemTimeUI = null;
   if (app.mode === 'cosmos') {
     buildCosmosFilters(app); buildCosmosVoyageList(app); buildCosmosLayers(app);
   } else if (app.mode === 'system') {
@@ -91,12 +92,35 @@ function buildSystemPanel(app) {
   const sw = (i) => { const c = ss.info(i).color || [0.8, 0.8, 0.9]; return `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`; };
   root.innerHTML = `
     <div class="muted" style="margin-bottom:10px">The Solar System, to scale — orbits are real (in AU); bodies are size-exaggerated so they stay visible. Planets revolve and moons circle them; click a world to fly to it.</div>
+    <div class="sys-time">
+      <button class="btn sm" id="sys-pause"></button>
+      <span class="sys-speed">
+        <label>time</label>
+        <input type="range" id="sys-speed" min="0" max="4" step="0.25" value="${ss.timeScale}">
+        <span class="sys-speed-v" id="sys-speed-v"></span>
+      </span>
+    </div>
     <div class="sys-list">${rows.map(({ n, i }) => `<button class="sys-row" data-i="${i}"><span class="sys-sw" style="background:${sw(i)}"></span><span class="sys-nm">${esc(n.name)}</span><span class="muted">${esc(n.kind)}</span></button>`).join('')}</div>
     <div class="hr"></div>
     <button class="btn" id="sys-home">⊙ frame the whole system</button>
     <div class="muted" style="margin-top:12px;line-height:1.6">Sun + ${rows.length - 1} worlds · ${ss.nodes.length} bodies incl. moons.<br>Keys <b>1</b> · <b>2</b> · <b>3</b> switch LOCAL · COSMOS · SYSTEM.</div>`;
   root.querySelectorAll('.sys-row').forEach((b) => { b.onclick = () => app.selectBody(+b.dataset.i, { fly: true }); });
   root.querySelector('#sys-home').onclick = () => { const v = ss.defaultView(); app.scene.setView(v.pos, v.target); };
+
+  // ---- orbital-animation controls (kept in sync with agent-driven changes) ----
+  const pauseBtn = root.querySelector('#sys-pause');
+  const speed = root.querySelector('#sys-speed');
+  const speedV = root.querySelector('#sys-speed-v');
+  const sync = () => {
+    pauseBtn.textContent = ss.paused ? '▶ play' : '❚❚ pause';
+    pauseBtn.classList.toggle('on', !ss.paused);
+    speed.value = String(ss.timeScale);
+    speedV.textContent = `${ss.timeScale.toFixed(2).replace(/0$/, '')}×`;
+  };
+  pauseBtn.onclick = () => { ss.setPaused(!ss.paused); sync(); };
+  speed.oninput = () => { ss.setTimeScale(+speed.value); if (ss.paused && +speed.value > 0) ss.setPaused(false); sync(); };
+  app._syncSystemTimeUI = sync;
+  sync();
 }
 
 function buildLocalLayers(app) {

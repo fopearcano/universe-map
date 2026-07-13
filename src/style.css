@@ -483,6 +483,12 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .sys-row:hover { background: rgba(255,255,255,0.05); }
 .sys-row .sys-nm { flex: 1; }
 .sys-row .sys-sw { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 5px currentColor; }
+.sys-time { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.sys-time #sys-pause { width: auto; flex-shrink: 0; padding: 4px 9px; }
+.sys-time #sys-pause.on { color: var(--cyan); border-color: rgba(92,225,255,0.4); }
+.sys-speed { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 9.5px; color: var(--dim); letter-spacing: 0.1em; }
+.sys-speed input[type=range] { flex: 1; accent-color: var(--cyan); min-width: 0; }
+.sys-speed .sys-speed-v { color: var(--cyan); min-width: 30px; text-align: right; }
 
 /* ---------- focus chip + route panel (nautical chart) ---------- */
 #focuschip {

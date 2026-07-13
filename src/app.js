@@ -1188,6 +1188,30 @@ export class App {
     return { ok: true, focused: r.label, ra: r.ra, dec: r.dec, distLy: r.distLy };
   }
 
+  // ---- Solaris.Ai control of the SYSTEM scale (Solar System) ----
+  // Fly to a Solar-System body by name, switching to the SYSTEM scale first.
+  agentSystemFocus(name) {
+    const i = this.solarSystem.findByName(name);
+    if (i < 0) return { ok: false, error: `no Solar-System body named "${name}"`, bodies: this.solarSystem.names() };
+    if (this.mode !== 'system') this.setMode('system');
+    this.selectBody(i, { fly: true });
+    return { ok: true, flew_to: this.solarSystem.nodes[i].name, ...this.solarSystem.info(i) };
+  }
+  // Facts/orbit for a body, or the list of bodies when no name is given.
+  agentSystemInfo(name) {
+    if (!name) return { scale: 'system', bodies: this.solarSystem.names() };
+    const i = this.solarSystem.findByName(name);
+    return i < 0 ? { ok: false, error: `no body "${name}"`, bodies: this.solarSystem.names() } : this.solarSystem.info(i);
+  }
+  // Control the orbital animation (pause / play, and a speed multiplier).
+  agentSystemTime({ pause, speed } = {}) {
+    if (this.mode !== 'system') this.setMode('system');
+    if (pause != null) this.solarSystem.setPaused(!!pause);
+    if (speed != null) this.solarSystem.setTimeScale(+speed);
+    if (this._syncSystemTimeUI) this._syncSystemTimeUI();
+    return { ok: true, paused: this.solarSystem.paused, speed: this.solarSystem.timeScale };
+  }
+
   // Search the sky (stars + galaxies + Local Group + clusters + structures) by name.
   agentSearchSky(query, limit = 8) {
     const q = String(query || '').toLowerCase().trim(); if (!q) return [];

@@ -35,7 +35,10 @@ export const TOOLS = [
   },
   { type: 'function', function: { name: 'engage', description: 'Engage the autopilot and thread the seam 𝔍 along the current course (needs at least 2 stops).', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'stop_engine', description: 'Disengage the autopilot.', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'set_mode', description: 'Switch scale: "local" (true-scale stellar neighbourhood) or "cosmos" (the whole observable universe, log-radial).', parameters: { type: 'object', properties: { mode: { type: 'string', enum: ['local', 'cosmos'] } }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'set_mode', description: 'Switch scale: "system" (the Solar System, to scale), "local" (true-scale stellar neighbourhood) or "cosmos" (the whole observable universe, log-radial).', parameters: { type: 'object', properties: { mode: { type: 'string', enum: ['system', 'local', 'cosmos'] } }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'solar_system_focus', description: 'In the SYSTEM scale, fly the camera to a Solar-System body by name and select it (switches to the SYSTEM scale first). Use for requests like "take me to Saturn" or "show me Jupiter’s moons".', parameters: { type: 'object', properties: { body: { type: 'string', description: 'Sun, a planet (Mercury…Neptune), a dwarf planet (Ceres, Pluto, Eris) or a moon (Io, Europa, Titan, Triton, Moon…)' } }, required: ['body'] } } },
+  { type: 'function', function: { name: 'solar_system_info', description: 'Read the Solar System catalogue to ground answers about the planets/moons. With a body name → its facts, orbit (AU), period, eccentricity, inclination, radius and moon count. With no name → the list of bodies.', parameters: { type: 'object', properties: { body: { type: 'string', description: 'optional body name; omit to list all bodies' } } } } },
+  { type: 'function', function: { name: 'solar_system_time', description: 'Control the SYSTEM-scale orbital animation: pause/resume the planets and set the time speed (1 = Earth orbits in ~10 s).', parameters: { type: 'object', properties: { pause: { type: 'boolean', description: 'true to freeze the planets, false to resume' }, speed: { type: 'number', description: 'time-speed multiplier, e.g. 0.25 slow · 1 normal · 4 fast' } } } } },
   { type: 'function', function: { name: 'focus', description: 'Fly the camera to an object and centre on it (does not add it to the route).', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } } },
   { type: 'function', function: { name: 'set_layer', description: 'Toggle a map overlay on/off.', parameters: { type: 'object', properties: { layer: { type: 'string', description: 'sector | voids | imagery | clusterShapes | resolveGalaxies | procedural | bridge | cmb' }, on: { type: 'boolean' } }, required: ['layer', 'on'] } } },
   { type: 'function', function: { name: 'get_state', description: 'Read the current NAVCOM state: mode, selected drive, whether engaged, current route summary, selection and active overlays.', parameters: { type: 'object', properties: {} } } },
@@ -84,7 +87,10 @@ export async function runTool(app, qtr, name, args = {}) {
         app.engageRoute(); return { ok: true, engaged: true, ...app._agentSummary() };
       }
       case 'stop_engine': app.stopRoute(); return { ok: true, engaged: false };
-      case 'set_mode': app.setMode(args.mode === 'cosmos' ? 'cosmos' : 'local'); return { ok: true, mode: args.mode };
+      case 'set_mode': { const m = ['system', 'local', 'cosmos'].includes(args.mode) ? args.mode : 'local'; app.setMode(m); return { ok: true, mode: m }; }
+      case 'solar_system_focus': return app.agentSystemFocus(args.body);
+      case 'solar_system_info': return app.agentSystemInfo(args.body);
+      case 'solar_system_time': return app.agentSystemTime(args);
       case 'focus': return app.agentFocus(args.name);
       case 'set_layer': return app.agentSetLayer(args.layer, args.on);
       case 'get_state': return app.agentState();
