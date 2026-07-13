@@ -58,6 +58,21 @@ b { color: var(--ink); font-weight: 600; }
 #selmark circle { fill: none; stroke: var(--amber); stroke-width: 1.5; stroke-dasharray: 4 5; filter: drop-shadow(0 0 6px var(--amber)); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ---------- ship tag: a compact info card anchored to the tracked ship ---------- */
+#shiptag {
+  position: fixed; z-index: 7; pointer-events: none; transform: translate(26px, -50%);
+  min-width: 128px; max-width: 200px; padding: 5px 9px;
+  background: rgba(4, 12, 10, 0.55); border: 1px solid rgba(141, 255, 180, 0.45);
+  border-radius: 7px; backdrop-filter: blur(3px); box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
+  font-size: 10px; line-height: 1.4; letter-spacing: 0.03em; color: var(--ink); white-space: nowrap;
+}
+#shiptag[hidden] { display: none; }
+#shiptag.left { transform: translate(calc(-100% - 26px), -50%); }
+#shiptag .stg-h { color: var(--green); font-size: 10px; letter-spacing: 0.1em; }
+#shiptag .stg-leg { color: var(--dim); letter-spacing: 0.04em; }
+#shiptag .stg-to { color: var(--ink); font-size: 11px; margin: 1px 0; overflow: hidden; text-overflow: ellipsis; }
+#shiptag .stg-sub { color: var(--dim); }
+
 /* ---------- top bar ---------- */
 #topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 10; height: 40px;

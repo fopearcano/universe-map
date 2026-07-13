@@ -285,17 +285,27 @@ export function makeSparkleTexture(color = '#ffffff') {
 }
 
 // A targeting reticle (ring + crosshair ticks + centre dot) for the route tracker.
+// Every stroke is laid down twice — a dark halo first, the bright colour on top —
+// and the core is a white dot, so it reads crisply on a bright dense starfield as
+// well as on the void (plain additive green washed out over the pink cosmic web).
 export function makeReticleTexture(color = '#7bf0a0') {
-  const s = 96, cv = document.createElement('canvas'); cv.width = cv.height = s;
+  const s = 128, cv = document.createElement('canvas'); cv.width = cv.height = s;
   const ctx = cv.getContext('2d'); const c = s / 2;
-  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineCap = 'round';
-  ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c, c, 28, 0, Math.PI * 2); ctx.stroke();
-  ctx.lineWidth = 3;
-  for (let k = 0; k < 4; k++) {
-    const a = k * Math.PI / 2, dx = Math.cos(a), dy = Math.sin(a);
-    ctx.beginPath(); ctx.moveTo(c + dx * 12, c + dy * 12); ctx.lineTo(c + dx * 40, c + dy * 40); ctx.stroke();
-  }
-  ctx.beginPath(); ctx.arc(c, c, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.lineCap = 'round';
+  const RING = 38, TICK0 = 17, TICK1 = 54;
+  const ring = (lw, stroke) => { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.beginPath(); ctx.arc(c, c, RING, 0, Math.PI * 2); ctx.stroke(); };
+  const ticks = (lw, stroke) => {
+    ctx.lineWidth = lw; ctx.strokeStyle = stroke;
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2, dx = Math.cos(a), dy = Math.sin(a);
+      ctx.beginPath(); ctx.moveTo(c + dx * TICK0, c + dy * TICK0); ctx.lineTo(c + dx * TICK1, c + dy * TICK1); ctx.stroke();
+    }
+  };
+  const halo = 'rgba(0,10,6,0.72)';
+  ring(10, halo); ticks(9, halo);              // dark outline for contrast on any background
+  ring(4.5, color); ticks(4, color);           // bright reticle
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(c, c, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(c, c, 4.5, 0, Math.PI * 2); ctx.fill();   // white ship core
   const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
 }
 

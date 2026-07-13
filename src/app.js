@@ -12,7 +12,7 @@ import { RouteNetwork } from './render/routeNetwork.js';
 import { SolarSystem } from './render/solarSystem.js';
 import { generateRoutes } from './data/routeGen.js';
 import { routeGroup } from './data/routeGroups.js';
-import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE } from './data/drives.js';
+import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE, fmtDriveSpeed } from './data/drives.js';
 import { morphFromType, seedFromVec, structureCloud } from './render/morphology.js';
 import { GalaxyInterior } from './render/galaxyInterior.js';
 import { loadImageData, imageToCloud, diameterKpcFor, fovForGalaxy, pickSurveyImage } from './render/galaxyImage.js';
@@ -547,11 +547,16 @@ export class App {
   // A blinking targeting reticle that rides the tracked point while flying a route.
   _buildTracker() {
     this.showTrackPanel = false; this._blinkT = 0;
+    // A compact info card that rides the ship on screen (toggleable, persisted).
+    this.showShipTag = (() => { try { const v = localStorage.getItem('ui.shiptag'); return v === null ? true : v === '1'; } catch { return true; } })();
+    this._shiptag = document.createElement('div'); this._shiptag.id = 'shiptag'; this._shiptag.hidden = true;
+    document.body.appendChild(this._shiptag);
+    this._shipTagAcc = 0; this._shipTagKey = '';
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     const mat = new THREE.PointsMaterial({
-      size: 42, map: makeReticleTexture('#7bf0a0'), sizeAttenuation: false, transparent: true,
-      color: 0x9dfcc0, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 1,
+      size: 56, map: makeReticleTexture('#8dffb4'), sizeAttenuation: false, transparent: true,
+      color: 0xffffff, depthWrite: false, depthTest: false, blending: THREE.NormalBlending, opacity: 1,
     });
     this._tracker = new THREE.Points(geo, mat);
     this._tracker.frustumCulled = false; this._tracker.visible = false; this._tracker.renderOrder = 999;
@@ -564,8 +569,53 @@ export class App {
     if (!on) return;
     const p = this.scene.controls.target, a = t.geometry.attributes.position;
     a.setXYZ(0, p.x, p.y, p.z); a.needsUpdate = true;
+    // A deliberate ping: opacity never drops out of sight, and the reticle swells a
+    // little on each beat so it reads as a live, blinking lock even on a busy field.
     this._blinkT += dt;
-    t.material.opacity = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(this._blinkT * 6));
+    const b = 0.5 + 0.5 * Math.sin(this._blinkT * 5);
+    t.material.opacity = 0.62 + 0.38 * b;
+    t.material.size = 52 + 10 * b;
+  }
+
+  setShipTag(on) {
+    this.showShipTag = !!on;
+    try { localStorage.setItem('ui.shiptag', this.showShipTag ? '1' : '0'); } catch { /* ignore */ }
+    if (this._shiptag && !this.showShipTag) this._shiptag.hidden = true;
+    if (this.autopilot) this.emit('nav', this._navReadout());   // refresh the HUD toggle state
+  }
+
+  // Ride a compact ship card at the tracked point on screen: position it every
+  // frame (cheap projection), refresh its contents on the ~4 Hz nav cadence.
+  _updateShipTag(dt) {
+    const tag = this._shiptag; if (!tag) return;
+    const on = this.showShipTag && !!this.autopilot && !this.autopilot.atGalaxy && !!this._navCache && this._navCache.active;
+    if (!on) { if (!tag.hidden) tag.hidden = true; return; }
+    this._v.copy(this.scene.controls.target).project(this.scene.camera);
+    if (this._v.z > 1) { tag.hidden = true; return; }           // behind the camera
+    const justShown = tag.hidden;
+    tag.hidden = false;
+    const x = (this._v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-this._v.y * 0.5 + 0.5) * window.innerHeight;
+    // flip the card to the ship's left when it would run off the right edge
+    const left = x > window.innerWidth - 210;
+    tag.classList.toggle('left', left);
+    tag.style.left = `${x}px`; tag.style.top = `${y}px`;
+    this._shipTagAcc += dt;
+    if (justShown || this._shipTagAcc > 0.2) {
+      this._shipTagAcc = 0;
+      const n = this._navCache;
+      const key = n && n.active ? `${n.seg}/${n.total}|${n.toLabel}|${Math.round(n.rangeLy)}|${n.drive?.id}` : '';
+      if (justShown || key !== this._shipTagKey) { this._shipTagKey = key; tag.innerHTML = this._shipTagHTML(n); }
+    }
+  }
+  _shipTagHTML(n) {
+    if (!n || !n.active) return '';
+    const dv = n.drive || {};
+    const ly = n.rangeLy || 0;
+    const rng = ly >= 1e9 ? `${(ly / 1e9).toFixed(2)} Gly` : ly >= 1e6 ? `${(ly / 1e6).toFixed(2)} Mly` : ly >= 1e3 ? `${(ly / 1e3).toFixed(1)} kly` : `${ly.toFixed(0)} ly`;
+    return `<div class="stg-h">◈ TEKNÉ <span class="stg-leg">${n.seg}/${n.total}</span></div>
+      <div class="stg-to">→ ${esc(n.toLabel)}</div>
+      <div class="stg-sub">${rng} · ${dv.cls ? esc(dv.cls) + ' · ' : ''}${fmtDriveSpeed(dv.sc ?? this.cruiseSpeed)}</div>`;
   }
 
   setTrackPanel(on) {
@@ -960,7 +1010,8 @@ export class App {
     const back = Math.max(0.5, segLen * 0.28);
     this.scene.setView(a.clone().addScaledVector(fwd, -back).addScaledVector(up, back * 0.5), a.clone());
     this.scene.controls.enabled = true;
-    this.emit('nav', this._navReadout());
+    this._navCache = this._navReadout();
+    this.emit('nav', this._navCache);
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
   // Speed up / slow down the flight playback. The bound spans a very wide range so you
@@ -1917,7 +1968,7 @@ export class App {
       if (this.autopilot) {
         this._updateAutopilot(dt);
         this._navAcc = (this._navAcc || 0) + dt;
-        if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) this.emit('nav', this._navReadout()); }
+        if (this._navAcc > 0.2) { this._navAcc = 0; if (this.autopilot) { this._navCache = this._navReadout(); this.emit('nav', this._navCache); } }
         if (this.showTrackPanel && this.autopilot && !this.autopilot.atGalaxy) {
           this._trackAcc = (this._trackAcc || 0) + dt;
           if (this._trackAcc > 0.1) { this._trackAcc = 0; this.emit('track', this._trackReadout()); }
@@ -1926,6 +1977,7 @@ export class App {
       this.scene.update(dt);
       if (this.cine.twinkle) this.starfield.tick(dt);
       this._updateTracker(dt);
+      this._updateShipTag(dt);
       if (this.mode === 'system') {
         this.solarSystem.update(dt, this.scene.camera);
         if (this.selection && this.selection.kind === 'body') this.solarSystem.worldPos(this.selection.bodyIndex, this.selection.worldPos);

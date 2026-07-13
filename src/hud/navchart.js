@@ -197,12 +197,14 @@ export function initNavChart(app) {
         <button class="btn sm" id="nh-pause" title="hold / resume (Space)">❚❚ hold</button>
         <button class="btn sm" id="nh-next" title="next stop (])">▶</button>
         <button class="btn sm" id="nh-track" title="tracking panel (T)">▤ track</button>
+        <button class="btn sm" id="nh-tag" title="ship tag — info card anchored to the ship">◈ tag</button>
         <button class="btn sm" id="nh-stop" title="disengage (Esc)">■ disengage</button>
       </div>`;
     hud.querySelector('#nh-prev').onclick = () => app.navStep(-1);
     hud.querySelector('#nh-next').onclick = () => app.navStep(1);
     hud.querySelector('#nh-pause').onclick = () => app.pauseRoute();
     hud.querySelector('#nh-track').onclick = () => app.setTrackPanel(!app.showTrackPanel);
+    hud.querySelector('#nh-tag').onclick = () => app.setShipTag(!app.showShipTag);
     hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
     const mul = (m) => app.setFlightRate((app._flightRate || 1) * m);
     hud.querySelector('#nh-s3').onclick = () => mul(1 / 8);
@@ -240,6 +242,7 @@ export function initNavChart(app) {
     ['#nh-f1', '#nh-f2', '#nh-f3'].forEach((id) => { const b = hud.querySelector(id); if (b) b.disabled = atCeil; });
     const pa = hud.querySelector('#nh-pause'); if (pa) pa.textContent = n.paused ? '⏵ resume' : '❚❚ hold';
     const tr = hud.querySelector('#nh-track'); if (tr) tr.classList.toggle('on', !!app.showTrackPanel);
+    const tg = hud.querySelector('#nh-tag'); if (tg) tg.classList.toggle('on', !!app.showShipTag);
   }
 
   initTrackPanel(app);
