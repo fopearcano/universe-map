@@ -90,6 +90,8 @@ export function initNavChart(app) {
         <span class="rp-cls" title="ship class = maximum vacuum depth">${dr.cls}</span>
       </div>
       <div class="rp-drivenote muted">${esc(dr.note)}</div>
+      <div class="toggle rp-vtime ${app.voyageRealistic ? 'on' : ''}" id="rp-vtime" title="count the threading, bridge crossings, approach and port cycles — a voyage takes months; off shows raw drive-transit time only">
+        <span>Realistic voyage time <span class="muted">· ${app.voyageRealistic ? 'lived · months' : 'raw transit'}</span></span><span class="sw"></span></div>
       <div class="rp-wps">${wpRows}</div>
       ${totals}
       <div class="rp-ctrls">
@@ -106,6 +108,7 @@ export function initNavChart(app) {
     if (hasRoute) panel.querySelector('#rp-rev').onclick = () => app.reverseRoute();
     panel.querySelector('#rp-engage').onclick = () => app.engageRoute();
     panel.querySelector('#rp-drive').onchange = (e) => app.setDrive(e.target.value);
+    panel.querySelector('#rp-vtime').onclick = () => app.setVoyageRealistic(!app.voyageRealistic);
     if (hasRoute) panel.querySelector('#rp-save').onclick = () => { const n = prompt('Name this route:', `route ${app.routeStore.all().length + 1}`); if (n) app.saveRoute(n); };
     panel.querySelectorAll('[data-up]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.up, -1); });
     panel.querySelectorAll('[data-down]').forEach((b) => { b.onclick = () => app.moveRouteWaypoint(+b.dataset.down, 1); });

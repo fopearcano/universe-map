@@ -584,6 +584,7 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .rp-sub { font-size: 9px; letter-spacing: 0.1em; margin: -4px 0 7px; }
 .rp-cls { color: var(--cyan); font-weight: 600; min-width: 20px; text-align: center; }
 .rp-drivenote { font-size: 9.5px; line-height: 1.5; margin: -3px 0 8px; }
+.rp-vtime { font-size: 10.5px; padding: 5px 0; margin-bottom: 6px; border-top: 1px solid var(--line); }
 .rp-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px; }
 .rp-x:hover { color: var(--red); }
 .rp-tools { display: flex; gap: 4px; margin-bottom: 6px; }

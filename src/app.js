@@ -79,6 +79,9 @@ export class App {
     this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
     this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
     this._flightRate = 1;                    // autopilot playback accelerator/decelerator (⅛×–8×)
+    // Count a voyage's lived overhead (threading, bridges, approach, ports) so a
+    // journey reads as months — or, off, show the raw drive-transit time. Persisted.
+    this.voyageRealistic = (() => { try { const v = localStorage.getItem('ui.voyagetime'); return v === null ? true : v === '1'; } catch { return true; } })();
     this.plotCourse = false;    // click-to-add-waypoint mode
     this.autopilot = null;      // active flythrough state
     this.routeStore = new RouteStore();
@@ -965,6 +968,13 @@ export class App {
     this._flightRate = Math.max(0.125, Math.min(8, r));
     if (this.autopilot) { this.autopilot.rate = this._flightRate; this.emit('nav', this._navReadout()); }
   }
+  // Toggle realistic voyage timing (lived overhead ⇒ months) vs raw drive-transit.
+  setVoyageRealistic(on) {
+    this.voyageRealistic = !!on;
+    try { localStorage.setItem('ui.voyagetime', this.voyageRealistic ? '1' : '0'); } catch { /* ignore */ }
+    this.emit('route', this._routeSummary());                 // refresh the "voyage · lived" readout
+    if (this.autopilot) this.emit('nav', this._navReadout());
+  }
   navStep(d) {
     if (!this.autopilot) return;
     this.autopilot.seg = Math.max(0, Math.min(this.route.length - 2, this.autopilot.seg + d));
@@ -1095,8 +1105,11 @@ export class App {
   // whose transit dwarfs all of it, still reads its true centuries.
   _voyageStoryYears() {
     const transit = this._routeCrewYears();
+    if (!this.voyageRealistic) return transit;                     // option off: raw drive-transit time only
+    const crossings = this._routeCrossings();
+    if (crossings < 1) return transit;
     const factor = Math.min(1, (this.drive?.ptf ?? 0.35) / 0.35);   // 1 on sub-light/bridge; less when hotter
-    const overhead = (0.12 + 0.10 * this._routeCrossings()) * factor;
+    const overhead = (0.12 + 0.10 * crossings) * factor;
     return Math.max(transit, overhead);
   }
 
@@ -1130,6 +1143,9 @@ export class App {
   // (⅛×–8×) then stretches or compresses this — ⅛× turns a minute into eight.
   _flightDuration() {
     const story = this._voyageStoryYears();
+    // Realistic voyages get the longer, unhurried range; raw-transit mode keeps the
+    // shorter, faster pacing (a deep-rung hop is a few seconds).
+    if (!this.voyageRealistic) return Math.max(8, Math.min(90, 34 + 6.2 * Math.log10(Math.max(story, 1e-9))));
     return Math.max(22, Math.min(150, 66 + 20 * Math.log10(Math.max(story, 1e-9))));
   }
 
