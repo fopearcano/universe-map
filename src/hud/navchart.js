@@ -216,7 +216,7 @@ export function initNavChart(app) {
     set('#nh-watch', `· watch ${fmtWatch(n.watchSec)}`);
     set('#nh-rate', fmtAccel(n.accel));
     const acc = hud.querySelector('#nh-rate'); if (acc) acc.title = `watching at ${fmtAccel(n.accel)} real time — this preview ≈ ${fmtWatch(n.watchSec)}; 1× would be the full ${n.storyTime ?? 'voyage'}`;
-    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 1 / 32 + 1e-6;
+    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 1 / 2048 * 1.001;
     const fa = hud.querySelector('#nh-faster'); if (fa) fa.disabled = (n.rate ?? 1) >= 8;
     const pa = hud.querySelector('#nh-pause'); if (pa) pa.textContent = n.paused ? '⏵ resume' : '❚❚ hold';
     const tr = hud.querySelector('#nh-track'); if (tr) tr.classList.toggle('on', !!app.showTrackPanel);
@@ -281,6 +281,7 @@ function fmtAccel(a) {
 // Wall-clock the current preview will take.
 function fmtWatch(s) {
   if (!isFinite(s) || s <= 0) return '—';
+  if (s >= 86400) return `${(s / 86400).toFixed(1)} d`;
   if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
   if (s >= 90) return `${Math.round(s / 60)} min`;
   return `${Math.round(s)}s`;

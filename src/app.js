@@ -78,7 +78,7 @@ export class App {
     this.route = [];            // [{ worldPos, truePos, label, kind }]
     this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
     this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
-    this._flightRate = 1;                    // autopilot playback speed multiplier (1/32×–8× of the auto pace)
+    this._flightRate = 1;                    // autopilot playback speed multiplier (1/2048×–8× of the auto pace)
     // Count a voyage's lived overhead (threading, bridges, approach, ports) so a
     // journey reads as months — or, off, show the raw drive-transit time. Persisted.
     this.voyageRealistic = (() => { try { const v = localStorage.getItem('ui.voyagetime'); return v === null ? true : v === '1'; } catch { return true; } })();
@@ -963,11 +963,12 @@ export class App {
     this.emit('nav', this._navReadout());
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
-  // Speed up / slow down the flight playback. The bound spans a wide range so you can
-  // compress a voyage hard or dwell right down toward its real (1:1) duration — the
-  // HUD shows the resulting time-acceleration, not an abstract multiplier.
+  // Speed up / slow down the flight playback. The bound spans a very wide range so you
+  // can compress a voyage hard (8× the auto pace) or dwell right down to about a day of
+  // real watching (1/2048×) — the HUD shows the resulting time-acceleration and the
+  // actual watch time, not an abstract multiplier.
   setFlightRate(r) {
-    this._flightRate = Math.max(1 / 32, Math.min(8, r));
+    this._flightRate = Math.max(1 / 2048, Math.min(8, r));
     if (this.autopilot) { this.autopilot.rate = this._flightRate; this.emit('nav', this._navReadout()); }
   }
   // Toggle realistic voyage timing (lived overhead ⇒ months) vs raw drive-transit.
