@@ -557,19 +557,17 @@ export class App {
     this._shipTagKey = '';
     const D = '1.1s', SPL = '0.4 0 0.6 1;0.4 0 0.6 1', KT = '0;0.5;1';
     this._shipReticle = document.createElement('div'); this._shipReticle.id = 'shipreticle'; this._shipReticle.hidden = true;
+    // The ring pulses (r 27→32); the two carmine triangles are fixed, sitting just
+    // outside the ring's widest reach (outer edge ≈ 34.25 at max pulse) top & bottom.
     this._shipReticle.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true">
       <circle class="rt-ring" cx="50" cy="50" r="30">
-        <animate attributeName="r" values="27;33;27" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
+        <animate attributeName="r" values="27;32;27" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
         <animate attributeName="stroke-opacity" values="0.7;1;0.7" dur="${D}" repeatCount="indefinite"/>
       </circle>
       <line class="rt-tick" x1="13" y1="50" x2="25" y2="50"/>
       <line class="rt-tick" x1="75" y1="50" x2="87" y2="50"/>
-      <polygon class="rt-tri" points="43,3 57,3 50,14">
-        <animateTransform attributeName="transform" type="translate" values="0 0;0 15;0 0" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
-      </polygon>
-      <polygon class="rt-tri" points="43,97 57,97 50,86">
-        <animateTransform attributeName="transform" type="translate" values="0 0;0 -15;0 0" dur="${D}" repeatCount="indefinite" calcMode="spline" keyTimes="${KT}" keySplines="${SPL}"/>
-      </polygon>
+      <polygon class="rt-tri" points="44,2 56,2 50,11"/>
+      <polygon class="rt-tri" points="44,98 56,98 50,89"/>
       <circle class="rt-core" cx="50" cy="50" r="4.5"/>
     </svg>`;
     document.body.appendChild(this._shipReticle);
