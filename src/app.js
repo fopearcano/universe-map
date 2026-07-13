@@ -1461,7 +1461,12 @@ export class App {
     if (this.mode !== scale) this.setMode(scale);
     if (this.autopilot) this.stopRoute();
     this.clearSelection(); this.clearRoute();
-    if (exp.cruiseC) this._applyDriveSpeed(exp.cruiseC);
+    // Each expedition carries a thematically appropriate default DRIVE: sub-light
+    // (Crawler / Relativistic) for the human interstellar circuits, and the Idrenes
+    // FTL standard for the cosmic ones — so the crew (story) time reads right when
+    // you ENGAGE. Fall back to the old cruiseC → nearest-rung snap if none is set.
+    if (exp.drive && driveById(exp.drive).id === exp.drive) this.setDrive(exp.drive);
+    else if (exp.cruiseC) this._applyDriveSpeed(exp.cruiseC);
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
     this.route = [];
     (exp.stops || []).forEach((stop, i) => {
