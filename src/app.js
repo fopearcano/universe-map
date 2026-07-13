@@ -78,7 +78,7 @@ export class App {
     this.route = [];            // [{ worldPos, truePos, label, kind }]
     this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
     this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
-    this._flightRate = 1;                    // autopilot playback accelerator/decelerator (⅛×–8×)
+    this._flightRate = 1;                    // autopilot playback speed multiplier (1/32×–8× of the auto pace)
     // Count a voyage's lived overhead (threading, bridges, approach, ports) so a
     // journey reads as months — or, off, show the raw drive-transit time. Persisted.
     this.voyageRealistic = (() => { try { const v = localStorage.getItem('ui.voyagetime'); return v === null ? true : v === '1'; } catch { return true; } })();
@@ -963,9 +963,11 @@ export class App {
     this.emit('nav', this._navReadout());
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
-  // Speed up / slow down the flight playback (⅛×–8×), persisting for later flights.
+  // Speed up / slow down the flight playback. The bound spans a wide range so you can
+  // compress a voyage hard or dwell right down toward its real (1:1) duration — the
+  // HUD shows the resulting time-acceleration, not an abstract multiplier.
   setFlightRate(r) {
-    this._flightRate = Math.max(0.125, Math.min(8, r));
+    this._flightRate = Math.max(1 / 32, Math.min(8, r));
     if (this.autopilot) { this.autopilot.rate = this._flightRate; this.emit('nav', this._navReadout()); }
   }
   // Toggle realistic voyage timing (lived overhead ⇒ months) vs raw drive-transit.
@@ -1149,6 +1151,17 @@ export class App {
     return Math.max(22, Math.min(150, 66 + 20 * Math.log10(Math.max(story, 1e-9))));
   }
 
+  // The wall-clock the current playback will actually take (the flight covers the
+  // curve in _flightDuration() seconds, and the rate divides that), and the honest
+  // time-acceleration it represents: the voyage's lived (1:1) duration ÷ that watch
+  // time. So 1× would be real time — you'd wait the whole voyage — and the readout
+  // shows the real factor (e.g. a 5-month bridge run watched in ~57 s ≈ 225,000×).
+  _flightWatchSeconds() { return this._flightDuration() / Math.max(1e-6, this._flightRate); }
+  _flightAccel() {
+    const storySec = this._voyageStoryYears() * 3.15576e7;      // years → seconds
+    return storySec / Math.max(1e-6, this._flightWatchSeconds());
+  }
+
   // Arc length of the drawn curve for leg `seg` (falls back to the straight chord).
   _legArcLen(seg) {
     const leg = this._legArc && this._legArc[seg];
@@ -1172,6 +1185,7 @@ export class App {
       toLabel: this.route[i + 1].label, ra, dec, rangeLy, rangeLyTotal: remLy, cruiseC: this.cruiseSpeed,
       etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy), drive: this._driveInfo(),
       rate: this._flightRate, storyTime: this._fmtStoryTime(this._voyageStoryYears()),
+      accel: this._flightAccel(), watchSec: this._flightWatchSeconds(),
     };
   }
   _navReadoutFinal() { this.emit('nav', { arrived: true, at: this.route[this.route.length - 1].label }); }

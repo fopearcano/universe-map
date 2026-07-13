@@ -658,7 +658,8 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .nh-story { font-size: 11px; color: var(--ink); margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(123,240,160,0.14); }
 .nh-story i { color: var(--dim); font-style: normal; font-size: 9px; letter-spacing: 0.1em; margin-right: 4px; }
 .nh-story .nh-rate-ctrl { display: flex; align-items: center; gap: 6px; }
-.nh-story .nh-rate { color: var(--green); min-width: 22px; text-align: center; letter-spacing: 0.02em; }
+.nh-story .nh-rate { color: var(--green); min-width: 48px; text-align: center; letter-spacing: 0.02em; }
+.nh-story .nh-watch { color: var(--dim); font-size: 9px; letter-spacing: 0.04em; }
 .nh-ctrls { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
 .nh-rr { width: 22px !important; padding: 2px 0 !important; line-height: 1; text-align: center; }
 .nh-rr:disabled { opacity: 0.35; cursor: default; }

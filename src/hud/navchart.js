@@ -175,12 +175,12 @@ export function initNavChart(app) {
         <span><i>CREW</i> <span id="nh-crew"></span></span>
       </div>
       <div class="nh-row nh-total muted"><span id="nh-seamleft"></span><span id="nh-totaltime"></span></div>
-      <div class="nh-row nh-story" title="the whole voyage as lived in the fiction — the flythrough on screen is an unhurried preview you can slow or speed">
-        <span><i>STORY</i> <span id="nh-story"></span></span>
+      <div class="nh-row nh-story" title="STORY is the voyage's real (1:1) lived length. 1× would be real time — you'd wait the whole voyage — so the preview runs at a big time-acceleration; – / + dial it.">
+        <span><i>STORY</i> <span id="nh-story"></span> <span class="nh-watch" id="nh-watch"></span></span>
         <span class="nh-rate-ctrl">
-          <button class="btn sm nh-rr" id="nh-slower" title="slower playback ( - )">–</button>
-          <span class="nh-rate" id="nh-rate" title="flythrough playback speed"></span>
-          <button class="btn sm nh-rr" id="nh-faster" title="faster playback ( = )">+</button>
+          <button class="btn sm nh-rr" id="nh-slower" title="slower — closer to real time ( - )">–</button>
+          <span class="nh-rate" id="nh-rate" title="time-acceleration vs real (1:1) — 1× is real time"></span>
+          <button class="btn sm nh-rr" id="nh-faster" title="faster ( = )">+</button>
         </span>
       </div>
       <div class="nh-ctrls">
@@ -212,9 +212,11 @@ export function initNavChart(app) {
     set('#nh-crew', fmtYr(n.etaNext.shipYears));
     set('#nh-seamleft', `seam left ${fmtLy(n.rangeLyTotal ?? 0)}`);
     set('#nh-totaltime', `coord ${fmtYr(n.etaTotal.years)} · crew ${fmtYr(n.etaTotal.shipYears)}`);
-    set('#nh-story', n.storyTime ?? '—');
-    set('#nh-rate', fmtRate(n.rate ?? 1));
-    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 0.125;
+    set('#nh-story', `${n.storyTime ?? '—'} (1:1)`);
+    set('#nh-watch', `· watch ${fmtWatch(n.watchSec)}`);
+    set('#nh-rate', fmtAccel(n.accel));
+    const acc = hud.querySelector('#nh-rate'); if (acc) acc.title = `watching at ${fmtAccel(n.accel)} real time — this preview ≈ ${fmtWatch(n.watchSec)}; 1× would be the full ${n.storyTime ?? 'voyage'}`;
+    const sl = hud.querySelector('#nh-slower'); if (sl) sl.disabled = (n.rate ?? 1) <= 1 / 32 + 1e-6;
     const fa = hud.querySelector('#nh-faster'); if (fa) fa.disabled = (n.rate ?? 1) >= 8;
     const pa = hud.querySelector('#nh-pause'); if (pa) pa.textContent = n.paused ? '⏵ resume' : '❚❚ hold';
     const tr = hud.querySelector('#nh-track'); if (tr) tr.classList.toggle('on', !!app.showTrackPanel);
@@ -265,13 +267,23 @@ function fmtYr(y) {
   if (y >= 1) return `${y.toFixed(0)} yr`;
   return `${(y * 365.25).toFixed(0)} d`;
 }
-// Playback rate as a clean fraction / multiple (⅛× ¼× ½× 1× 2× 4× 8×).
-function fmtRate(r) {
-  if (r <= 0.13) return '⅛×';
-  if (r <= 0.26) return '¼×';
-  if (r <= 0.51) return '½×';
-  if (r < 1.5) return '1×';
-  return `${Math.round(r)}×`;
+// The playback speed as an honest time-acceleration vs real time: 1× is 1:1 (you'd
+// wait the whole voyage), so the watchable preview is a big multiple — ×2.6k for a
+// Tekné dash, ×225k for a bridge run, ×100M for a sub-light crawl.
+function fmtAccel(a) {
+  if (!isFinite(a) || a <= 0) return '—';
+  if (a < 1000) return `×${Math.max(1, Math.round(a))}`;
+  for (const [d, s] of [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'k']]) {
+    if (a >= d) { const v = a / d; return `×${v < 10 ? v.toFixed(1) : Math.round(v)}${s}`; }
+  }
+  return `×${Math.round(a)}`;
+}
+// Wall-clock the current preview will take.
+function fmtWatch(s) {
+  if (!isFinite(s) || s <= 0) return '—';
+  if (s >= 3600) return `${(s / 3600).toFixed(1)} h`;
+  if (s >= 90) return `${Math.round(s / 60)} min`;
+  return `${Math.round(s)}s`;
 }
 function download(name, text) {
   const blob = new Blob([text], { type: 'application/json' });
