@@ -68,6 +68,7 @@ export function buildCosmosLayers(app) {
     <div class="toggle on" data-l="atlas"><span>Cosmic atlas objects</span><span class="sw"></span></div>
     <div class="toggle on" data-l="custom"><span>My library (✦ custom)</span><span class="sw"></span></div>
     <div class="toggle" data-l="sector"><span>Sector grid <span class="muted">· map</span></span><span class="sw"></span></div>
+    <div class="toggle ${app.showScaleBar !== false ? 'on' : ''}" data-l="scalebar"><span>True-scale ribbon <span class="muted">· linear</span></span><span class="sw"></span></div>
     <div class="toggle on" data-l="resolve"><span>Resolve galaxies (shapes)</span><span class="sw"></span></div>
     <div class="toggle" data-l="clustershapes"><span>Star cluster shapes</span><span class="sw"></span></div>
     <div class="toggle" data-l="voids"><span>Supervoid zones <span class="muted">· shapes</span></span><span class="sw"></span></div>
@@ -117,6 +118,8 @@ export function buildCosmosLayers(app) {
   const sector = root.querySelector('[data-l="sector"]');
   sector.classList.toggle('on', !!app.showSectorGrid);
   sector.onclick = () => { sector.classList.toggle('on'); app.setSectorGrid(sector.classList.contains('on')); };
+  const scalebar = root.querySelector('[data-l="scalebar"]');
+  scalebar.onclick = () => { scalebar.classList.toggle('on'); app.setScaleBar(scalebar.classList.contains('on')); };
   const res = root.querySelector('[data-l="resolve"]');
   res.classList.toggle('on', !!app.resolveStructures);
   res.onclick = () => { res.classList.toggle('on'); app.setResolveStructures(res.classList.contains('on')); };

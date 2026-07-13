@@ -503,6 +503,9 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .tsb-track { position: relative; height: 6px; background: linear-gradient(90deg, rgba(92,225,255,0.10), rgba(139,125,216,0.14)); border: 1px solid var(--line); border-radius: 3px; }
 .tsb-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--green); box-shadow: 0 0 8px var(--green); border-radius: 3px 0 0 3px; min-width: 1px; }
 .tsb-view { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); transform: translateX(-1px); }
+.tsb-ship { position: absolute; top: -4px; width: 9px; height: 9px; margin: 1px 0 0 -5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 9px var(--green), 0 0 3px #fff; }
+.tsb-ship[hidden] { display: none; }
+#scalebar.flying { bottom: 128px; border-color: rgba(123,240,160,0.4); }
 .tsb-ticks { position: absolute; top: 9px; left: 0; right: 0; height: 10px; }
 .tsb-ticks span { position: absolute; transform: translateX(-50%); font-size: 8px; color: var(--dim); letter-spacing: 0.06em; white-space: nowrap; }
 .tsb-ticks span::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--line-strong); }

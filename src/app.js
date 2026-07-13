@@ -90,6 +90,7 @@ export class App {
     this._sparkle = makeSparkleTexture('#ffffff');
     this._glyphAtlas = makeGlyphAtlas(); // shared icon atlas for every marker layer
     this.showCustom = true;
+    this.showScaleBar = true;   // TRUE-SCALE ribbon (cosmos)
     this.localCustom = null; this.cosmosCustom = null;
 
     this._buildMarkers();
@@ -1342,6 +1343,7 @@ export class App {
   // Toggle a route group ("commercial:trade") or a whole category ("commercial").
   setRouteNetworkFilter(key, on) { if (this.routeNetwork) this.routeNetwork.setGroupVisible(key, on); }
   setRouteNetworkCategory(cat, on) { if (this.routeNetwork) this.routeNetwork.setCategoryVisible(cat, on); }
+  setScaleBar(on) { this.showScaleBar = !!on; this.emit('scalebar', this.showScaleBar); }
 
   // Highlight a route on the overlay, label it, and frame it in view.
   highlightTradeRoute(id) {
@@ -1909,6 +1911,7 @@ export class App {
       mode: this._inGalaxy ? 'galaxy' : this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
       visible: this.mode === 'local' ? this.starfield.visibleCount : (this.mode === 'cosmos' ? this.cosmos.visibleCount() : 0),
       sys: this.mode === 'system' ? { bodies: this.solarSystem.nodes.length, rangeAu: cam.position.length() / this.solarSystem.AU } : null,
+      shipLy: (this.autopilot && this.mode === 'cosmos' && this.cosmos) ? Math.pow(10, this.scene.controls.target.length() / this.cosmos.decadeUnit) * PC_TO_LY : null,
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
       focus: this.focus ? this.focus.label : null,
       sector: this.sectorCode(dir.lengthSq() > 1e-9 ? dir : new THREE.Vector3(1, 0, 0), sectorDistLy),
