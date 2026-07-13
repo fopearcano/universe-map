@@ -78,6 +78,7 @@ export class App {
     this.route = [];            // [{ worldPos, truePos, label, kind }]
     this.drive = driveById(DEFAULT_DRIVE);   // Tekné NAVCOM: the selected QTR depth-rung drive
     this.cruiseSpeed = this.drive.sc;        // crossing speed in multiples of c (FTL for Class I+)
+    this._flightRate = 1;                    // autopilot playback accelerator/decelerator (¼×–8×)
     this.plotCourse = false;    // click-to-add-waypoint mode
     this.autopilot = null;      // active flythrough state
     this.routeStore = new RouteStore();
@@ -947,7 +948,7 @@ export class App {
       }
       if (dsum > 0) paceNorm = wsum / dsum;                // mean slowness ⇒ total ≈ T
     }
-    this.autopilot = { seg: 0, t: 0, paused: false, descended: new Set(), atGalaxy: null, physLy: this._routePhysicalLy(), rMin, rMax, paceNorm };
+    this.autopilot = { seg: 0, t: 0, paused: false, descended: new Set(), atGalaxy: null, physLy: this._routePhysicalLy(), rMin, rMax, paceNorm, rate: this._flightRate };
     // initial follow offset: behind & above the first leg. Controls stay enabled
     // so you can orbit / zoom around the ship while it flies.
     const a = this.route[0].worldPos, b = this.route[1].worldPos;
@@ -959,6 +960,11 @@ export class App {
     this.emit('nav', this._navReadout());
   }
   pauseRoute() { if (this.autopilot) { this.autopilot.paused = !this.autopilot.paused; this.emit('nav', this._navReadout()); } }
+  // Speed up / slow down the flight playback (¼×–8×), persisting for later flights.
+  setFlightRate(r) {
+    this._flightRate = Math.max(0.25, Math.min(8, r));
+    if (this.autopilot) { this.autopilot.rate = this._flightRate; this.emit('nav', this._navReadout()); }
+  }
   navStep(d) {
     if (!this.autopilot) return;
     this.autopilot.seg = Math.max(0, Math.min(this.route.length - 2, this.autopilot.seg + d));
@@ -1015,7 +1021,7 @@ export class App {
       // pace so the whole drawn curve is flown in _flightDuration() seconds — a
       // wall-clock time that scales with the route's real length and the drive.
       const T = this._flightDuration();
-      const u = this._routeCurveLen() / T;                 // uniform display speed
+      const u = (this._routeCurveLen() / T) * (ap.rate || 1);   // uniform display speed × user playback rate
       let speed = u;
       // constant-real-speed feel: on the log-radial map, each display unit out
       // near the edge is far more real distance, so fly faster where the map is
@@ -1069,19 +1075,45 @@ export class App {
     return ly;
   }
 
-  // How long (wall-clock seconds) the autopilot should take to fly the current
-  // course. Two knobs, both log-scaled and clamped so the flight always stays
-  // watchable: the time grows with the route's real length, and shrinks as the
-  // selected DRIVE gets faster — so a Class ω run visibly outruns a sub-light
-  // crawl, and a crossing of the observable universe reads as longer than a hop
-  // next door. (Old behaviour: a fixed ~76 s regardless of distance or drive.)
+  // Total crew (proper) time of the whole crossing under the current drive — the
+  // travellers' lived "story time".
+  _routeCrewYears() {
+    let y = 0;
+    for (let i = 1; i < this.route.length; i++) y += this._legTimes(this.route[i].truePos.distanceTo(this.route[i - 1].truePos) * PC_TO_LY).shipYears;
+    return y;
+  }
+
+  // The crew (proper) time as a narrative "story time" — how long the journey
+  // lives in the fiction. Sub-year drops carry through months / days / hours /
+  // minutes so a Tekné composite hop reads as days-to-minutes while an Ulysses
+  // sub-light circuit reads as months-to-years. The flythrough on screen is a
+  // compressed preview; this is the time the crew actually lives through.
+  _fmtStoryTime(years) {
+    const y = Math.max(0, years);
+    if (y >= 1e9) return `${(y / 1e9).toFixed(2)} Gyr`;
+    if (y >= 1e6) return `${(y / 1e6).toFixed(2)} Myr`;
+    if (y >= 1e3) return `${(y / 1e3).toFixed(1)} kyr`;
+    if (y >= 1) return `${y < 10 ? y.toFixed(1) : y.toFixed(0)} yr`;
+    const mo = y * 12;
+    if (mo >= 1) return `${mo.toFixed(mo < 10 ? 1 : 0)} mo`;
+    const d = y * 365.25;
+    if (d >= 1) return `${d.toFixed(d < 10 ? 1 : 0)} d`;
+    const h = d * 24;
+    if (h >= 1) return `${h.toFixed(h < 10 ? 1 : 0)} h`;
+    const min = h * 60;
+    if (min >= 1) return `${min.toFixed(0)} min`;
+    return 'moments';
+  }
+
+  // How long (wall-clock seconds) the autopilot should take to fly the course.
+  // Tied to the STORY time — the crew (proper) time of the crossing — log-scaled
+  // and clamped so it stays watchable: a sub-light Class 0 crawl (months → aeons
+  // of crew time) plays long, a deep-rung Idrenes drive (near-instant) plays
+  // short. Reference points: ~1 hr → ~10 s, a year → ~34 s, a Myr → ~71 s, a Gyr
+  // → the ~90 s cap. The user's playback rate then scales the whole thing.
   _flightDuration() {
-    const ly = (this.autopilot && this.autopilot.physLy) || this._routePhysicalLy();
-    const sc = this.drive ? this.drive.sc : 1;
-    const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
-    const lenMult = clamp(0.45, 2.8, 1 + 0.42 * Math.log10(Math.max(1, ly) / 1e4));    // ≈1 at 10k ly
-    const driveMult = clamp(1, 4, 1 + 0.16 * Math.log10(Math.max(1e-3, sc) / 0.1));    // 0.1c → 1×, ≳1e20c → 4×
-    return clamp(7, 75, 24 * lenMult / driveMult);
+    const crew = this._routeCrewYears();
+    return Math.max(8, Math.min(90, 34 + 6.2 * Math.log10(Math.max(crew, 1e-9))));
   }
 
   // Arc length of the drawn curve for leg `seg` (falls back to the straight chord).
@@ -1106,6 +1138,7 @@ export class App {
       active: true, paused: ap.paused, seg: i + 1, total: this.route.length - 1,
       toLabel: this.route[i + 1].label, ra, dec, rangeLy, rangeLyTotal: remLy, cruiseC: this.cruiseSpeed,
       etaNext: this._legTimes(rangeLy), etaTotal: this._legTimes(remLy), drive: this._driveInfo(),
+      rate: this._flightRate, storyTime: this._fmtStoryTime(this._routeCrewYears()),
     };
   }
   _navReadoutFinal() { this.emit('nav', { arrived: true, at: this.route[this.route.length - 1].label }); }

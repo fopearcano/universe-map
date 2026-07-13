@@ -156,6 +156,14 @@ export function initNavChart(app) {
         <span><i>CREW</i> ${fmtYr(n.etaNext.shipYears)}</span>
       </div>
       <div class="nh-row nh-total muted"><span>seam left ${fmtLy(n.rangeLyTotal ?? 0)}</span><span>coord ${fmtYr(n.etaTotal.years)} · crew ${fmtYr(n.etaTotal.shipYears)}</span></div>
+      <div class="nh-row nh-story" title="the crew's lived journey time — the flythrough on screen is a compressed preview">
+        <span><i>STORY</i> ${esc(n.storyTime ?? '—')}</span>
+        <span class="nh-rate-ctrl">
+          <button class="btn sm nh-rr" id="nh-slower" title="slower playback"${(n.rate ?? 1) <= 0.25 ? ' disabled' : ''}>–</button>
+          <span class="nh-rate" title="flythrough playback speed">${fmtRate(n.rate ?? 1)}</span>
+          <button class="btn sm nh-rr" id="nh-faster" title="faster playback"${(n.rate ?? 1) >= 8 ? ' disabled' : ''}>+</button>
+        </span>
+      </div>
       <div class="nh-ctrls">
         <button class="btn sm" id="nh-prev">◀</button>
         <button class="btn sm" id="nh-pause">${n.paused ? '⏵ resume' : '❚❚ hold'}</button>
@@ -168,6 +176,8 @@ export function initNavChart(app) {
     hud.querySelector('#nh-pause').onclick = () => app.pauseRoute();
     hud.querySelector('#nh-track').onclick = () => app.setTrackPanel(!app.showTrackPanel);
     hud.querySelector('#nh-stop').onclick = () => app.stopRoute();
+    hud.querySelector('#nh-slower').onclick = () => app.setFlightRate((app._flightRate || 1) / 2);
+    hud.querySelector('#nh-faster').onclick = () => app.setFlightRate((app._flightRate || 1) * 2);
   });
 
   initTrackPanel(app);
@@ -214,6 +224,13 @@ function fmtYr(y) {
   if (y >= 1e3) return `${(y / 1e3).toFixed(1)} kyr`;
   if (y >= 1) return `${y.toFixed(0)} yr`;
   return `${(y * 365.25).toFixed(0)} d`;
+}
+// Playback rate as a clean fraction / multiple (¼× ½× 1× 2× 4× 8×).
+function fmtRate(r) {
+  if (r <= 0.26) return '¼×';
+  if (r <= 0.51) return '½×';
+  if (r < 1.5) return '1×';
+  return `${Math.round(r)}×`;
 }
 function download(name, text) {
   const blob = new Blob([text], { type: 'application/json' });

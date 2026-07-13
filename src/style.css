@@ -505,7 +505,7 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .tsb-view { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); transform: translateX(-1px); }
 .tsb-ship { position: absolute; top: -4px; width: 9px; height: 9px; margin: 1px 0 0 -5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 9px var(--green), 0 0 3px #fff; }
 .tsb-ship[hidden] { display: none; }
-#scalebar.flying { bottom: 128px; border-color: rgba(123,240,160,0.4); }
+#scalebar.flying { bottom: 198px; border-color: rgba(123,240,160,0.4); }
 .tsb-ticks { position: absolute; top: 9px; left: 0; right: 0; height: 10px; }
 .tsb-ticks span { position: absolute; transform: translateX(-50%); font-size: 8px; color: var(--dim); letter-spacing: 0.06em; white-space: nowrap; }
 .tsb-ticks span::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--line-strong); }
@@ -654,7 +654,13 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .nh-data { font-size: 12px; color: var(--ink); margin-bottom: 4px; }
 .nh-data i { color: var(--dim); font-style: normal; font-size: 9px; letter-spacing: 0.1em; margin-right: 3px; }
 .nh-total { font-size: 10px; }
+.nh-story { font-size: 11px; color: var(--ink); margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(123,240,160,0.14); }
+.nh-story i { color: var(--dim); font-style: normal; font-size: 9px; letter-spacing: 0.1em; margin-right: 4px; }
+.nh-story .nh-rate-ctrl { display: flex; align-items: center; gap: 6px; }
+.nh-story .nh-rate { color: var(--green); min-width: 22px; text-align: center; letter-spacing: 0.02em; }
 .nh-ctrls { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.nh-rr { width: 22px !important; padding: 2px 0 !important; line-height: 1; text-align: center; }
+.nh-rr:disabled { opacity: 0.35; cursor: default; }
 .nh-ctrls .btn { width: auto; padding: 4px 12px; }
 .nh-arrived { text-align: center; color: var(--green); font-size: 14px; letter-spacing: 0.1em; padding: 4px; }
 .nh-descend { color: var(--cyan); }
