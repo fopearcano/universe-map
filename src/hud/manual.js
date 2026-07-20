@@ -5,7 +5,7 @@ const REPO = 'https://github.com/fopearcano/universe-map';
 
 // Keep this table in sync with src/hud/hotkeys.js.
 const KEYS = [
-  ['1 / 2 / 3', 'LOCAL / COSMOS / SYSTEM mode'],
+  ['1 / 2 / 3 / 4', 'LOCAL / COSMOS / SYSTEM / DEEPTIME mode'],
   ['H', 'Home — recenter on Sol'],
   ['/', 'Focus the search box'],
   ['C', 'Open the CODEX'],
@@ -25,10 +25,11 @@ const KEYS = [
 ];
 
 const SECTIONS = [
-  ['Three scales', [
+  ['Four scales', [
     ['SYSTEM', 'The Solar System, to scale (☉ SYSTEM or key 3) — the Sun, eight planets, dwarf planets and major moons on their real orbits (AU). Bodies are size-exaggerated so they stay visible; planets revolve and moons circle them. Click a world for its facts; the FILTERS tab is a planet picker with ❚❚ pause and a time-speed slider. Solaris.Ai can drive it too ("take me to Saturn", "show Jupiter\'s moons", "pause the planets").'],
     ['LOCAL', 'The true-scale stellar neighbourhood — 100,000 real stars in parsecs, the Sun at the origin.'],
     ['COSMOS', 'The whole observable universe on a logarithmic radial scale — ~980k real + imagined objects out to the CMB. Direction is exact; only radius is compressed, so real distances (used for routing) are always preserved. Because the scale is logarithmic, a hop between nearby galaxies looks like it spans the cosmos — the TRUE-SCALE ribbon at the bottom shows a route\'s real reach against the ~45 Gly-radius universe (usually a sliver of a percent).'],
+    ['DEEPTIME', 'The far-future universe of the QTR canon (⧗ DEEPTIME or key 4) — the cosmos ~50 billion years on, when gravity and dark matter have condensed the galaxies into a stark cosmic web of filaments and hubs and the sky between has emptied. It is a <b>matrioska</b> (nested) scale: the overview shows a procedural web of 100 local groups strung along the filaments; the top-centre navigator drops a <b>group</b> dropdown — pick one and ⛶ <b>enter</b> to descend inside it, where the group\'s galaxies (each an elliptical, spiral, lenticular, irregular or dwarf) are generated on the fly, brightest at the gravitational core. Click a group or galaxy for its facts, and ↑ overview rises back to the web. The generation is deterministic (seeded) and layered with LODs so the web stays navigable; the group and galaxy contents are produced by live hooks meant to be swapped for retrieved / richer data later.'],
   ]],
   ['Getting around', [
     ['Orbit / pan / zoom', 'drag · right-drag · scroll.'],

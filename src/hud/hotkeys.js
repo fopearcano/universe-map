@@ -13,6 +13,7 @@ export function initHotkeys(app) {
       case '1': app.setMode('local'); break;
       case '2': app.setMode('cosmos'); break;
       case '3': app.setMode('system'); break;
+      case '4': app.setMode('deeptime'); break;
       case 'h': case 'H': app.home(); break;
       case '/': e.preventDefault(); document.getElementById('search')?.focus(); break;
       case '?': app._openManual?.(); break;

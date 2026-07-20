@@ -546,6 +546,22 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .tsb-ticks .tsb-edge { transform: translateX(-100%); color: #8a5a9a; }
 .tsb-ticks .tsb-edge::before { left: auto; right: 0; }
 
+/* ---------- deeptime navigator ---------- */
+#deeptimenav {
+  position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 13;
+  background: rgba(10, 8, 22, 0.82); border: 1px solid rgba(143, 208, 255, 0.4);
+  border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(8px); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  min-width: 320px;
+}
+#deeptimenav[hidden] { display: none; }
+.dtn-crumb { font-size: 11px; letter-spacing: 0.06em; color: #8fd0ff; margin-bottom: 7px; }
+.dtn-crumb b { color: var(--ink); }
+.dtn-sep { color: var(--dim); margin: 0 3px; }
+.dtn-row { display: flex; align-items: center; gap: 8px; }
+.dtn-row .dtn-lbl { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
+.dtn-row select { flex: 1; background: rgba(0,0,0,0.35); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 11px; min-width: 0; }
+.dtn-row .btn { width: auto; padding: 4px 12px; white-space: nowrap; }
+
 /* ---------- focus chip + route panel (nautical chart) ---------- */
 #focuschip {
   position: fixed; top: 78px; left: 50%; transform: translateX(-50%); z-index: 13;
