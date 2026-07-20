@@ -5,6 +5,7 @@ const TYPE_LABEL = {
   object: 'objects', event: 'events', concept: 'concepts', hazard: 'hazards', reconciliation: 'reconciliations',
   lexicon: 'lexicon', phrase: 'phrases', place: 'places', map_node: 'map nodes', ship: 'ships', ship_class: 'ship classes',
   faction: 'factions', language: 'languages', technology: 'technology', world: 'worlds', nav_axis: 'nav axes',
+  era: 'eras',
 };
 const LONG = ['reading', 'reframe_long', 'classic_reading', 'got_right', 'mistook', 'behaviour', 'escape', 'houdini', 'usage'];
 const LONG_LABEL = { reading: 'Reading', reframe_long: 'Reframe', classic_reading: 'Classic reading', got_right: 'Got right', mistook: 'Mistook', behaviour: 'Behaviour', escape: 'Escape protocol', houdini: 'VFX note', usage: 'Usage' };
