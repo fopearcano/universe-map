@@ -1,17 +1,17 @@
 {
   "meta": {
     "title": "Immeasurable Spaces — QTR Universe Database",
-    "subtitle": "Objects & events knowledge base + map feed, extracted from the canon codices",
-    "version": "2.1",
-    "generated": "2026-07-13",
+    "subtitle": "Objects & events knowledge base + map feed, synced to the consolidated QTR canon",
+    "version": "2.2",
+    "generated": "2026-07-20",
     "counts": {
-      "entities": "392",
+      "entities": "425",
       "events": 20,
       "map_nodes": 22,
       "map_edges": 12,
       "by_type": {
         "lexicon": "107",
-        "concept": "60",
+        "concept": "86",
         "place": "60",
         "phrase": "41",
         "object": "34",
@@ -22,11 +22,12 @@
         "faction": "7",
         "language": "7",
         "technology": "7",
+        "era": "7",
         "ship_class": "6",
         "world": "3",
         "nav_axis": "3"
       },
-      "total_kb_links": "626",
+      "total_kb_links": "806",
       "dangling_links": "0",
       "expansion_added": {
         "hazard": 10,
@@ -50,7 +51,12 @@
       "qtr-phrasebook.html",
       "qtr-reconciliation-codex.html",
       "qtr-sisters.html",
-      "universe-map · Tekné NAVCOM"
+      "universe-map · Tekné NAVCOM",
+      "qtr-deeptime.html",
+      "qtr-time-codex.html",
+      "qtr-timelines.html",
+      "qtr-script.html",
+      "qtr-sound.html"
     ]
   },
   "schema": {
@@ -59,6 +65,7 @@
     "map_edge": "{type:depth|adjacency|constitution, from, to, from_xy, to_xy, dashed}",
     "types": [
       "concept",
+      "era",
       "event",
       "faction",
       "hazard",
@@ -2248,6 +2255,11 @@
           "rel": "related",
           "target": "term-depth-axis",
           "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
         }
       ]
     },
@@ -2470,6 +2482,11 @@
         {
           "rel": "related",
           "target": "term-three-limits",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
           "resolved": true
         }
       ]
@@ -3426,6 +3443,11 @@
         {
           "rel": "related",
           "target": "term-depth-well",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-becoming-time",
           "resolved": true
         }
       ]
@@ -10428,6 +10450,11 @@
           "rel": "related",
           "target": "term-navcom-drive-ladder",
           "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-reckoning",
+          "resolved": true
         }
       ],
       "sources": [
@@ -10679,6 +10706,16 @@
           "rel": "related",
           "target": "faction-irrationals",
           "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-surface-sisters",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-navcher-script",
+          "resolved": true
         }
       ],
       "sources": [
@@ -10735,10 +10772,1633 @@
           "rel": "related",
           "target": "tech-idrenes-bridge",
           "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-nubhel-moods-codeswitch",
+          "resolved": true
         }
       ],
       "sources": [
         "qtr-language-codex.html"
+      ]
+    },
+    {
+      "id": "concept-deeptime-civilizational-ladder",
+      "type": "concept",
+      "name": "The civilizational ladder",
+      "kb_group": "deeptime",
+      "jp": "文明の階梯",
+      "symbol": "K · Φ",
+      "summary": "The deep-time civilizational layer of QTR: a seven-rung era ladder along which civilizations climb the coupled axes of energy mastery K (the Kardashev index, K = (log₁₀E − 16)/6) and Field mastery Φ (Φ₀…Φ₆), from contemporary Earth to universal self-reference across the deep future of a ΛCDM cosmos and its conformal aeons. The two axes stay distinct — communication is not transport, energy is not Field mastery — yet advance together, because deep Field mastery is reserved for powers that also command the energy of their era. The ladder is plotted against the ΛCDM background as a shared coordinate, with QTR's narrative present at ~50 Gyr (the cusp of the Oceanic and Eonic ages) and a horizon near 500 Gyr; because QTR has no universal clock, it reads as deep-time geology rather than a synchronized 'now'. No civilization is the final form and no empire is permanent — the Field is the constant.",
+      "attributes": [
+        {
+          "k": "Evolution levels",
+          "v": "1 → 7"
+        },
+        {
+          "k": "Energy axis K",
+          "v": "<1 → 5"
+        },
+        {
+          "k": "Field axis Φ",
+          "v": "Φ₀ → Φ₆"
+        },
+        {
+          "k": "Kardashev formula",
+          "v": "K = (log₁₀E − 16) / 6"
+        },
+        {
+          "k": "Narrative present",
+          "v": "~50 Gyr (cusp of Oceanic and Eonic)"
+        },
+        {
+          "k": "Horizon",
+          "v": "~500 Gyr"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "era-contemporary-earth",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-solar-civilization",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-diaspora",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-age-of-galactic-empires",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-oceanic-age",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-eonic-age",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "era-chronal-self-reference",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-omniverse-cantor-tower-oct",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-er-epr",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-curvature-limit",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-pelagian-assembly",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-qtr-quantum-theory-of-relativity",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-contemporary-earth",
+      "type": "era",
+      "name": "Contemporary Earth",
+      "kb_group": "deeptime",
+      "jp": "現代の地球",
+      "symbol": "Φ₀",
+      "summary": "The first rung of the deep-time era ladder (evolution level 1): contemporary Earth, an incomplete planetary civilization running on industrial energy and a global network. It sits at Kardashev energy K≈0.7 and Field mastery Φ₀ — the effective layer, the OCT-0 surface, where physics reads as coarse statistics and the Field is barely observed. It is the 'today' baseline from which the whole ladder climbs.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "1"
+        },
+        {
+          "k": "Scale",
+          "v": "Planetary"
+        },
+        {
+          "k": "Energy K",
+          "v": "0.7"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₀"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "Today (~100 yr)"
+        },
+        {
+          "k": "Attribute",
+          "v": "Incomplete planetary civilization"
+        },
+        {
+          "k": "Attribute",
+          "v": "Industrial energy and a global network"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-effective-layer",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-oct-0-surface",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-omniverse-cantor-tower-oct",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-solar-civilization",
+      "type": "era",
+      "name": "Solar civilization",
+      "kb_group": "deeptime",
+      "jp": "太陽系文明",
+      "symbol": "Φ₁",
+      "summary": "The solar rung of the era ladder (evolution level 2), reached over roughly a million years: the Solar System industrialized, with the first network structures and the first proofs of the Field. At Kardashev energy K≈1–2 and Field mastery Φ₁ it achieves industrial entanglement — ER=EPR signalling — so nonlocal communication opens, while the civilization is still coastal on the vacuum.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "2"
+        },
+        {
+          "k": "Scale",
+          "v": "Solar"
+        },
+        {
+          "k": "Energy K",
+          "v": "1–2"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₁"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~1 Myr"
+        },
+        {
+          "k": "Attribute",
+          "v": "Solar System industrialized"
+        },
+        {
+          "k": "Attribute",
+          "v": "First network structures"
+        },
+        {
+          "k": "Attribute",
+          "v": "First proofs of the Field"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-er-epr",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-vacuum-navigation",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-diaspora",
+      "type": "era",
+      "name": "Diaspora",
+      "kb_group": "deeptime",
+      "jp": "ディアスポラ",
+      "symbol": "Φ₂",
+      "summary": "The interstellar rung of the era ladder (evolution level 3), spanning roughly 10–100 million years: first interstellar colonies, the formation of networks, and instantaneous communication. At Kardashev energy K≈2 and Field mastery Φ₂ it practices Casimir-corridor sailing — Field propulsion along the shortest vacuum routes — and the hazard spine begins to matter.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "3"
+        },
+        {
+          "k": "Scale",
+          "v": "Interstellar"
+        },
+        {
+          "k": "Energy K",
+          "v": "2"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₂"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~10–100 Myr"
+        },
+        {
+          "k": "Attribute",
+          "v": "First interstellar colonies"
+        },
+        {
+          "k": "Attribute",
+          "v": "Formation of networks"
+        },
+        {
+          "k": "Attribute",
+          "v": "Instantaneous communication"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "tech-casimir-sail",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-hazard-spine",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-vacuum-navigation",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-age-of-galactic-empires",
+      "type": "era",
+      "name": "Age of galactic empires",
+      "kb_group": "deeptime",
+      "jp": "銀河帝国の時代",
+      "symbol": "Φ₃",
+      "summary": "The galactic rung of the era ladder (evolution level 4), over roughly a billion years: networks of vast numbers of systems, millennial longevity, and imperial cycles and refoundations. At Kardashev energy K≈2.5–3 and Field mastery Φ₃ it masters the dive — deep-field superluminal navigation down the OCT rungs — and its empire is centralized in signal, distributed in force.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "4"
+        },
+        {
+          "k": "Scale",
+          "v": "Galactic"
+        },
+        {
+          "k": "Energy K",
+          "v": "2.5–3"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₃"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~1 Gyr"
+        },
+        {
+          "k": "Attribute",
+          "v": "Networks of vast numbers of systems"
+        },
+        {
+          "k": "Attribute",
+          "v": "Millennial longevity"
+        },
+        {
+          "k": "Attribute",
+          "v": "Imperial cycles and refoundations"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-dive",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-omniverse-cantor-tower-oct",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-ship-classes-0",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-oceanic-age",
+      "type": "era",
+      "name": "Oceanic age",
+      "kb_group": "deeptime",
+      "jp": "海洋の時代",
+      "symbol": "Φ₄",
+      "summary": "The oceanic rung of the era ladder (evolution level 5), over roughly ten billion years: mapping of the quantum currents, superluminal-class navigation, and ecosystems of the Field. At Kardashev energy K≈3 and Field mastery Φ₄ it performs topological engineering — kindled seam-wells and the Idrenes Bridge — building the first aeonic gates. QTR's narrative present sits at ~50 Gyr, at the cusp of the Oceanic and Eonic ages.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "5"
+        },
+        {
+          "k": "Scale",
+          "v": "Oceanic"
+        },
+        {
+          "k": "Energy K",
+          "v": "3"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₃–Φ₄ (Φ₄)"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~10 Gyr"
+        },
+        {
+          "k": "Attribute",
+          "v": "Mapping of the quantum currents"
+        },
+        {
+          "k": "Attribute",
+          "v": "Superluminal-class navigation"
+        },
+        {
+          "k": "Attribute",
+          "v": "Ecosystems of the Field"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-kindled-well",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-idrenes-bridge",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-eonic-age",
+      "type": "era",
+      "name": "Eonic age",
+      "kb_group": "deeptime",
+      "jp": "永劫の時代",
+      "symbol": "Φ₅",
+      "summary": "The eonic rung of the era ladder (evolution level 6), over roughly a hundred billion years: an intergalactic network, cosmological-scale cognition, universal self-referential consciousness, migration between conformal aeons, and cosmological engineering. At Kardashev energy K≈4–5 and Field mastery Φ₅ it achieves Κ-crossing / transmutation — conversion between universes at the curvature limit — where substance may not cross but pattern can.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "6"
+        },
+        {
+          "k": "Scale",
+          "v": "Eonic"
+        },
+        {
+          "k": "Energy K",
+          "v": "4–5"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₄–Φ₅ (Φ₅)"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~100 Gyr"
+        },
+        {
+          "k": "Attribute",
+          "v": "Intergalactic network"
+        },
+        {
+          "k": "Attribute",
+          "v": "Cosmological-scale cognition"
+        },
+        {
+          "k": "Attribute",
+          "v": "Universal self-referential consciousness"
+        },
+        {
+          "k": "Attribute",
+          "v": "Migration between conformal aeons"
+        },
+        {
+          "k": "Attribute",
+          "v": "Cosmological engineering"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-curvature-limit",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-transmutation-3",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-constitution-axis",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "era-chronal-self-reference",
+      "type": "era",
+      "name": "Chronal / universal self-reference",
+      "kb_group": "deeptime",
+      "jp": "時間界・宇宙的自己言及",
+      "symbol": "Φ₆",
+      "summary": "The final rung of the era ladder (evolution level 7), the chronal age of universal self-reference, over roughly five hundred billion years: the culmination of universe-scale consciousness and trans-universal awareness of the Field. At Kardashev energy K≈5+ and Field mastery Φ₆ it reaches becoming-time manipulation — the chronal domain governed by postulate P4 'growth' — the only regime in which real time travel is possible.",
+      "attributes": [
+        {
+          "k": "Evolution level",
+          "v": "7"
+        },
+        {
+          "k": "Scale",
+          "v": "Chronal"
+        },
+        {
+          "k": "Energy K",
+          "v": "5+"
+        },
+        {
+          "k": "Field Φ",
+          "v": "Φ₆"
+        },
+        {
+          "k": "Timescale t/tlab",
+          "v": "~500 Gyr"
+        },
+        {
+          "k": "Attribute",
+          "v": "Culmination of universe-scale consciousness"
+        },
+        {
+          "k": "Attribute",
+          "v": "Trans-universal awareness of the Field"
+        }
+      ],
+      "sources": [
+        "qtr-deeptime.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "concept-deeptime-civilizational-ladder",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-p4-growth-becoming",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-four-postulates-p1-p4",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-reckoning",
+      "type": "concept",
+      "name": "The Reckoning of Time",
+      "kb_group": "time",
+      "jp": "時の計り方（レコニング）",
+      "summary": "The temporal layer of the QTR Operational Codex, which holds that time is not fundamental but relational (P3) and grown (P4) — it runs at different rates at different depths, with no universal clock to compare them against. The Reckoning sets out the three clocks a person can feel, the two regimes that relate travellers, the beacon network a civilization built to agree on 'when,' and a working vocabulary of units. Its one-line principle: a body keeps its own time faithfully, and the world's time is the thing that slips.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "term-qtr-quantum-theory-of-relativity",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-four-postulates-p1-p4",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-p4-growth-becoming",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-three-clocks",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-hybrid-rule",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-reference-beacons",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-pelagian-assembly",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-three-clocks",
+      "type": "concept",
+      "name": "The three clocks",
+      "kb_group": "time",
+      "jp": "三つの時計",
+      "summary": "Where ordinary physics has one clock, QTR has three that a character can feel. The first, proper time, never lies and is never perceived to change; the second, becoming-time, runs faster the deeper you go and is felt as density rather than speed; the third, relational offset, is not a rate at all but a negotiated relationship between observers, and is where the strangeness lives.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-proper-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-becoming-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-relational-offset",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-reckoning",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-proper-time",
+      "type": "concept",
+      "name": "Proper time",
+      "kb_group": "time",
+      "jp": "固有時",
+      "summary": "The first clock — the felt duration of a single observer: heartbeat, breath, the length of a thought. It exists, it works, and it is never perceived to change; nobody ever feels themselves slow down. That reliability is precisely the trap, because it means everything else is what appears to move.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-three-clocks",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-proper-watch",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-becoming-time",
+      "type": "concept",
+      "name": "Becoming-time",
+      "kb_group": "time",
+      "jp": "生成時（ビカミング・タイム）",
+      "summary": "The second clock, 'the deep clock' — the rate at which the substrate lays down new events (P4). It runs faster down the tower: a deeper OCT level has a shorter effective Planck length, so more events are laid per unit of proper time. It is felt not as speed but as density — a diver feels the world happening harder, more per breath than a breath should hold — and the shear between her rate and the world's is the vertigo divers call running under.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "term-p4-growth-becoming",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-effective-planck-length",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-omniverse-cantor-tower-oct",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-three-clocks",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-running-under",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-dive",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-relational-offset",
+      "type": "concept",
+      "name": "Relational offset",
+      "kb_group": "time",
+      "jp": "関係的オフセット",
+      "summary": "The third clock — not a rate but a relationship. Because no frame is absolute (P3), one observer's 'now' is not another's; 'now' is negotiated, not shared. Two people do not disagree about a common clock — they have no common clock and must build a correspondence. It is felt as desynchronisation: their times have come unmoored, and there may be no fact about which is right, only the relationship they rebuild.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-three-clocks",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-offset-reunion",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-determinate-timeline",
+      "type": "concept",
+      "name": "The determinate timeline (Regime A)",
+      "kb_group": "time",
+      "jp": "確定的タイムライン（レジームA）",
+      "summary": "The regime governing depth-axis travel within a single universe. A diver and a surface-dweller share enough substrate correlation that their becoming-rates can be compared, so depth-dilation holds like a clean twin paradox — but inverted: immersed in faster becoming, the diver comes home older, not younger. The offset is determinate and measurable, reunion is a fact ('you aged more than me' — a settled count of beacon-cycles), and the drama is legible twin-paradox loss.",
+      "sources": [
+        "qtr-time-codex.html",
+        "qtr-two-timelines.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "term-depth-axis",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-dive",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-becoming-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-offset-reunion",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-hybrid-rule",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-indeterminate-timeline",
+      "type": "concept",
+      "name": "The indeterminate timeline (Regime B)",
+      "kb_group": "time",
+      "jp": "不確定的タイムライン（レジームB）",
+      "summary": "The regime governing seam- and adjacency-travel between universes that share no frame. Cross the seam 𝔍, or take a Penrose bridge to a neighbour, and there is no fact about how much time passed 'meanwhile' back home. Reunion is not measurement but renegotiation, and the ambiguity is permanent — the relationship must be rebuilt because the arithmetic that would settle it does not exist. Its drama is desynchronisation, and its wound is permanent.",
+      "sources": [
+        "qtr-time-codex.html",
+        "qtr-two-timelines.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "map-crossing",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-adjacency-axis",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-penrose-bridge",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-relational-offset",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-hybrid-rule",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-determinate-timeline",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-dark-time",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-hybrid-rule",
+      "type": "concept",
+      "name": "The hybrid rule",
+      "kb_group": "time",
+      "jp": "混成則（ハイブリッド・ルール）",
+      "summary": "The principle that a character's axis of travel decides which kind of time they suffer. Depth-axis travel is determinate — same tower, same lattice, a correspondence exists and the diver ages more; seam- and adjacency-travel are indeterminate — different frames, no correspondence, no fact of the matter. The structure QTR built to sort space now sorts time, so which wound a character carries is decided by which door they went through.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "term-the-three-axes",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-depth-axis",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-adjacency-axis",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-determinate-timeline",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-reference-beacons",
+      "type": "concept",
+      "name": "Reference beacons",
+      "kb_group": "time",
+      "jp": "基準ビーコン（座標時）",
+      "summary": "The civilization's answer to a cosmos that offers no universal clock: a network of the steadiest natural timekeepers, the beacon cores (pulsars), which keep relational time so cleanly that fleets anchor ΛL phase to them. Promoted to an institution they become reference beacons — a shared, diegetic coordinate time against which ships log every dive and crossing. Coverage has an edge: dive or travel far enough and the beacons fail, and Regime B begins exactly where coverage ends — so whoever holds the beacons holds the power to define the official 'now.'",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "obj-beacon-cores",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "tech-beacon-network",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-l-the-logic-of-the-limit",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-mutual-information",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-beacon-cycle",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-dark-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-pelagian-assembly",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-beacon-cycle",
+      "type": "concept",
+      "name": "Beacon-cycle",
+      "kb_group": "time",
+      "jp": "ビーコン周期",
+      "summary": "The base unit of QTR horology: one full phase-period of the reference beacon network — the shared 'second' of the civilization. It is only meaningful inside beacon coverage, and characters count offsets in it ('she surfaced four beacon-cycles ahead of me') so a reader can track who is when without a universal clock ever existing.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-reference-beacons",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-proper-watch",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-offset-reunion",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-proper-watch",
+      "type": "concept",
+      "name": "Proper-watch",
+      "kb_group": "time",
+      "jp": "固有当直（プロパー・ウォッチ）",
+      "summary": "A duration measured by a ship's own clock, independent of any beacon — what the crew actually lived. Compared against beacon-cycles, the proper-watch reveals a dive's dilation.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-proper-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-beacon-cycle",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-offset-reunion",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-mission-clock",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-running-under",
+      "type": "concept",
+      "name": "Running under",
+      "kb_group": "time",
+      "jp": "ランニング・アンダー（世界の下を走る）",
+      "summary": "Pilot's slang for the desynchronisation of a deep dive — being under the world's rate, the world becoming faster than the body. It is the felt signature of depth travel and of becoming-time.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-becoming-time",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-dive",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-depth-axis",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-seam-gap",
+      "type": "concept",
+      "name": "The seam-gap",
+      "kb_group": "time",
+      "jp": "継ぎ目の空白（シーム・ギャップ）",
+      "summary": "The un-narratable interval of a seam-crossing — held at the ΛL value T•, it cannot be laid down as memory. A life gains one seam-gap per crossing.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "map-crossing",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-t-seam-truth",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-l-the-logic-of-the-limit",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-offset-reunion",
+      "type": "concept",
+      "name": "Offset (on reunion)",
+      "kb_group": "time",
+      "jp": "オフセット（再会の差）",
+      "summary": "The measured difference between two parties' clocks when they reunite. Within one universe it is determinate — a settled count of beacon-cycles; across the seam it is undefined, becoming a matter of trust rather than arithmetic.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-relational-offset",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-beacon-cycle",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-determinate-timeline",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "time-dark-time",
+      "type": "concept",
+      "name": "Dark time",
+      "kb_group": "time",
+      "jp": "暗黒時間（ダーク・タイム）",
+      "summary": "Any duration spent beyond beacon coverage, for which no shared reckoning exists. A ship that returns from dark time returns to a 'when' no one can agree on — and because whoever controls the beacon network decides the official account, a private loss becomes a political fact and time itself becomes contested ground.",
+      "sources": [
+        "qtr-time-codex.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "time-reference-beacons",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "tech-beacon-network",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "time-indeterminate-timeline",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-navcher-script",
+      "type": "concept",
+      "name": "Navcher — the fleet script",
+      "kb_group": "language",
+      "jp": "ナヴチェル（艦隊文字）",
+      "symbol": "=zu",
+      "etymology": "From nav \"ship\" + cher \"to carve, write\" (*ker- → SC-1).",
+      "summary": "Navcher is the featural stencil writing system of the Pelagian fleets — a left-to-right linearization of Old Pelagic's flowing, boustrophedon \"tide-script,\" reworked for terminals and stencil plates with the old vowel diacritics demoted to small inline letters. Its letterforms encode phonetics: head position marks place of articulation (labials head-left, alveolars head-center, velars head-right), a foot-stroke marks voicing, and a slash marks frication; every stroke is straight and nothing fully encloses, so the script cuts clean from a plate. The full system is seventeen consonant letters, five half-height vowels carrying a held-breath length bar, five mood sigils, three anchor marks and one gap-stroke, written in two registers — a \"careful hand\" that spells every suffix phonetically and a \"bridge hand\" that compresses a verb's mood and anchor into two-stroke sigils. Its single curve is the =zu (unanchored) anchor mark, the one sign that refuses to close.",
+      "attributes": [
+        {
+          "k": "Inventory",
+          "v": "17 consonants · 5 vowels · 5 mood sigils · 3 anchors · 1 gap"
+        },
+        {
+          "k": "Type",
+          "v": "Featural, angular, stencil-safe; one curve in the whole system"
+        },
+        {
+          "k": "Registers",
+          "v": "Careful hand (spelled) · bridge hand (sigils)"
+        },
+        {
+          "k": "Threshold letter",
+          "v": "he — a stem with a gap, since /h/ survives only word-initially"
+        }
+      ],
+      "sources": [
+        "qtr-script.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-t-seam-truth",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-resurrection",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-grammaticalized-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-suchel-phonology",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-suchel-stress",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-suchel-phonology",
+      "type": "concept",
+      "name": "The sound of Sūchel — phoneme key",
+      "kb_group": "language",
+      "jp": "スーチェルの音（音素キー）",
+      "summary": "This is the phoneme key for spoken Sūchel, set out as anchors for an English mouth. It has five pure vowels — a, e, i, o, u — that never glide (a is \"father,\" not \"cat\"; e is crisp, never \"ay\"-glided; o is pure, with no \"ow\"), plus their long counterparts ā ē ī ō ū, where length is a held breath: the same quality simply sustained, not changed. Consonants include ch, j, sh, an always-voiceless s, a tapped-or-briefly-trilled r (never the English glide), a hard g and a lightly aspirated k, with p b t d m n l as crisp finals. Its shibboleth sounds are that /h/ survives only word-initially (hōl, hau, hep) — elsewhere old *h has already become vowel length (SC-4) — and that every vowel stays short and pure rather than English-lax or glided.",
+      "attributes": [
+        {
+          "k": "Vowels",
+          "v": "a e i o u + long ā ē ī ō ū (held breath, same quality)"
+        },
+        {
+          "k": "Consonants",
+          "v": "ch j sh · voiceless s · tapped/trilled r · hard g · aspirated k"
+        },
+        {
+          "k": "Shibboleth",
+          "v": "/h/ word-initial only; old *h elsewhere became vowel length"
+        }
+      ],
+      "sources": [
+        "qtr-sound.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-navcher-script",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-suchel-stress",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-suchel-stress",
+      "type": "concept",
+      "name": "The Sūchel stress algorithm",
+      "kb_group": "language",
+      "jp": "スーチェルの強勢アルゴリズム",
+      "summary": "The rhythm of Sūchel is fixed by four ordered stress rules, the first that applies winning. Rule 1: compounds stress their first member. Rule 2: in finite verbs the mood seizes the stress, so the syllable carrying the veridical suffix's first vowel takes the beat, while anchor clitics (=ka =mi =zu) stay weightless and never stressed. Rule 3: otherwise a long vowel seizes the stress. Rule 4: failing all else, stress falls on the penult of the stem and case suffixes never shift it once set. The defining consequence — ideology made audible — is that the mood carries the beat, so a Sūchel truth-claim is literally hearable, while imperatives are beatless: the command suffix -u adds no beat, so orders stay flat and stem-stressed because a command asserts nothing.",
+      "attributes": [
+        {
+          "k": "Rules",
+          "v": "1 compounds · 2 mood/verb · 3 long vowel · 4 penult of stem"
+        },
+        {
+          "k": "Signature",
+          "v": "The mood carries the beat; anchor clitics are unstressed"
+        },
+        {
+          "k": "Imperatives",
+          "v": "Beatless — flat, stem-stressed, quiet"
+        }
+      ],
+      "sources": [
+        "qtr-sound.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-lang-suchel-phonology",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-t-seam-truth",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-grammaticalized-seam",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-nubhel-sound-changes",
+      "type": "concept",
+      "name": "The Nubhel sound changes (the D-series)",
+      "kb_group": "language",
+      "jp": "ヌベルの音韻変化（D系列）",
+      "summary": "Nubhel, the divers' deep-speech, descends from the same Old Pelagic proto-forms as Sūchel but by its own set of seven ordered changes, tagged D-1 through D-7. Its diagnostic is that D-3 (breath-loss: all *h→∅ with compensatory lengthening) is ordered before D-1 (deep palatalization *k→h, *g→y before front vowels, e.g. *kel→hel 'speech', *gel→yel 'seam', *ged→yed 'go'), so every medial h in Nubhel is secondary — new h born from *k only after the old *h had died. Word-initial *w fortifies to b (D-2: *wer→ber 'truth', *wur→bur 'spin, madness'), stressed *a rounds to o (D-4: *kad→kod, *tan→ton, *ran→ron — heard in the counting test *sa…*dak→so…dok), open stressed vowels lengthen (D-5: 'the tongue that holds its breath'), *au sinks to ū (D-6), and final short vowels are lost after a heavy syllable (D-7: *tem-a→tem 'pattern').",
+      "sources": [
+        "qtr-nubhel.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-nubhel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-nubi",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-seam-word-shibboleth",
+      "type": "concept",
+      "name": "The seam-word shibboleth (the palatal isogloss)",
+      "kb_group": "language",
+      "jp": "継ぎ目語の合言葉（口蓋化等語線）",
+      "summary": "The family's great isogloss is what each tongue did to old *k and *g before front vowels, and each is known by its reflex of *gel- 'the seam' (𝔍) — one word that files a speaker's homeworld at a hearing. Old Pelagic and its living working register Lorkel keep the unshifted gel; Sūchel palatalizes it to jel; Nubhel softens it to yel. Among the surface sisters, the conservative Martian Rudgar hardens it to ghel, the liquid oceanic Sel drowns it to zel, and the eroded capital Beltsel affricates it to dzel — gel · jel · ghel · zel · dzel · yel. Fleet ears and customs officers place a stranger by it in a single syllable.",
+      "sources": [
+        "qtr-sisters.html",
+        "qtr-nubhel.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-lorkel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-nubhel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-rudgar",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-sel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-beltsel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-the-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-surface-sisters",
+      "type": "concept",
+      "name": "The three surface sisters (Rudgar, Sel, Beltsel)",
+      "kb_group": "language",
+      "jp": "三つの地表姉妹語（ルドガル・セル・ベルツェル）",
+      "summary": "Beside the two fleet daughters, Old Pelagic left three surface sisters, each charted at naming depth and each marked by one sweeping sound-law. Rudgar, the conservative Martian tongue of old ground, is the archaism-keeper — it alone preserves the proto glides *w and *h, turns *k/*g to kh/gh, and says the hardened ghel. Sel, the liquid oceanic sister of the ocean moon Maren, drowned all its glides into vowel length and says zel. Beltsel, the eroded prestige tongue of the capital Belgar, lost vowel length altogether and says dzel. They differ from the fleet daughters most in what they did not do: none built the crossing into its verb the way Sūchel and Nubhel did.",
+      "sources": [
+        "qtr-sisters.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-rudgar",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-sel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-beltsel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "world-rudgar-mars",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "world-maren",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "world-belgar",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-grammaticalized-seam",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-nubhel-moods-codeswitch",
+      "type": "concept",
+      "name": "Nubhel's three moods and the code-switch fault-line",
+      "kb_group": "language",
+      "jp": "ヌベルの三つの叙実法とコードスイッチの断層",
+      "summary": "Nubhel grammaticalizes its physics like its sister Sūchel, but carries only three veridical moods — plain -ó, approach -im (the divers' home mood), and hearsay -ur — where Sūchel has five. The proto seam-truth suffix *-eshe left no reflex, so Nubhel has no grammatical form for the seam-truth T•. A Nūbi diver therefore cannot assert the seam-truth in the deep-speech at all; to narrate a crossing the speaker must code-switch into Sūchel mid-sentence and borrow the crosser fleet's T• mood and dark anchor exactly where the seam falls. This grammatical hole is an enforced humility and a standing fault-line between the vertical divers, the Nūbi, and the horizontal crossers, the Sīli.",
+      "sources": [
+        "qtr-nubhel.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-nubhel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-nubi",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-sili",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-grammaticalized-seam",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-t-seam-truth",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-nubhel-offset-anchor",
+      "type": "concept",
+      "name": "The offset-signature anchor =nu",
+      "kb_group": "language",
+      "jp": "オフセット署名アンカー〈=nu〉",
+      "symbol": "=nu",
+      "summary": "Where Sūchel dates a finite claim with the shared anchors =mi (proper-time) and =ka (beacon-time) plus =zu (dark-time), Nubhel keeps =mi and =ka but has no cognate for =zu — divers rarely leave beacon coverage. In its place stands =nu (from *nub), the deep-time / debt anchor: a claim stated in dive-time with the conversion still owed. In formal register the speaker then appends the accrued dilation as a numeral — the offset signature, worn like a name-suffix (e.g. 'Mora, +212') — counted in kodur, the beacon-cycle (from kod 'beacon; kept time'). A crosser's homecoming ends in a question no arithmetic settles; a diver's ends in an invoice.",
+      "sources": [
+        "qtr-nubhel.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-nubhel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-nubi",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-grammaticalized-seam",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-nubhel-depth-directionals",
+      "type": "concept",
+      "name": "Nubhel's five depth directionals",
+      "kb_group": "language",
+      "jp": "ヌベルの五つの深度方向詞",
+      "summary": "Where Sūchel has two directionals, Nubhel grades five — a fine vertical deixis fit for divers along the tower, and motion verbs are ungrammatical without one. They are ū 'up, surfaceward', ūtel 'breach-up, an overshooting ascent', len 'level, along this depth', nub 'down, a working descent', and dolnub 'pitward, a committed deep dive'. The deep-speech thus distinguishes an ordinary descent from a committed plunge, and a controlled surfacing from an overshoot. That 'up' is the shortest, one exhaled vowel ū is the language's quiet joke about where its heart lies.",
+      "sources": [
+        "qtr-nubhel.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-nubhel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-nubi",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-omniverse-cantor-tower-oct",
+          "resolved": true
+        }
+      ]
+    },
+    {
+      "id": "term-lang-two-custodians-old-pelagic",
+      "type": "concept",
+      "name": "The two custodians of Old Pelagic (liturgy vs Lorkel)",
+      "kb_group": "language",
+      "jp": "古ペラグ語の二人の管理者（典礼語とロルケル）",
+      "summary": "Old Pelagic — the moodless, anchorless proto-tongue that predates the seam, in which a proposition can be entertained without being asserted — survives twice over in rival hands, and the difference is the whole politics of truth in this universe. The Pelagian Assembly keeps it as frozen liturgical Pelgar: performed, not lived, sacred precisely because it cannot conjugate a crossing, so in it no crossing can contradict doctrine. The order of science that follows Logos — the Irrationals, whose endonym is Wolori, 'the un-ratioed' — keeps the same corpus as Lorkel (*lor-kel, 'ratio-speech'), a living technical register extended by coinage for post-seam physics. Both claim custody and each calls the other's use profanation. Above Lorkel sits the order's true liturgy, the 'zero-tongue' of mathematics itself — no moods, no anchors, no native speakers — the only medium in which T• can be written without being sworn.",
+      "sources": [
+        "qtr-sisters.html"
+      ],
+      "links": [
+        {
+          "rel": "related",
+          "target": "lang-old-pelagic",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-lorkel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-irrationals",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "faction-pelagian-assembly",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-t-seam-truth",
+          "resolved": true
+        },
+        {
+          "rel": "related",
+          "target": "term-pelagic-family",
+          "resolved": true
+        }
       ]
     }
   ],

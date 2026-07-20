@@ -67,7 +67,7 @@ const SECTIONS = [
   ['Knowledge bases', [
     ['ATLAS tab', 'a curated set of real objects across every class; resolve any name live from SIMBAD, or ◈ grow whole catalogues.'],
     ['Story Studio', '✦ Imagine your own objects; they persist and are fully route-able.'],
-    ['CODEX (C)', 'the imported "Immeasurable Spaces" fiction knowledge base — with a real ↔ fiction bridge to the map.'],
+    ['CODEX (C)', 'the imported "Immeasurable Spaces" fiction knowledge base (synced to the consolidated QTR canon) — concepts, objects, events, reconciliations, ships, hazards, the whole language family, plus the TIME reckoning (three clocks · two regimes · beacon network) and the DEEP-TIME era ladder (seven rungs of civilization). Browse by type, search, follow the linked graph, or flip to the DIAGRAM; a real ↔ fiction bridge jumps from a fictional class to the real objects on the map.'],
   ]],
 ];
 
