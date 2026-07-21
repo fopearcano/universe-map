@@ -817,6 +817,9 @@ export class App {
     if (!desc) return;
     const interior = this.deeptime.enterGalaxy(desc, { count: this.qualityStarCount() }); if (!interior) return;
     this.clearSelection();
+    // an overview route is in the origin frame; the interior is the galaxy-core
+    // frame — don't let one route straddle both (mirrors the cosmos interior guard)
+    this.clearRoute();
     this.labels.setStars([]);
     const v = this.deeptime.interiorView();
     this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.2 });
@@ -824,8 +827,10 @@ export class App {
   }
   // Rise back out of a galaxy to the universe overview (matrioska level 0).
   deeptimeExitToOverview() {
+    if (this.mode !== 'deeptime') return;   // scale state is owned by setMode; no-op elsewhere
     this.deeptime.exitGalaxy();
     this.clearSelection();
+    this.clearRoute();                       // interior-frame route can't cross back to the overview
     this.labels.setStars(this.deeptime.labelItems());
     const v = this.deeptime.defaultView();
     this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.3 });
@@ -1199,7 +1204,9 @@ export class App {
   async _descendAtWaypoint(wp) {
     this.emit('nav', this._navReadout());               // "descending…"
     if (wp.dtGalaxy) {
-      // deeptime matrioska descent — generate + enter the galaxy's own star field
+      // deeptime matrioska descent — generate + enter the galaxy's own star field.
+      // Save the pre-descent (overview) camera so resume can restore the follow offset.
+      this._dtGalaxyReturn = { camPos: this.scene.camera.position.clone(), target: this.scene.controls.target.clone() };
       const interior = this.deeptime.enterGalaxy(wp.dtGalaxy, { count: this.qualityStarCount() });
       if (!this.autopilot) return;                        // disengaged during generation
       const v = this.deeptime.interiorView();
@@ -1223,8 +1230,11 @@ export class App {
     if (this.mode === 'deeptime' && this.deeptime.interior) {
       this.deeptime.exitGalaxy();                        // rise back to the universe overview
       this.labels.setStars(this.deeptime.labelItems());
-      const wp = this.route[this.autopilot.seg];
-      if (wp) this.scene.setView(this.scene.camera.position.clone(), wp.worldPos.clone());
+      // restore the saved overview camera so the follow-cam keeps its pre-descent offset
+      const r = this._dtGalaxyReturn;
+      if (r) this.scene.setView(r.camPos, r.target);
+      else { const wp = this.route[ap.seg]; if (wp) this.scene.setView(this.scene.camera.position.clone(), wp.worldPos.clone()); }
+      this._dtGalaxyReturn = null;
       this.emit('deeptime', { level: 0, galaxies: this.deeptime.galaxyList() });
     } else {
       this.exitGalaxy({ keepRoute: true });              // restores cosmos + camera to the waypoint
@@ -1401,7 +1411,10 @@ export class App {
   // ================= navigation: saved routes =================
   _wpToPortable(r) {
     const { ra, dec, r: rr } = cartesianToRaDec(r.truePos.x, r.truePos.y, r.truePos.z);
-    return { label: r.label, kind: r.kind, ra, dec, distLy: rr * PC_TO_LY };
+    const wp = { label: r.label, kind: r.kind, ra, dec, distLy: rr * PC_TO_LY };
+    // preserve enough of a deeptime galaxy waypoint to restore its mid-flight descent
+    if (r.dtGalaxy) wp.dt = { name: r.dtGalaxy.name, type: r.dtGalaxy.type, seed: r.dtGalaxy.seed, diameterKpc: r.dtGalaxy.diameterKpc };
+    return wp;
   }
   saveRoute(name) {
     if (this.route.length < 1) return null;
@@ -1412,16 +1425,20 @@ export class App {
   loadRoute(id) {
     const rec = this.routeStore.get(id); if (!rec) return;
     if (this.autopilot) this.stopRoute();
+    // load onto the overview: an open deeptime interior would place waypoints on the
+    // wrong (linear) frame, so rise out first
+    if (this.mode === 'deeptime' && this.deeptime.interior) this.deeptimeExitToOverview();
     this._applyDriveSpeed(rec.cruiseC || this.drive.sc);
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
+    // a deeptime/cosmos route draws on the shared log-radial display scale
+    const logRadial = this.mode === 'cosmos' || this.mode === 'deeptime';
     this.route = rec.waypoints.map((w, i) => {
       const distPc = Math.max((w.distLy || 0) / PC_TO_LY, 0);
       const ra = w.ra * 15 * Math.PI / 180, dec = w.dec * Math.PI / 180, cd = Math.cos(dec);
       const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
       const truePos = dir.clone().multiplyScalar(distPc);
-      // deeptime shares cosmos's log-radial display scale (equal decadeUnit)
-      const worldPos = this._isLogRadial() ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
-      return { worldPos, truePos, label: w.label || `waypoint ${i + 1}`, kind: w.kind || 'free' };
+      const worldPos = logRadial ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
+      return { worldPos, truePos, label: w.label || `waypoint ${i + 1}`, kind: w.kind || 'free', dtGalaxy: w.dt || undefined };
     });
     this._redrawRoute(); this.emit('route', this._routeSummary());
   }
@@ -1493,9 +1510,11 @@ export class App {
     const dir = new THREE.Vector3(cd * Math.cos(ra), cd * Math.sin(ra), Math.sin(dec));
     const truePos = dir.clone().multiplyScalar(distPc);
     const D = this.cosmos ? this.cosmos.decadeUnit : 3;
-    // deeptime shares cosmos's log-radial display scale; a deeptime anchor's
-    // (ra,dec,distLy) reconstructs its exact display point via this same formula
-    const worldPos = this._isLogRadial() ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
+    // an overview target's display point is log-radial in cosmos OR deeptime
+    // (a deeptime anchor's (ra,dec,distLy) reconstructs its exact display point),
+    // independent of interior state — that only affects flight pacing (_isLogRadial)
+    const logRadial = this.mode === 'cosmos' || this.mode === 'deeptime';
+    const worldPos = logRadial ? dir.clone().multiplyScalar(D * Math.log10(Math.max(distPc, 1))) : truePos.clone();
     return { worldPos, truePos, label: r.label, kind: 'agent', dtGalaxy: r.dtGalaxy || undefined };
   }
 
@@ -1514,8 +1533,17 @@ export class App {
   // otherwise a target beyond the local bubble → cosmos. Switches mode if needed.
   // (setMode clears the route/selection, so call this BEFORE building the route.)
   _agentScaleFor(resolved) {
-    if (resolved.some((r) => r.deeptime)) { if (this.mode !== 'deeptime') this.setMode('deeptime'); return; }
-    if (resolved.some((r) => (r.distLy || 0) > this._localMaxLy()) && this.mode !== 'cosmos' && this.mode !== 'deeptime') this.setMode('cosmos');
+    if (resolved.some((r) => r.deeptime)) {
+      // deeptime overview route: enter the scale, and rise out of any open galaxy
+      // interior so the waypoints are built on the log-radial overview (not the
+      // linear interior frame), keeping worldPos a display-space point.
+      if (this.mode !== 'deeptime') this.setMode('deeptime');
+      else if (this.deeptime.interior) this.deeptimeExitToOverview();
+      return;
+    }
+    // a real target beyond the local bubble belongs on the cosmos scale, even
+    // when we are currently in deeptime (matches agentFocus)
+    if (resolved.some((r) => (r.distLy || 0) > this._localMaxLy()) && this.mode !== 'cosmos') this.setMode('cosmos');
   }
 
   // Build a whole course from a list of stops ({name} or {ra,dec,distLy,label}).
