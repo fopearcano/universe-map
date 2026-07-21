@@ -1,22 +1,36 @@
 import * as THREE from 'three';
+import { comovingMpc, displayRadiusFromMpc, distanceColor, fmtCosmoDist } from '../util/cosmology.js';
+import { structureCloud, morphFromType } from './morphology.js';
+import { GalaxyInterior } from './galaxyInterior.js';
 
 // ────────────────────────────────────────────────────────────────────────────
-// The DEEPTIME scale — a far-future (~50 Gyr) universe, drawn from the QTR
-// "Deep Time" canon: billions of galaxies condensed by gravity + dark matter
-// into a cosmic web of filaments, threaded with LOCAL GROUPS of galaxies.
+// The DEEPTIME scale — a far-future (~50 Gyr) universe from the QTR "Deep Time"
+// canon, built to the SAME depth and rules as COSMOS: a logarithmic-radial map
+// (direction exact, radius log-compressed) on the same Planck-ΛCDM cosmology,
+// but PROCEDURALLY GENERATED — in 50 billion years the real cosmos has changed,
+// so this one is derived from the real cosmology's rules rather than its data.
 //
-// It is a matrioska (nested) scale:
-//     Deeptime  →  local group  →  galaxies  →  (systems, later)
-// The overview shows the web + N local groups; entering a group generates and
-// shows its member galaxies. Group metadata is generated up front (cheap); each
-// group's galaxies are generated LAZILY on first entry — that per-group
-// generator (`_genGalaxies`) is the seam where a live-data fetch can be slotted
-// in later without touching the rest of the system. Only the overview OR a
-// single entered group is ever drawn, so the cost stays flat regardless of N.
+// It is a MATRIOSKA (nested) scale, deeper than a point-cloud:
+//     Deeptime universe  →  a galaxy's interior (its own star field)  →  (systems, later)
+//
+//   · Universe (level 0): a home supergalaxy at the origin (there is no Sun in
+//     50 Gyr — the merged descendant of the Local Group anchors the map the way
+//     Sol anchors Cosmos), a cosmic web of filaments, a dense field of galaxies
+//     condensed onto that web that THINS toward the horizon (the "blend": real
+//     accelerating-expansion isolation + the QTR condensed-web canon on one map),
+//     and 100 named, navigable ANCHOR galaxies.
+//   · Galaxy (level 1): enter any galaxy and fly inside its own star field — a
+//     "local"-sized database (tens of thousands of stars) generated on demand.
+//     That per-galaxy generator (`enterGalaxy`) is the seam where a live data
+//     fetch/richer model slots in later without touching the rest of the system.
+//
+// Only the universe OR one entered galaxy is ever drawn, so cost stays flat.
 // ────────────────────────────────────────────────────────────────────────────
 
-const R = 420;                 // world radius of the deeptime volume
 const GTYPES = ['spiral', 'elliptical', 'lenticular', 'irregular', 'dwarf'];
+const FIELD = 140000;         // background galaxies condensed on the web
+const HUBS = 40;              // filament hubs across the log-radial volume
+const DEEPTIME_TINT = new THREE.Color(0.62, 0.5, 0.86); // deep-time violet
 
 // deterministic seeded RNG (mulberry32) so the whole universe is reproducible
 function rng(seed) {
@@ -34,42 +48,58 @@ const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
 // evocative far-future names, syllable-built + a catalogue tag
 const SYL_A = ['Aeon', 'Vael', 'Sōr', 'Thren', 'Ixa', 'Orun', 'Kael', 'Nyx', 'Zeph', 'Umbra', 'Cael', 'Drav', 'Eryn', 'Mor', 'Ossa', 'Vyre', 'Halla', 'Tavu', 'Onei', 'Skarn'];
 const SYL_B = ['reach', 'wold', 'mere', 'spire', 'fold', 'gyre', 'holt', 'run', 'drift', 'vault', 'shoal', 'coil', 'wane', 'span', 'loom', 'crest', 'hollow', 'weald'];
-const GNAME_A = ['Ossuary', 'Ember', 'Halo', 'Tide', 'Lantern', 'Ashen', 'Coral', 'Vellum', 'Sable', 'Cinder', 'Pale', 'Wraith', 'Iron', 'Amber', 'Nacre', 'Verdant', 'Silent', 'Hollow'];
 
-function groupName(r) {
+function galaxyName(r) {
   const a = pick(r, SYL_A), b = pick(r, SYL_B);
   const tag = ['DG', 'FL', 'AR'][Math.floor(r() * 3)] + '-' + (100 + Math.floor(r() * 8900));
   return { name: `${a} ${b.charAt(0).toUpperCase() + b.slice(1)}`, tag };
 }
 
 export class Deeptime {
-  constructor(scene, { seed = 0xDEE9714E, groupCount = 100 } = {}) {
+  constructor(scene, cosmosData, { seed = 0xDEE9714E, anchorCount = 100 } = {}) {
     this.scene = scene;
+    this.decadeUnit = cosmosData.meta.decadeUnit;
+    this.cmbR = cosmosData.meta.cmb.displayR;          // horizon shell radius on the map
+    this.R = this.cmbR * 0.96;                          // structure reaches most of the way out
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
 
     this.seed = seed;
-    this.groupCount = groupCount;
-    this._galaxyCache = new Map();       // lazy per-group galaxy generation
-    this.entered = null;                 // index of the entered local group, or null
+    this.anchorCount = anchorCount;
     this._glow = this._glowTexture();
+    this._style = null;                                 // graphics-panel per-layer override
 
-    this._buildWeb();
-    this._buildGroups();
-    this._buildGalaxyLayer();
+    // matrioska level-1 state (inside a galaxy)
+    this.interior = null;
+    this.enteredGalaxy = null;
+
+    this._buildWeb();        // hubs + filament threads (display space)
+    this._buildField();      // the dense galaxy web, thinning toward the horizon
+    this._buildAnchors();    // 100 named, navigable galaxies (index 0 = home)
+    this._buildRings();      // faint decade rings for scale context
   }
+
+  // true distance (pc) back out of a logarithmic display radius
+  _distPc(displayR) { return Math.pow(10, displayR / this.decadeUnit); }
+  // a cosmologically-spaced display radius from a sampled redshift (ties the
+  // procedural layout to the same Planck-ΛCDM distance rules as Cosmos)
+  _radiusFromZ(z) { return displayRadiusFromMpc(comovingMpc(z), this.decadeUnit); }
+  // per-field deterministic seed (so a field galaxy's identity/interior is stable
+  // without storing 140k objects) — the live-generation seam for the background web
+  _fieldSeed(i) { return (Math.imul(this.seed ^ 0xF1E1D5, i + 1) ^ (i * 2654435761)) >>> 0; }
 
   // ── procedural generation ────────────────────────────────────────────────
   _buildWeb() {
     const r = rng(this.seed);
-    // filament hubs, roughly on a sphere shell + interior, then a sparse graph
-    const HUBS = 26;
+    // hubs on cosmologically-spaced shells, biased inward (blend: denser core),
+    // random directions — the nodes the filaments will connect.
     this.hubs = [];
     for (let i = 0; i < HUBS; i++) {
-      const u = r(), v = r(), rad = R * (0.35 + 0.62 * Math.cbrt(r()));
-      const th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
-      this.hubs.push(new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph) * 0.7, rad * Math.cos(th)));
+      const z = 0.03 * Math.pow(6 / 0.03, Math.pow(r(), 1.5));  // inner-biased log-uniform z
+      const rad = Math.min(this.R, this._radiusFromZ(z));
+      const u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
+      this.hubs.push(new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph) * 0.82, rad * Math.cos(th)));
     }
     // connect each hub to its 2–3 nearest → filaments
     this.filaments = [];
@@ -78,215 +108,300 @@ export class Deeptime {
       const n = 2 + (r() < 0.5 ? 1 : 0);
       for (let k = 0; k < n; k++) { const j = d[k][0]; if (j > i) this.filaments.push([i, j]); }
     }
-    // draw filaments as faint dark-matter threads (poly-lines, jittered midpoints)
+    // draw filaments as faint dark-matter threads (jittered quadratic poly-lines)
     const pos = [];
     for (const [i, j] of this.filaments) {
       const a = this.hubs[i], b = this.hubs[j];
-      const seg = 6, mid = a.clone().lerp(b, 0.5).add(new THREE.Vector3((r() - 0.5) * 60, (r() - 0.5) * 60, (r() - 0.5) * 60));
+      const seg = 7, mid = a.clone().lerp(b, 0.5).addScaledVector(new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5), this.R * 0.12);
       let prev = a;
       for (let s = 1; s <= seg; s++) {
         const t = s / seg;
-        // quadratic bend through the jittered midpoint
         const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(mid, 2 * (1 - t) * t).addScaledVector(b, t * t);
         pos.push(prev.x, prev.y, prev.z, p.x, p.y, p.z); prev = p;
       }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
-    this.web = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4a8a, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.web = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4a8a, transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.group.add(this.web);
   }
 
-  _buildGroups() {
-    const r = rng(this.seed ^ 0x9e3779b9);
-    this.groups = [];
-    for (let i = 0; i < this.groupCount; i++) {
+  // gaussian-ish offset via two uniforms
+  _gauss(r, s) { return (r() + r() + r() - 1.5) * s; }
+
+  _buildField() {
+    const r = rng(this.seed ^ 0x1234abcd);
+    const pos = new Float32Array(FIELD * 3), col = new Float32Array(FIELD * 3), sz = new Float32Array(FIELD);
+    // favour inner filaments (blend: the web is dense near the home supergalaxy,
+    // thinning toward the horizon where accelerating expansion has isolated things)
+    const fW = this.filaments.map(([i, j]) => {
+      const mr = (this.hubs[i].length() + this.hubs[j].length()) * 0.5;
+      return Math.exp(-mr / (this.R * 0.42));
+    });
+    const wSum = fW.reduce((a, b) => a + b, 0);
+    const c = new THREE.Color();
+    let k = 0;
+    while (k < FIELD) {
       let p;
-      if (r() < 0.7 && this.filaments.length) {
-        // along a filament — where the web is densest
-        const [a, b] = pick(r, this.filaments);
-        p = this.hubs[a].clone().lerp(this.hubs[b], r());
-        p.add(new THREE.Vector3((r() - 0.5) * 34, (r() - 0.5) * 34, (r() - 0.5) * 34));
+      const roll = r();
+      if (roll < 0.9 && this.filaments.length) {
+        // condensed onto a filament thread
+        let x = r() * wSum, fi = 0; while (fi < fW.length - 1 && (x -= fW[fi]) > 0) fi++;
+        const [a, b] = this.filaments[fi];
+        const t = r();
+        const thick = this.R * (0.006 + 0.03 * Math.pow(r(), 2));
+        p = this.hubs[a].clone().lerp(this.hubs[b], t)
+          .add(new THREE.Vector3(this._gauss(r, thick), this._gauss(r, thick), this._gauss(r, thick)));
       } else {
-        // a hub node
-        p = this.hubs[Math.floor(r() * this.hubs.length)].clone().add(new THREE.Vector3((r() - 0.5) * 22, (r() - 0.5) * 22, (r() - 0.5) * 22));
+        // a thin uniform halo in the shell for depth
+        const rad = this.R * Math.cbrt(r());
+        const u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
+        p = new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph), rad * Math.cos(th));
       }
-      const galaxyCount = 8 + Math.floor(r() * 54);
-      const { name, tag } = groupName(r);
-      const hue = 0.5 + 0.22 * (r() - 0.5) + 0.5 * (p.length() / R) * 0.16; // teal→violet outward-ish
-      this.groups.push({ i, id: `dg-${i}`, name, tag, pos: p, seed: (this.seed * 2654435761 + i * 40503) >>> 0, galaxyCount, radius: 6 + Math.sqrt(galaxyCount) * 1.6, hue });
+      const rr = p.length();
+      if (rr > this.R) continue;
+      // radial thinning toward the horizon — accelerating-expansion isolation
+      if (r() > Math.max(0.12, 1 - Math.pow(rr / this.R, 1.4))) continue;
+      pos[k * 3] = p.x; pos[k * 3 + 1] = p.y; pos[k * 3 + 2] = p.z;
+      const dc = distanceColor(rr / this.cmbR);
+      c.setRGB(dc[0], dc[1], dc[2]).lerp(DEEPTIME_TINT, 0.5).multiplyScalar(0.72);
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
+      sz[k] = 0.6 + r() * 1.1;
+      k++;
     }
-    // group points (glow sprites, one draw call)
-    const n = this.groups.length;
+    this._fieldCount = k;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos.subarray(0, k * 3), 3));
+    geo.setAttribute('aColor', new THREE.BufferAttribute(col.subarray(0, k * 3), 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(sz.subarray(0, k), 1));
+    this.fieldWorld = pos.subarray(0, k * 3);
+    this.fieldPoints = new THREE.Points(geo, this._pointMat(0.5, { additive: false, alpha: 0.9 }));
+    this.fieldPoints.frustumCulled = false;
+    this.group.add(this.fieldPoints);
+  }
+
+  _buildAnchors() {
+    const r = rng(this.seed ^ 0x9e3779b9);
+    this.anchors = [];
+    for (let i = 0; i < this.anchorCount; i++) {
+      let p, type, name, tag, diameterKpc;
+      if (i === 0) {
+        // the home supergalaxy — merged descendant of the Local Group, at the origin
+        p = new THREE.Vector3(0, 0, 0);
+        type = 'elliptical'; name = 'Aeon Hearth'; tag = 'HOME'; diameterKpc = 210;
+      } else {
+        // seat anchors on the densest inner filaments so they read as web nodes
+        const [a, b] = pick(r, this.filaments);
+        p = this.hubs[a].clone().lerp(this.hubs[b], 0.15 + 0.7 * r())
+          .add(new THREE.Vector3(this._gauss(r, this.R * 0.02), this._gauss(r, this.R * 0.02), this._gauss(r, this.R * 0.02)));
+        type = pick(r, GTYPES);
+        const nm = galaxyName(r); name = nm.name; tag = nm.tag;
+        diameterKpc = 18 + Math.pow(r(), 1.5) * 120;
+      }
+      const displayR = p.length();
+      this.anchors.push({
+        i, id: `dt-g${i}`, name, tag, type, pos: p.clone(), displayR,
+        distPc: this._distPc(displayR), diameterKpc,
+        seed: (Math.imul(this.seed, 2654435761) + i * 40503) >>> 0,
+        home: i === 0,
+      });
+    }
+    // anchor glow points (bright, one draw call)
+    const n = this.anchors.length;
     const gpos = new Float32Array(n * 3), gcol = new Float32Array(n * 3), gsz = new Float32Array(n);
     const c = new THREE.Color();
-    this.groups.forEach((g, k) => {
+    this.anchors.forEach((g, k) => {
       gpos[k * 3] = g.pos.x; gpos[k * 3 + 1] = g.pos.y; gpos[k * 3 + 2] = g.pos.z;
-      c.setHSL(g.hue, 0.7, 0.62); gcol[k * 3] = c.r; gcol[k * 3 + 1] = c.g; gcol[k * 3 + 2] = c.b;
-      gsz[k] = 10 + Math.sqrt(g.galaxyCount) * 3.4;
+      const dc = distanceColor(g.displayR / this.cmbR);
+      c.setRGB(dc[0], dc[1], dc[2]).lerp(new THREE.Color(1, 1, 1), g.home ? 0.5 : 0.15);
+      gcol[k * 3] = c.r; gcol[k * 3 + 1] = c.g; gcol[k * 3 + 2] = c.b;
+      // sizes tuned for the log-radial scale (R≈30) so anchors read as distinct
+      // glowing nodes, not overlapping blobs; the home supergalaxy is the largest
+      gsz[k] = (g.home ? 3.6 : 1.4) + Math.sqrt(g.diameterKpc) * 0.06;
     });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(gpos, 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(gcol, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(gsz, 1));
-    this.groupWorld = gpos;
-    this.groupPoints = new THREE.Points(geo, this._pointMat(1));
-    this.groupPoints.frustumCulled = false;
-    this.group.add(this.groupPoints);
+    this.anchorWorld = gpos;
+    this.anchorPoints = new THREE.Points(geo, this._pointMat(1.0));
+    this.anchorPoints.frustumCulled = false;
+    this.group.add(this.anchorPoints);
   }
 
-  _buildGalaxyLayer() {
-    // a single reusable Points object; refilled when a group is entered
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
-    geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(3), 3));
-    geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(1), 1));
-    this.galaxyPoints = new THREE.Points(geo, this._pointMat(1.15));
-    this.galaxyPoints.frustumCulled = false;
-    this.galaxyPoints.visible = false;
-    this.group.add(this.galaxyPoints);
-  }
-
-  // lazily generate (or fetch, later) the galaxies for a group
-  _genGalaxies(i) {
-    if (this._galaxyCache.has(i)) return this._galaxyCache.get(i);
-    const g = this.groups[i];
-    const r = rng(g.seed);
-    const gal = [];
-    for (let k = 0; k < g.galaxyCount; k++) {
-      // cluster the members toward the group centre (a King-ish falloff)
-      const rad = g.radius * Math.pow(r(), 0.55);
-      const u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
-      const rel = new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph), rad * Math.cos(th) * 0.85);
-      const type = pick(r, k === 0 ? ['elliptical'] : GTYPES);      // brightest cluster galaxy = giant elliptical
-      const size = (type === 'elliptical' ? 3.4 : type === 'dwarf' ? 1.1 : 2.2) * (0.7 + r());
-      gal.push({ k, name: `${g.tag}·G${k + 1}`, type, pos: g.pos.clone().add(rel), size, hue: g.hue + (r() - 0.5) * 0.06 });
+  _buildRings() {
+    const rings = new THREE.Group();
+    const mat = new THREE.LineBasicMaterial({ color: 0x4a3f6a, transparent: true, opacity: 0.32, depthWrite: false });
+    for (let d = 1; d <= 5; d++) {
+      const rad = (d / 5) * this.R;
+      const pts = [];
+      for (let s = 0; s <= 96; s++) { const a = (s / 96) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * rad, Math.sin(a) * rad, 0)); }
+      rings.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
     }
-    this._galaxyCache.set(i, gal);
-    return gal;
+    this.rings = rings;
+    this.group.add(rings);
   }
 
-  // ── matrioska navigation ─────────────────────────────────────────────────
-  enterGroup(i) {
-    if (i == null || i < 0 || i >= this.groups.length) return null;
-    this.entered = i;
-    const gal = this._genGalaxies(i);
-    const n = gal.length;
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), sz = new Float32Array(n);
-    const c = new THREE.Color();
-    gal.forEach((gx, k) => {
-      pos[k * 3] = gx.pos.x; pos[k * 3 + 1] = gx.pos.y; pos[k * 3 + 2] = gx.pos.z;
-      c.setHSL((gx.hue % 1 + 1) % 1, 0.68, gx.type === 'elliptical' ? 0.78 : 0.6);
-      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
-      sz[k] = 9 + gx.size * 6;
-    });
-    const geo = this.galaxyPoints.geometry;
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
-    geo.setAttribute('aSize', new THREE.BufferAttribute(sz, 1));
-    geo.attributes.position.needsUpdate = true;
-    this._galaxyWorld = pos;
-    this.galaxyPoints.visible = true;
-    this.groupPoints.material.uniforms.uDim.value = 1;  // fade the overview groups
-    return this.groups[i];
+  // ── matrioska navigation: enter / exit a galaxy interior (level 1) ─────────
+  // Build a navigable star field for a galaxy descriptor. `count` is the size of
+  // that galaxy's "database" (local-sized: tens of thousands of stars). This is
+  // the live-generation seam — swap structureCloud for retrieved data later.
+  enterGalaxy(desc, { count = 60000 } = {}) {
+    if (!desc) return null;
+    if (this.interior) this.exitGalaxy();
+    let morph = morphFromType(desc.type);
+    if (morph === 'globular' || morph === 'open') morph = 'spiral';
+    const R = 30;                                       // interior world radius (units)
+    const cloud = structureCloud(morph, R, desc.seed % 100000, { count });
+    cloud.count = cloud.count ?? cloud.positions.length / 3;
+    const pcPerUnit = (desc.diameterKpc * 500) / R;     // (D/2 in pc) / R
+    this.interior = new GalaxyInterior(cloud, { pcPerUnit, name: desc.name, imageDerived: false });
+    this.enteredGalaxy = desc;
+    this._setUniverseVisible(false);
+    this.group.add(this.interior.group);
+    return this.interior;
   }
-  exitGroup() {
-    this.entered = null;
-    this.galaxyPoints.visible = false;
-    this.groupPoints.material.uniforms.uDim.value = 0;
+  exitGalaxy() {
+    if (this.interior) { this.group.remove(this.interior.group); this.interior.dispose(); this.interior = null; }
+    this.enteredGalaxy = null;
+    this._setUniverseVisible(true);
+  }
+  _setUniverseVisible(v) {
+    for (const o of [this.web, this.fieldPoints, this.anchorPoints, this.rings]) if (o) o.visible = v;
   }
 
-  // camera view helpers
+  // resolve any pickable galaxy (anchor index, or a field index) to a descriptor
+  anchorDesc(i) { const g = this.anchors[i]; return g && { name: g.name, tag: g.tag, type: g.type, seed: g.seed, diameterKpc: g.diameterKpc, pos: g.pos.clone(), i, anchor: true, home: g.home }; }
+  fieldDesc(i) {
+    const r = rng(this._fieldSeed(i)); const nm = galaxyName(r);
+    const type = pick(r, GTYPES), diameterKpc = 15 + Math.pow(r(), 1.5) * 80;
+    const pos = new THREE.Vector3(this.fieldWorld[i * 3], this.fieldWorld[i * 3 + 1], this.fieldWorld[i * 3 + 2]);
+    return { name: nm.name, tag: nm.tag, type, seed: this._fieldSeed(i), diameterKpc, pos, i, anchor: false };
+  }
+
+  // ── camera views ───────────────────────────────────────────────────────────
   defaultView() {
-    return { pos: new THREE.Vector3(R * 1.15, R * 0.7, R * 1.35), target: new THREE.Vector3(0, 0, 0) };
+    const d = this.R * 1.5;
+    return { pos: new THREE.Vector3(d * 0.8, d * 0.5, d), target: new THREE.Vector3(0, 0, 0) };
   }
-  groupView(i) {
-    const g = this.groups[i]; if (!g) return this.defaultView();
-    const dir = g.pos.clone().normalize().multiplyScalar(-1).add(new THREE.Vector3(0, 0.4, 0.2)).normalize();
-    return { pos: g.pos.clone().addScaledVector(dir, g.radius * 3.4 + 12), target: g.pos.clone() };
+  galaxyView(desc) {
+    const p = desc.pos || (this.anchors[desc.i]?.pos) || new THREE.Vector3();
+    const off = Math.max(this.R * 0.06, 14) + desc.diameterKpc * 0.02;
+    const dir = p.length() < 1e-3 ? new THREE.Vector3(0.6, 0.4, 0.8) : p.clone().normalize().multiplyScalar(-0.8).add(new THREE.Vector3(0, 0.35, 0.2));
+    return { pos: p.clone().addScaledVector(dir.normalize(), off + 20), target: p.clone() };
+  }
+  interiorView() {
+    const R = this.interior ? this.interior.extent() : 30;
+    return { pos: new THREE.Vector3(R * 0.9, R * 0.45, R * 1.15), target: new THREE.Vector3(0, 0, 0) };
   }
 
-  // ── picking / describe / labels ──────────────────────────────────────────
-  pick(raycaster) {
-    const world = this.entered != null ? this._galaxyWorld : this.groupWorld;
-    if (!world) return null;
-    const list = this.entered != null ? this._galaxyCache.get(this.entered) : this.groups;
-    const ray = raycaster.ray;
-    let best = -1, bestScore = Infinity;
+  // ── picking / describe / labels ────────────────────────────────────────────
+  pick(raycaster, camera) {
+    if (this.interior) {
+      const i = this.interior.pick(raycaster, camera);
+      return i < 0 ? null : { kind: 'dt-star', i };
+    }
+    const ray = raycaster.ray, o = ray.origin, dir = ray.direction;
     const p = new THREE.Vector3();
-    for (let k = 0; k < world.length / 3; k++) {
-      p.set(world[k * 3], world[k * 3 + 1], world[k * 3 + 2]);
-      const t = p.clone().sub(ray.origin).dot(ray.direction);
-      if (t < 0) continue;
-      const closest = ray.origin.clone().addScaledVector(ray.direction, t);
-      const d = closest.distanceTo(p);
-      const tol = 0.04 * t + (this.entered != null ? 4 : 12);
+    // anchors first (bright, generous tolerance)
+    let best = -1, bestScore = Infinity;
+    for (let k = 0; k < this.anchorWorld.length / 3; k++) {
+      p.set(this.anchorWorld[k * 3], this.anchorWorld[k * 3 + 1], this.anchorWorld[k * 3 + 2]);
+      const t = p.clone().sub(o).dot(dir); if (t < 0) continue;
+      const d = o.clone().addScaledVector(dir, t).distanceTo(p);
+      const tol = 0.03 * t + this.R * 0.02;
       if (d < tol && d < bestScore) { bestScore = d; best = k; }
     }
-    if (best < 0) return null;
-    return this.entered != null ? { kind: 'dt-galaxy', i: best, galaxy: list[best] } : { kind: 'dt-group', i: best, group: list[best] };
+    if (best >= 0) return { kind: 'dt-galaxy', i: best };
+    // then the field web
+    let fb = -1, fScore = Infinity;
+    for (let k = 0; k < this._fieldCount; k++) {
+      p.set(this.fieldWorld[k * 3], this.fieldWorld[k * 3 + 1], this.fieldWorld[k * 3 + 2]);
+      const t = p.clone().sub(o).dot(dir); if (t < 0) continue;
+      const d = o.clone().addScaledVector(dir, t).distanceTo(p);
+      const tol = 0.012 * t + this.R * 0.004;
+      if (d < tol && d < fScore) { fScore = d; fb = k; }
+    }
+    return fb >= 0 ? { kind: 'dt-field', i: fb } : null;
   }
+
   describe(hit) {
     if (!hit) return null;
-    if (hit.kind === 'dt-group') {
-      const g = hit.group;
-      return { label: g.name, kind: 'dt-group', sub: `local group · ${g.tag}`, worldPos: g.pos.clone(),
-        info: [['members', `${g.galaxyCount} galaxies`], ['tag', g.tag], ['scale', 'Deep-Time · ~50 Gyr']], dtIndex: g.i };
+    if (hit.kind === 'dt-star') {
+      const i = hit.i, wp = this.interior.starWorld(i);
+      const distPc = this.interior.starDistPc(i);
+      const name = `${this.interior.name.replace(/\s*\(.*\)/, '')}·S${(i % 99999).toString().padStart(5, '0')}`;
+      return { label: name, kind: 'dt-star', sub: `star · ${this.enteredGalaxy?.name || 'galaxy'}`, worldPos: wp.clone(),
+        info: [['galaxy', this.enteredGalaxy?.name || '—'], ['from core', `${(distPc / 1000).toFixed(2)} kpc`], ['scale', 'Deep-Time · interior']] };
     }
-    const gx = hit.galaxy;
-    return { label: gx.name, kind: 'dt-galaxy', sub: `${gx.type} galaxy`, worldPos: gx.pos.clone(),
-      info: [['type', gx.type], ['group', this.groups[this.entered].name]], dtGalaxy: gx };
+    const desc = hit.kind === 'dt-galaxy' ? this.anchorDesc(hit.i) : this.fieldDesc(hit.i);
+    const distPc = this._distPc(desc.pos.length());
+    const kindLabel = desc.home ? 'home supergalaxy' : (desc.anchor ? 'anchor galaxy · navigable' : 'galaxy · navigable');
+    const rows = [
+      ['type', desc.type], ['distance', fmtCosmoDist(distPc / 1e6)],
+      ['diameter', `${Math.round(desc.diameterKpc)} kpc`], ['scale', 'Deep-Time · ~50 Gyr'],
+    ];
+    if (desc.anchor && !desc.home) rows.splice(1, 0, ['catalogue', desc.tag]);
+    return { label: desc.name, kind: 'dt-galaxy', sub: kindLabel, worldPos: desc.pos.clone(), info: rows, dtDesc: desc };
   }
-  labelItems() {
-    if (this.entered != null) {
-      const gal = this._galaxyCache.get(this.entered) || [];
-      return gal.filter((gx) => gx.type === 'elliptical' || gx.size > 2.6).slice(0, 24).map((gx) => ({ pos: gx.pos, text: gx.name, cls: 'lbl-star', prio: gx.size }));
-    }
-    // label a subset of the largest groups so the overview isn't a wall of text
-    return [...this.groups].sort((a, b) => b.galaxyCount - a.galaxyCount).slice(0, 30).map((g) => ({ pos: g.pos, text: g.name, cls: 'lbl-ref', prio: g.galaxyCount }));
-  }
-  groupList() { return this.groups.map((g) => ({ i: g.i, name: g.name, tag: g.tag, count: g.galaxyCount })); }
 
-  // ── LOD / frame update ───────────────────────────────────────────────────
+  labelItems() {
+    if (this.interior) return [];   // interior stars aren't labelled (too many)
+    // the home + the largest / nearest anchors, so the overview isn't a text wall
+    return [...this.anchors]
+      .sort((a, b) => (b.home - a.home) || (a.displayR - b.displayR))
+      .slice(0, 30)
+      .map((g) => ({ pos: g.pos, text: g.name, cls: g.home ? 'lbl-ref' : 'lbl-star', prio: g.home ? 999 : g.diameterKpc }));
+  }
+  // for the dropdown navigator — the named anchor galaxies
+  galaxyList() { return this.anchors.map((g) => ({ i: g.i, name: g.name, tag: g.tag, type: g.type, home: g.home })); }
+
+  // ── LOD / frame update ─────────────────────────────────────────────────────
   update(camera) {
     if (!this.group.visible) return;
+    if (this.interior) return;
     const camDist = camera.position.length();
-    // fade the web threads out as you dive into a group; back in on the overview
-    const webOp = this.entered != null ? 0.06 : Math.max(0.08, Math.min(0.32, 0.32 - (600 - camDist) / 6000));
-    this.web.material.opacity = webOp;
+    // web threads fade in as you pull back to see the whole cosmic web
+    this.web.material.opacity = Math.max(0.08, Math.min(0.3, camDist / (this.R * 6)));
   }
 
-  setVisible(v) { this.group.visible = v; if (!v) { /* keep entered state */ } }
+  setVisible(v) { this.group.visible = v; }
 
-  // ── materials ────────────────────────────────────────────────────────────
-  _pointMat(scale) {
+  // ── materials / graphics-panel style ───────────────────────────────────────
+  // additive:true → bright glowing sprites (anchors / home, meant to bloom).
+  // additive:false → normal-blended soft points (the dense field), so thousands
+  // stacking on a filament read as a coloured web instead of saturating to white.
+  _pointMat(scale, { additive = true, alpha = 1 } = {}) {
     return new THREE.ShaderMaterial({
       uniforms: {
-        uTex: { value: this._glow }, uScale: { value: scale }, uDim: { value: 0 },
-        uSizeUser: { value: 1 }, uGain: { value: 1 },              // graphics panel: size + glow
+        uTex: { value: this._glow }, uScale: { value: scale }, uDim: { value: 0 }, uAlpha: { value: alpha },
+        uSizeUser: { value: 1 }, uGain: { value: 1 },
         uTint: { value: new THREE.Color(1, 1, 1) }, uTintAmt: { value: 0 },
       },
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       vertexShader: `
         attribute vec3 aColor; attribute float aSize; varying vec3 vC;
         uniform float uScale, uSizeUser, uTintAmt; uniform vec3 uTint;
         void main(){ vC=mix(aColor, uTint, uTintAmt); vec4 mv=modelViewMatrix*vec4(position,1.0);
           gl_PointSize = aSize*uScale*uSizeUser*(300.0/max(-mv.z,1.0)); gl_Position=projectionMatrix*mv; }`,
       fragmentShader: `
-        varying vec3 vC; uniform sampler2D uTex; uniform float uDim, uGain;
-        void main(){ vec4 t=texture2D(uTex, gl_PointCoord); gl_FragColor=vec4(vC*uGain, t.a*(1.0-0.72*uDim)); }`,
+        varying vec3 vC; uniform sampler2D uTex; uniform float uDim, uGain, uAlpha;
+        void main(){ vec4 t=texture2D(uTex, gl_PointCoord); gl_FragColor=vec4(vC*uGain, t.a*uAlpha*(1.0-0.72*uDim)); }`,
     });
   }
-  // Per-layer visuals from the graphics panel, applied to both point clouds:
-  // { size, gain, tint:[r,g,b], tintAmt }.
+  // Per-layer visuals from the graphics panel, applied to the universe clouds
+  // (and the interior, when inside): { size, gain, tint:[r,g,b], tintAmt }.
   setStyle(st = {}) {
-    for (const p of [this.groupPoints, this.galaxyPoints]) {
+    this._style = { ...(this._style || {}), ...st };
+    const targets = [this.fieldPoints, this.anchorPoints, this.interior?.points];
+    for (const p of targets) {
       const u = p?.material?.uniforms; if (!u) continue;
-      if (st.size != null) u.uSizeUser.value = st.size;
-      if (st.gain != null) u.uGain.value = st.gain;
-      if (Array.isArray(st.tint)) u.uTint.value.setRGB(st.tint[0], st.tint[1], st.tint[2]);
-      if (st.tintAmt != null) u.uTintAmt.value = st.tintAmt;
+      if (st.size != null && u.uSizeUser) u.uSizeUser.value = st.size;
+      if (st.gain != null && u.uGain) u.uGain.value = st.gain;
+      if (Array.isArray(st.tint) && u.uTint) u.uTint.value.setRGB(st.tint[0], st.tint[1], st.tint[2]);
+      if (st.tintAmt != null && u.uTintAmt) u.uTintAmt.value = st.tintAmt;
     }
+    if (st.size != null && this.interior) this.interior.setSizeScale(st.size);
   }
   _glowTexture() {
     const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;

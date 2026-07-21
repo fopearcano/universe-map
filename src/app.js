@@ -84,9 +84,11 @@ export class App {
     if (this.supervoids.length) extras.supervoids = this.supervoids;
     this.cosmos = cosmosData ? new CosmosWorld(this.scene.scene, cosmosData, catalog, extras) : null;
 
-    // DEEPTIME scale — the far-future (~50 Gyr) nested universe: a cosmic web
-    // threaded with 100 local groups of galaxies (matrioska: group → galaxies).
-    this.deeptime = new Deeptime(this.scene.scene, { groupCount: 100 });
+    // DEEPTIME scale — the far-future (~50 Gyr) nested universe on the same
+    // log-radial scale + Planck-ΛCDM rules as Cosmos, but procedurally generated:
+    // a home supergalaxy, a cosmic web of galaxies condensed on filaments, and 100
+    // navigable anchor galaxies you can fly inside (matrioska: universe → galaxy).
+    this.deeptime = cosmosData ? new Deeptime(this.scene.scene, cosmosData, { anchorCount: 100 }) : null;
 
     // SYSTEM scale — the to-scale Solar System (Sun, planets, moons)
     this.solarSystem = new SolarSystem();
@@ -710,8 +712,9 @@ export class App {
     this.clearRoute();
     this.clearFocus();
     this.mode = mode;
-    // deeptime is its own layer; hide it on every switch (the deeptime branch re-shows it)
-    if (this.deeptime && mode !== 'deeptime') this.deeptime.setVisible(false);
+    // deeptime is its own layer; hide it on every switch (the deeptime branch
+    // re-shows it) and tear down any entered galaxy interior so it isn't left in memory
+    if (this.deeptime && mode !== 'deeptime') { if (this.deeptime.interior) this.deeptime.exitGalaxy(); this.deeptime.setVisible(false); }
     const hideMap = () => {
       this.starfield.points.visible = false;
       this.scene.setReferenceVisible(false);
@@ -727,15 +730,15 @@ export class App {
     };
     if (mode === 'deeptime') {
       hideMap();
-      this.deeptime.exitGroup();
+      this.deeptime.exitGalaxy();
       this.deeptime.setVisible(true);
       this.labels.setStars(this.deeptime.labelItems());
       this.labels.setStatic([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
       if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
-      this.scene.controls.maxDistance = 4000;
+      this.scene.controls.maxDistance = Math.max(6000, this.deeptime.cmbR * 3);
       const v = this.deeptime.defaultView();
       this.scene.setView(v.pos, v.target);
-      this.emit('deeptime', { level: 0, groups: this.deeptime.groupList() });
+      this.emit('deeptime', { level: 0, galaxies: this.deeptime.galaxyList() });
     } else if (mode === 'system') {
       hideMap();
       this.solarSystem.setVisible(true);
@@ -787,36 +790,44 @@ export class App {
   selectDeeptime(hit, { fly = false } = {}) {
     if (!hit) { this.clearSelection(); return; }
     const d = this.deeptime.describe(hit); if (!d) return;
-    const info = { kind: d.kind, label: d.label, sub: d.sub, rows: d.info, dtIndex: d.dtIndex, dtGalaxy: d.dtGalaxy };
+    const info = { kind: d.kind, label: d.label, sub: d.sub, rows: d.info, dtDesc: d.dtDesc };
     this._setSelection({ kind: d.kind, worldPos: d.worldPos.clone(), truePos: d.worldPos.clone(), info });
-    if (fly) this.scene.flyTo(d.worldPos.clone(), { approach: hit.kind === 'dt-group' ? (d.worldPos.length() * 0 + 40) : 12 });
+    if (fly) {
+      const approach = hit.kind === 'dt-star' ? Math.max(2, this.deeptime.interior.extent() * 0.08)
+        : Math.max(this.deeptime.R * 0.05, 14);
+      this.scene.flyTo(d.worldPos.clone(), { approach });
+    }
   }
-  // Dropdown / API: focus a local group on the overview (fly to it, select it).
+  // Dropdown / API: focus a galaxy on the universe overview (fly to it, select it).
   deeptimeFocus(i) {
     if (this.mode !== 'deeptime') this.setMode('deeptime');
-    if (this.deeptime.entered != null) this.deeptimeExitToOverview();
-    const v = this.deeptime.groupView(i);
+    if (this.deeptime.interior) this.deeptimeExitToOverview();
+    const desc = this.deeptime.anchorDesc(i); if (!desc) return;
+    const v = this.deeptime.galaxyView(desc);
     this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.3 });
-    this.selectDeeptime({ kind: 'dt-group', i, group: this.deeptime.groups[i] });
+    this.selectDeeptime({ kind: 'dt-galaxy', i });
   }
-  // Enter a local group → generate + show its galaxies (matrioska level 1).
-  deeptimeEnterGroup(i) {
+  // Enter a galaxy → generate + fly inside its own star field (matrioska level 1).
+  // `sel` may be an anchor index (number) or a picked descriptor (field or anchor).
+  deeptimeEnterGalaxy(sel) {
     if (this.mode !== 'deeptime') this.setMode('deeptime');
-    const g = this.deeptime.enterGroup(i); if (!g) return;
+    const desc = (typeof sel === 'number') ? this.deeptime.anchorDesc(sel) : sel;
+    if (!desc) return;
+    const interior = this.deeptime.enterGalaxy(desc, { count: this.qualityStarCount() }); if (!interior) return;
     this.clearSelection();
-    this.labels.setStars(this.deeptime.labelItems());
-    const v = this.deeptime.groupView(i);
-    this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.4 });
-    this.emit('deeptime', { level: 1, group: { i: g.i, name: g.name, tag: g.tag, count: g.galaxyCount }, groups: this.deeptime.groupList() });
+    this.labels.setStars([]);
+    const v = this.deeptime.interiorView();
+    this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.2 });
+    this.emit('deeptime', { level: 1, galaxy: { name: desc.name, type: desc.type, count: interior.count }, galaxies: this.deeptime.galaxyList() });
   }
-  // Rise back out of a group to the cosmic-web overview (matrioska level 0).
+  // Rise back out of a galaxy to the universe overview (matrioska level 0).
   deeptimeExitToOverview() {
-    this.deeptime.exitGroup();
+    this.deeptime.exitGalaxy();
     this.clearSelection();
     this.labels.setStars(this.deeptime.labelItems());
     const v = this.deeptime.defaultView();
     this.scene.flyTo(v.target, { camPos: v.pos, dur: 1.3 });
-    this.emit('deeptime', { level: 0, groups: this.deeptime.groupList() });
+    this.emit('deeptime', { level: 0, galaxies: this.deeptime.galaxyList() });
   }
 
   setLayerVisible(key, on) {
@@ -2110,7 +2121,7 @@ export class App {
     const pickAt = (e) => {
       this._ray.setFromCamera(ndc(e), this.scene.camera); this._ray.camera = this.scene.camera;
       if (this.mode === 'system') { const i = this.solarSystem.pick(this._ray); return i >= 0 ? { body: i } : null; }
-      if (this.mode === 'deeptime') return this.deeptime.pick(this._ray);
+      if (this.mode === 'deeptime') return this.deeptime.pick(this._ray, this.scene.camera);
       if (this._inGalaxy) { const i = this.interior.pick(this._ray, this.scene.camera); return i >= 0 ? { interiorStar: i } : null; }
       // labelled markers (clusters/structures) take priority when the cursor is on them
       const ex = this._pickExtra();
@@ -2120,7 +2131,7 @@ export class App {
     };
     const dispatch = (hit, fly) => {
       if (!hit) { if (!fly) this.clearSelection(); return; }
-      if (hit.kind === 'dt-group' || hit.kind === 'dt-galaxy') this.selectDeeptime(hit, { fly });
+      if (hit.kind === 'dt-galaxy' || hit.kind === 'dt-field' || hit.kind === 'dt-star') this.selectDeeptime(hit, { fly });
       else if (hit.body != null) this.selectBody(hit.body, { fly });
       else if (hit.interiorStar != null) this.selectInteriorStar(hit.interiorStar, { fly });
       else if (hit.star != null) this.selectStar(hit.star, { fly });

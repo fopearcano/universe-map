@@ -17,10 +17,10 @@ export function initInfoPanel(app) {
           : o.kind === 'interiorStar' ? renderInteriorStar(o)
             : o.kind === 'body' ? renderBody(o)
               : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-              : (o.kind === 'dt-group' || o.kind === 'dt-galaxy') ? renderDeeptime(o)
+              : (o.kind === 'dt-galaxy' || o.kind === 'dt-field' || o.kind === 'dt-star') ? renderDeeptime(o)
                 : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
-    const dtEnter = dock.querySelector('#i-dt-enter'); if (dtEnter) dtEnter.onclick = () => app.deeptimeEnterGroup(o.dtIndex);
+    const dtEnter = dock.querySelector('#i-dt-enter'); if (dtEnter) dtEnter.onclick = () => app.deeptimeEnterGalaxy(o.dtDesc);
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
     const focusBtn = dock.querySelector('#i-focus'); if (focusBtn) focusBtn.onclick = () => app.setFocus();
@@ -145,9 +145,13 @@ function renderBody(o) {
 }
 
 function renderDeeptime(o) {
-  const swatch = o.kind === 'dt-group' ? '#8fd0ff' : '#c9a0ff';
-  const enter = o.kind === 'dt-group' ? '<button class="btn sm" id="i-dt-enter" title="descend into this local group and see its galaxies">⛶ enter group</button>' : '';
-  const note = `<div class="muted" style="margin-top:8px;line-height:1.5">Deep-Time · a far-future (~50 Gyr) universe. ${o.kind === 'dt-group' ? 'Enter the group to see its galaxies.' : 'A galaxy inside a local group.'}</div>`;
+  const isStar = o.kind === 'dt-star';
+  const swatch = isStar ? '#ffe6a0' : (o.kind === 'dt-galaxy' ? '#c9a0ff' : '#9fb0e8');
+  // a galaxy (anchor or field) can be entered → fly inside its own star field
+  const enter = !isStar
+    ? '<button class="btn sm" id="i-dt-enter" title="fly inside this galaxy and explore its stars">⛶ enter galaxy</button>'
+    : '';
+  const note = `<div class="muted" style="margin-top:8px;line-height:1.5">Deep-Time · a far-future (~50 Gyr) universe. ${isStar ? 'A star inside a Deep-Time galaxy.' : 'Enter it to fly inside its star field.'}</div>`;
   return head(o.label, o.sub, swatch) + grid(o.rows || []) +
     `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button><button class="btn sm" id="i-focus" title="orbit around this">◎ focus</button>${enter}</div>` + note;
 }

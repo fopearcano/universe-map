@@ -23,7 +23,10 @@ export function initHotkeys(app) {
       case 'r': case 'R': if (sel) app.addRouteWaypoint(); break;
       case 'p': case 'P': app.setPlotCourse(!app.plotCourse); break;
       case 'g': case 'G':
-        if (app._inGalaxy) { app.autopilot?.atGalaxy ? app.resumeFromGalaxy() : app.exitGalaxy(); }
+        if (app.mode === 'deeptime') {
+          if (app.deeptime?.interior) app.deeptimeExitToOverview();
+          else if (sel?.dtDesc) app.deeptimeEnterGalaxy(sel.dtDesc);
+        } else if (app._inGalaxy) { app.autopilot?.atGalaxy ? app.resumeFromGalaxy() : app.exitGalaxy(); }
         else if (sel && galaxyish(sel)) app.enterGalaxy(sel);
         break;
       case 's': case 'S': app.setSectorGrid(!app.showSectorGrid); break;
@@ -59,7 +62,8 @@ function step(app, d) {
   else if (app.autopilot) app.navStep(d);
 }
 function escape(app) {
-  if (app._inGalaxy) { if (app.autopilot?.atGalaxy) app.resumeFromGalaxy(); else if (app.cruise) app.stopCruise(); else app.exitGalaxy(); }
+  if (app.mode === 'deeptime' && app.deeptime?.interior) { app.deeptimeExitToOverview(); }
+  else if (app._inGalaxy) { if (app.autopilot?.atGalaxy) app.resumeFromGalaxy(); else if (app.cruise) app.stopCruise(); else app.exitGalaxy(); }
   else if (app.cruise) app.stopCruise();
   else if (app.autopilot) app.stopRoute();
   else if (app.plotCourse) app.setPlotCourse(false);
