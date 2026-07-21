@@ -5,12 +5,12 @@
     "version": "3.0",
     "generated": "2026-07-21",
     "counts": {
-      "entities": "438",
+      "entities": "451",
       "events": 20,
       "map_nodes": 22,
       "map_edges": 12,
       "by_type": {
-        "lexicon": 107,
+        "lexicon": 120,
         "concept": 98,
         "place": 60,
         "phrase": 41,
@@ -27,10 +27,10 @@
         "world": 3,
         "nav_axis": 3
       },
-      "total_kb_links": "879",
+      "total_kb_links": "894",
       "dangling_links": "0",
       "v3_reframes": 2,
-      "v3_added": 13
+      "v3_added": 26
     },
     "sources": [
       "qtr-v2 · SYSTEM.md (consolidated canon)",
@@ -133,7 +133,7 @@
     {
       "id": "adjacency",
       "name": "Adjacency axis",
-      "desc": "Penrose-bridge transits to same-level neighbour universes.",
+      "desc": "Penrose-bridge transits to causally-remote regions of the same universe (same depth).",
       "color": "#6fa8ff"
     },
     {
@@ -2308,7 +2308,7 @@
       "name": "OCT-Ω — the top",
       "symbol": "Ω",
       "jp": "固定点",
-      "summary": "The fixed point of the entire hierarchy — the seam of the Omniverse itself. Acknowledged but never crossed; PIIU cannot describe it from within any finite or ω-level description. It is the theory's own Gödel sentence.",
+      "summary": "The Top — the fixed point of the entire hierarchy: the fixed point of the one universe's own self-description. Acknowledged but never crossed, and no destination; PIIU cannot describe it from within any finite or ω-level description. It is the theory's own Gödel sentence.",
       "sources": [
         "qtr-glossary.html"
       ],
@@ -5995,7 +5995,7 @@
       "marine_analog": "THE RIPTIDE · THE SEAM",
       "hazard_kind": "environmental",
       "swallow_pole": false,
-      "summary": "Where two vacuum regions of different character meet and tear. The visual of a seam u2014 the same rolling curl you use for the Dead Sea escape, and a preview of the ultimate crossing between universes.",
+      "summary": "Where two vacuum regions of different character meet and tear. The visual of a seam — the same rolling curl you use for the Dead Sea escape, and a preview of the ultimate crossing at the curvature limit Κ.",
       "behaviour": "Vortex sheets, Kelvinu2013Helmholtz billows at the boundary only. Curl localised to the interface.",
       "houdini": "Two volumes shearing, rolling-wave curl where they meet. Plant this before the climax.",
       "escape": "Resolve — cross square to the null directions, or be thrown off heading.",
@@ -6787,11 +6787,11 @@
       "lambda_value": "T⁺ · UV-approach",
       "band": "uv",
       "oct": "toward the OCT itself",
-      "summary": "The unordered sketch of the Omniverse Cantor Tower. It guesses many universes but gives them no hierarchy, no mutual information, no depth — an OCT with the structure removed.",
+      "summary": "A T⁺ approach to the Ontological Cantor Tower with its structure removed: the model guesses an ensemble of separate universes but gives them no hierarchy, no mutual information, no depth. What it was groping toward is the OCT — the state-depths of ONE universe, nested by mutual information into a transfinite tower with a definite depth ordering.",
       "classic_reading": "Classic reading: eternal inflation spawns countless bubble universes, each with its own constants; hard to test.",
-      "got_right": "That ours is not the only universe, and that constants can differ between them. QTR ratifies both — emphatically.",
-      "mistook": "That the universes form an unstructured ensemble with no relations among them. The OCT is precisely the missing structure: universes nest by mutual information into a transfinite tower with a definite depth ordering the multiverse lacks.",
-      "reframe_long": "The inflationary multiverse arrives at the right ontology — infinitely many universes — but flattens it into a bag of disconnected bubbles, which is why it resists testability. QTR's PIIU layer supplies the order the multiverse omits: the Omniverse Cantor Tower ranks universes by mutual information, gives each level a smaller effective Planck length, and makes \"which universe\" a question of depth. The multiverse is a T⁺ approach to the tower — reaching toward it from below, blind to the levels.",
+      "got_right": "That the observable cosmos may not exhaust reality — a genuine open question QTR keeps open — and that effective constants can differ across depths and scales.",
+      "mistook": "That this implies an already-enumerable, navigable ensemble of OTHER universes with unrelated laws. What the model was groping toward is the OCT: the missing order — the state-depths of one universe nested by mutual information into a transfinite tower with a definite depth ordering.",
+      "reframe_long": "The inflationary multiverse reaches toward the right structure but flattens it into a bag of disconnected bubbles, which is why it resists testability. QTR's PIIU layer supplies the order it omits — re-read for the one-universe canon: the Ontological Cantor Tower ranks the STATE-DEPTHS of a single universe by mutual information, gives each level a smaller effective Planck length, and makes 'which region' a question of depth, not of leaving the universe. Whether anything lies beyond the universe's own self-description stays an open question, never a charted destination. The multiverse is a T⁺ approach to the tower — reaching toward it from below, blind to the levels.",
       "attributes": [
         {
           "k": "Verdict",
@@ -11235,7 +11235,7 @@
       "kb_group": "deeptime",
       "jp": "永劫の時代",
       "symbol": "Φ₅",
-      "summary": "The eonic rung of the era ladder (evolution level 6), over roughly a hundred billion years: an intergalactic network, cosmological-scale cognition, universal self-referential consciousness, migration between conformal aeons, and cosmological engineering. At Kardashev energy K≈4–5 and Field mastery Φ₅ it achieves Κ-crossing / transmutation — conversion between universes at the curvature limit — where substance may not cross but pattern can.",
+      "summary": "The eonic rung of the era ladder (evolution level 6), over roughly a hundred billion years: an intergalactic network, cosmological-scale cognition, universal self-referential consciousness, migration between conformal aeons (the aeonic edge), and cosmological engineering. At Kardashev energy K≈4–5 and Field mastery Φ₅ it reaches the Κ-crossing / transmutation at the curvature limit — the conformal crossover to the next aeon of this universe, where substance may not cross but pattern can.",
       "attributes": [
         {
           "k": "Evolution level",
@@ -11588,7 +11588,7 @@
       "name": "The indeterminate timeline (Regime B)",
       "kb_group": "time",
       "jp": "不確定的タイムライン（レジームB）",
-      "summary": "The regime governing seam- and adjacency-travel between universes that share no frame. Cross the seam 𝔍, or take a Penrose bridge to a neighbour, and there is no fact about how much time passed 'meanwhile' back home. Reunion is not measurement but renegotiation, and the ambiguity is permanent — the relationship must be rebuilt because the arithmetic that would settle it does not exist. Its drama is desynchronisation, and its wound is permanent.",
+      "summary": "The regime governing seam- and adjacency-travel between regions of the one universe that share no frame. Cross the seam 𝔍, or take a Penrose bridge to a causally-remote region, and there is no fact about how much time passed 'meanwhile' back home. Reunion is not measurement but renegotiation, and the ambiguity is permanent — the relationship must be rebuilt because the arithmetic that would settle it does not exist. Its drama is desynchronisation, and its wound is permanent.",
       "sources": [
         "qtr-time-codex.html",
         "qtr-two-timelines.html"
@@ -13210,6 +13210,289 @@
       ],
       "sources": [
         "qtr-v2 · SYSTEM.md"
+      ]
+    },
+    {
+      "id": "word-suchel-jed",
+      "type": "lexicon",
+      "name": "jed",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "dʒed",
+      "domain": "motion",
+      "summary": "to go, move (always with a directional)",
+      "etymology": "*ged- → SC-1 (g→j /_e)",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-tan",
+      "type": "lexicon",
+      "name": "tan",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "tan",
+      "domain": "core",
+      "summary": "to hold, keep",
+      "etymology": "*tan-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-id-v",
+      "type": "lexicon",
+      "name": "id",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "id",
+      "domain": "physics",
+      "summary": "to open (v.) — the Idrenes root, used as a verb",
+      "etymology": "*id-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "denotes",
+          "target": "tech-idrenes-bridge",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-men",
+      "type": "lexicon",
+      "name": "men",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "men",
+      "domain": "core",
+      "summary": "to wait, remain",
+      "etymology": "*men-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-ret",
+      "type": "lexicon",
+      "name": "ret",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "ret",
+      "domain": "grammar",
+      "summary": "again",
+      "etymology": "*ret-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-kru",
+      "type": "lexicon",
+      "name": "kru",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "kru",
+      "domain": "core",
+      "summary": "blood",
+      "etymology": "*kru-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-gal",
+      "type": "lexicon",
+      "name": "gal",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "gal",
+      "domain": "navigation",
+      "summary": "the Still — becalmed vacuum (the Dead-Sea)",
+      "etymology": "*gal- (no front vowel: g survives)",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        },
+        {
+          "rel": "denotes",
+          "target": "hazard-dead",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-lesh",
+      "type": "lexicon",
+      "name": "lesh",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "leʃ",
+      "domain": "navigation",
+      "summary": "alignment; fair phase; luck",
+      "etymology": "*les- → s→sh /_front (SC-1 analog)",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-maiel",
+      "type": "lexicon",
+      "name": "maiel",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "ˈmai.el",
+      "domain": "kinship",
+      "summary": "kinsman; bound-one",
+      "etymology": "-mai \"entangled\" + agent -el",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-om",
+      "type": "lexicon",
+      "name": "om",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "om",
+      "domain": "grammar",
+      "summary": "all, every",
+      "etymology": "*om-",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-vu",
+      "type": "lexicon",
+      "name": "vu",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "vu",
+      "domain": "grammar",
+      "summary": "question particle (final)",
+      "etymology": "*wu → SC-3 (w→v)",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-imp-u",
+      "type": "lexicon",
+      "name": "-u",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "u",
+      "domain": "grammar",
+      "summary": "imperative suffix (non-assertive: no mood, no anchor)",
+      "etymology": "*-u hortative",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
+      ]
+    },
+    {
+      "id": "word-suchel-voc-o",
+      "type": "lexicon",
+      "name": "ō",
+      "language": "lang-suchel",
+      "language_name": "Sūchel",
+      "ipa": "oː",
+      "domain": "grammar",
+      "summary": "vocative particle",
+      "etymology": "*ō interjection",
+      "links": [
+        {
+          "rel": "in_language",
+          "target": "lang-suchel",
+          "resolved": true
+        }
+      ],
+      "sources": [
+        "10_qtr-phrasebook.html"
       ]
     }
   ],

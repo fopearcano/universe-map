@@ -34,6 +34,32 @@ const PATCH = {
   },
 };
 
+// ---- (1b) text corrections — scrub the old multiverse framing from entity
+//          summaries/readings and the adjacency layer (overwrite whole fields) ---
+const TEXT_PATCH = {
+  'term-oct-the-top': {
+    summary: "The Top — the fixed point of the entire hierarchy: the fixed point of the one universe's own self-description. Acknowledged but never crossed, and no destination; PIIU cannot describe it from within any finite or ω-level description. It is the theory's own Gödel sentence.",
+  },
+  'recon-multiverse': {
+    summary: "A T⁺ approach to the Ontological Cantor Tower with its structure removed: the model guesses an ensemble of separate universes but gives them no hierarchy, no mutual information, no depth. What it was groping toward is the OCT — the state-depths of ONE universe, nested by mutual information into a transfinite tower with a definite depth ordering.",
+    reframe_long: "The inflationary multiverse reaches toward the right structure but flattens it into a bag of disconnected bubbles, which is why it resists testability. QTR's PIIU layer supplies the order it omits — re-read for the one-universe canon: the Ontological Cantor Tower ranks the STATE-DEPTHS of a single universe by mutual information, gives each level a smaller effective Planck length, and makes 'which region' a question of depth, not of leaving the universe. Whether anything lies beyond the universe's own self-description stays an open question, never a charted destination. The multiverse is a T⁺ approach to the tower — reaching toward it from below, blind to the levels.",
+    got_right: "That the observable cosmos may not exhaust reality — a genuine open question QTR keeps open — and that effective constants can differ across depths and scales.",
+    mistook: "That this implies an already-enumerable, navigable ensemble of OTHER universes with unrelated laws. What the model was groping toward is the OCT: the missing order — the state-depths of one universe nested by mutual information into a transfinite tower with a definite depth ordering.",
+  },
+  'era-eonic-age': {
+    summary: "The eonic rung of the era ladder (evolution level 6), over roughly a hundred billion years: an intergalactic network, cosmological-scale cognition, universal self-referential consciousness, migration between conformal aeons (the aeonic edge), and cosmological engineering. At Kardashev energy K≈4–5 and Field mastery Φ₅ it reaches the Κ-crossing / transmutation at the curvature limit — the conformal crossover to the next aeon of this universe, where substance may not cross but pattern can.",
+  },
+  'time-indeterminate-timeline': {
+    summary: "The regime governing seam- and adjacency-travel between regions of the one universe that share no frame. Cross the seam 𝔍, or take a Penrose bridge to a causally-remote region, and there is no fact about how much time passed 'meanwhile' back home. Reunion is not measurement but renegotiation, and the ambiguity is permanent — the relationship must be rebuilt because the arithmetic that would settle it does not exist. Its drama is desynchronisation, and its wound is permanent.",
+  },
+  'hazard-shear': {
+    summary: "Where two vacuum regions of different character meet and tear. The visual of a seam — the same rolling curl you use for the Dead Sea escape, and a preview of the ultimate crossing at the curvature limit Κ.",
+  },
+};
+const LAYER_PATCH = {
+  adjacency: { desc: 'Penrose-bridge transits to causally-remote regions of the same universe (same depth).' },
+};
+
 // ---- (2) new entities ------------------------------------------------------
 const NEW = [
   // — the top-level framing ————————————————————————————————
@@ -241,6 +267,30 @@ const NEW = [
   },
 ];
 
+// — phrasebook lexicon additions (Rev 1.0 flags these fourteen coinings to be
+//   "merged into the master lexicon"; ān already exists, so thirteen are added) —
+const SRC_PB = '10_qtr-phrasebook.html';
+const W = (slug, name, ipa, domain, gloss, ety, extra = []) => ({
+  id: 'word-suchel-' + slug, type: 'lexicon', name, language: 'lang-suchel', language_name: 'Sūchel',
+  ipa, domain, summary: gloss, etymology: ety,
+  links: [L('lang-suchel', 'in_language'), ...extra], sources: [SRC_PB],
+});
+NEW.push(
+  W('jed', 'jed', 'dʒed', 'motion', 'to go, move (always with a directional)', '*ged- → SC-1 (g→j /_e)'),
+  W('tan', 'tan', 'tan', 'core', 'to hold, keep', '*tan-'),
+  W('id-v', 'id', 'id', 'physics', 'to open (v.) — the Idrenes root, used as a verb', '*id-', [L('tech-idrenes-bridge', 'denotes')]),
+  W('men', 'men', 'men', 'core', 'to wait, remain', '*men-'),
+  W('ret', 'ret', 'ret', 'grammar', 'again', '*ret-'),
+  W('kru', 'kru', 'kru', 'core', 'blood', '*kru-'),
+  W('gal', 'gal', 'gal', 'navigation', 'the Still — becalmed vacuum (the Dead-Sea)', '*gal- (no front vowel: g survives)', [L('hazard-dead', 'denotes')]),
+  W('lesh', 'lesh', 'leʃ', 'navigation', 'alignment; fair phase; luck', '*les- → s→sh /_front (SC-1 analog)'),
+  W('maiel', 'maiel', 'ˈmai.el', 'kinship', 'kinsman; bound-one', '-mai "entangled" + agent -el'),
+  W('om', 'om', 'om', 'grammar', 'all, every', '*om-'),
+  W('vu', 'vu', 'vu', 'grammar', 'question particle (final)', '*wu → SC-3 (w→v)'),
+  W('imp-u', '-u', 'u', 'grammar', 'imperative suffix (non-assertive: no mood, no anchor)', '*-u hortative'),
+  W('voc-o', 'ō', 'oː', 'grammar', 'vocative particle', '*ō interjection'),
+);
+
 // ---- apply -----------------------------------------------------------------
 const byId = new Map(db.entities.map((e) => [e.id, e]));
 
@@ -254,6 +304,18 @@ for (const [id, patch] of Object.entries(PATCH)) {
   for (const t of (patch._addLinks || [])) {
     if (!(e.links || []).some((l) => l.target === t)) (e.links ||= []).push(L(t));
   }
+}
+
+// text corrections: overwrite named fields on existing entities
+for (const [id, fields] of Object.entries(TEXT_PATCH)) {
+  const e = byId.get(id);
+  if (!e) { console.warn('TEXT_PATCH target missing:', id); continue; }
+  Object.assign(e, fields);
+}
+// layer corrections
+for (const [id, fields] of Object.entries(LAYER_PATCH)) {
+  const l = (db.layers || []).find((x) => x.id === id);
+  if (l) Object.assign(l, fields); else console.warn('LAYER_PATCH target missing:', id);
 }
 
 // additions: replace-by-id (idempotent)
