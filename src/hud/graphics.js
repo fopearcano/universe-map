@@ -68,6 +68,7 @@ export function initGraphics(app) {
           <div class="seg gfx-tone">${TONES.map(([k, l]) => `<button class="segbtn" data-tone="${k}">${l}</button>`).join('')}</div>
         </div>
         <div class="toggle" data-cine="twinkle"><span>Star twinkle</span><span class="sw"></span></div>
+        <div class="toggle" data-cine="shard"><span>RGB shard twinkle <span class="muted">· prism flare</span></span><span class="sw"></span></div>
 
         <div class="hr"></div>
         <div class="gfx-sec-t">Per-layer visuals</div>
@@ -142,6 +143,7 @@ export function initGraphics(app) {
     const c = app.cine;
     el.querySelector('[data-cine="bloom"]')?.classList.toggle('on', !!c.bloom);
     el.querySelector('[data-cine="twinkle"]')?.classList.toggle('on', !!c.twinkle);
+    el.querySelector('[data-cine="shard"]')?.classList.toggle('on', !!c.shard);
     setSlider('gfx-glow', c.glow, (v) => `${v.toFixed(2)}×`);
     setSlider('gfx-threshold', c.threshold, (v) => v.toFixed(2));
     setSlider('gfx-radius', c.radius, (v) => v.toFixed(2));

@@ -32,15 +32,15 @@ const FLIGHT_OUTER_SLOWDOWN = 6;
 // twinkle, tone-map mode and the colour grade (exposure / contrast / saturation /
 // vignette). resetGraphics() restores GFX_DEFAULTS.
 const GFX_DEFAULTS = {
-  bloom: true, twinkle: true, tone: false, glow: 0.5, threshold: 0.78, radius: 0.24,
+  bloom: true, twinkle: true, shard: false, tone: false, glow: 0.5, threshold: 0.78, radius: 0.24,
   exposure: 1.0, contrast: 1.0, saturation: 1.0, vignette: 0.0, tonemap: 'none',
 };
 const GFX_PRESETS = {
-  deepspace:   { bloom: true, twinkle: true, glow: 0.75, threshold: 0.82, radius: 0.38, exposure: 0.92, contrast: 1.12, saturation: 0.92, vignette: 0.55, tonemap: 'aces', tone: true },
-  neon:        { bloom: true, twinkle: true, glow: 1.20, threshold: 0.50, radius: 0.50, exposure: 1.08, contrast: 1.18, saturation: 1.60, vignette: 0.32, tonemap: 'none', tone: false },
-  documentary: { bloom: true, twinkle: false, glow: 0.35, threshold: 0.80, radius: 0.20, exposure: 1.00, contrast: 1.00, saturation: 1.02, vignette: 0.12, tonemap: 'aces', tone: true },
-  bright:      { bloom: true, twinkle: true, glow: 0.40, threshold: 0.72, radius: 0.22, exposure: 1.28, contrast: 0.98, saturation: 1.08, vignette: 0.00, tonemap: 'reinhard', tone: false },
-  mono:        { bloom: true, twinkle: true, glow: 0.60, threshold: 0.78, radius: 0.30, exposure: 1.02, contrast: 1.20, saturation: 0.00, vignette: 0.40, tonemap: 'aces', tone: true },
+  deepspace:   { bloom: true, twinkle: true, shard: true,  glow: 0.75, threshold: 0.82, radius: 0.38, exposure: 0.92, contrast: 1.12, saturation: 0.92, vignette: 0.55, tonemap: 'aces', tone: true },
+  neon:        { bloom: true, twinkle: true, shard: true,  glow: 1.20, threshold: 0.50, radius: 0.50, exposure: 1.08, contrast: 1.18, saturation: 1.60, vignette: 0.32, tonemap: 'none', tone: false },
+  documentary: { bloom: true, twinkle: false, shard: false, glow: 0.35, threshold: 0.80, radius: 0.20, exposure: 1.00, contrast: 1.00, saturation: 1.02, vignette: 0.12, tonemap: 'aces', tone: true },
+  bright:      { bloom: true, twinkle: true, shard: false, glow: 0.40, threshold: 0.72, radius: 0.22, exposure: 1.28, contrast: 0.98, saturation: 1.08, vignette: 0.00, tonemap: 'reinhard', tone: false },
+  mono:        { bloom: true, twinkle: true, shard: true,  glow: 0.60, threshold: 0.78, radius: 0.30, exposure: 1.02, contrast: 1.20, saturation: 0.00, vignette: 0.40, tonemap: 'aces', tone: true },
 };
 
 // marker colours by type
@@ -126,7 +126,7 @@ export class App {
     // tone mapping, and colour grade (exposure / contrast / saturation / vignette)
     this.cine = (() => {
       const def = {
-        bloom: true, twinkle: true, tone: false, glow: 0.5,
+        bloom: true, twinkle: true, shard: false, tone: false, glow: 0.5,
         threshold: 0.78, radius: 0.24,                                  // bloom shape
         exposure: 1.0, contrast: 1.0, saturation: 1.0, vignette: 0.0,   // colour grade
         tonemap: 'none',                                                // none|aces|reinhard|cineon
@@ -1761,6 +1761,8 @@ export class App {
     this.scene.setBloom(c.bloom);
     this.scene.setBloomParams({ strength: c.glow, threshold: c.threshold, radius: c.radius });
     this.starfield.setTwinkle(c.twinkle);
+    this.starfield.setShard(c.shard);
+    this.deeptime?.setTwinkle?.(c.twinkle, c.shard);
     this.scene.setToneMapMode(c.tonemap);
     this.scene.setGrade({ exposure: c.exposure, contrast: c.contrast, saturation: c.saturation, vignette: c.vignette });
     this._applyLayerStyles();
@@ -1769,7 +1771,8 @@ export class App {
   setCinematic(key, on) {
     this.cine[key] = !!on;
     if (key === 'bloom') this.scene.setBloom(on);
-    else if (key === 'twinkle') this.starfield.setTwinkle(on);
+    else if (key === 'twinkle') { this.starfield.setTwinkle(on); this.deeptime?.setTwinkle?.(on, this.cine.shard); }
+    else if (key === 'shard') { this.starfield.setShard(on); this.deeptime?.setTwinkle?.(this.cine.twinkle, on); }
     else if (key === 'tone') { this.cine.tonemap = on ? 'aces' : 'none'; this.scene.setToneMapMode(this.cine.tonemap); }
     this.cine.preset = 'custom';
     this._saveCine(); this.emit('graphics', this.cine);
@@ -2294,7 +2297,7 @@ export class App {
         }
       }
       this.scene.update(dt);
-      if (this.cine.twinkle) this.starfield.tick(dt);
+      if (this.cine.twinkle || this.cine.shard) this.starfield.tick(dt);
       this._updateTracker();
       this._updateShipTag(dt);
       if (this.mode === 'system') {

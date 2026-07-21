@@ -560,7 +560,10 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
 .dtn-row { display: flex; align-items: center; gap: 8px; }
 .dtn-row .dtn-lbl { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; }
 .dtn-row select { flex: 1; background: rgba(0,0,0,0.35); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 11px; min-width: 0; }
+.dtn-row .dtn-filter { width: 90px; background: rgba(0,0,0,0.35); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 11px; }
+.dtn-row .dtn-filter:focus { outline: none; border-color: rgba(143, 208, 255, 0.7); }
 .dtn-row .btn { width: auto; padding: 4px 12px; white-space: nowrap; }
+.dtn-hint { font-size: 10px; margin-top: 5px; letter-spacing: 0.04em; }
 
 /* ---------- focus chip + route panel (nautical chart) ---------- */
 #focuschip {

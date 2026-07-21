@@ -15,6 +15,7 @@ export function cinematicSection(app) {
       <span class="cine-glow-v">${(app.cine.glow ?? 0.5).toFixed(2)}×</span>
     </div>
     ${t('twinkle', 'Star twinkle')}
+    ${t('shard', 'RGB shard twinkle', 'prism flare')}
     ${t('tone', 'Filmic tone', 'ACES')}`;
 }
 

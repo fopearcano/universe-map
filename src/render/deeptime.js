@@ -8,16 +8,18 @@ import { GalaxyInterior } from './galaxyInterior.js';
 // logarithmic-radial map + Planck-ΛCDM rules as COSMOS, but procedurally
 // re-grown and made richer than Cosmos: MORE EXTENDED (accelerating expansion —
 // R = cosmos.cmbR × extension) and MORE STRUCTURED. It is DATA-DRIVEN: a built
-// dataset (public/data/deeptime.json) supplies the cosmic web (hubs, filaments,
-// walls), 120 navigable anchor galaxies with far-future metadata, and a full
-// catalogue of QTR deep-time cosmic OBJECTS, hazard/frontier REGIONS and EVENTS
-// — each cross-linked to its codex entry. Only the dense ~140k-galaxy background
-// field is procedural at runtime. Still a MATRIOSKA scale: enter any galaxy to
-// fly inside its own (now richer) star field.
+// dataset (public/data/deeptime.json) supplies a large cosmic web (hundreds of
+// hubs, ~1.5k curved filaments, walls & tendrils), ~1000 navigable anchor galaxies
+// with far-future metadata, and a full catalogue of thousands of QTR deep-time
+// cosmic OBJECTS, hazard/frontier REGIONS and EVENTS — each cross-linked to its
+// codex entry. Only the dense ~300k-galaxy background field is procedural at
+// runtime. Still a MATRIOSKA scale: enter any galaxy to fly inside its own
+// (now varied, realistic) star field.
 // ────────────────────────────────────────────────────────────────────────────
 
 const GTYPES = ['spiral', 'elliptical', 'lenticular', 'irregular', 'dwarf'];
-const FIELD = 150000;
+const MORPH_SET = new Set(GTYPES);
+const FIELD = 230000;
 const TINT = new THREE.Color(0.62, 0.5, 0.86);
 
 // per-class rendering: [texture, colour, scale, blend('add'|'norm'), alpha]
@@ -72,6 +74,7 @@ export class Deeptime {
     this._t = 0;
     this.interior = null;
     this.enteredGalaxy = null;
+    this._cine = { twinkle: false, shard: false };   // twinkle/shard state applied to interiors
 
     // hubs + curved filaments as world Vector3s (dataset positions normalised to R)
     this.hubs = (data?.hubs || []).map((h) => V3(h.pos).multiplyScalar(this.R));
@@ -98,7 +101,7 @@ export class Deeptime {
 
   // ── cosmic web — smooth curved filaments (Catmull-Rom), walls fainter ───────
   _buildweb_segs(curve, kind) {
-    const n = kind === 'wall' ? 14 : 22;                 // tessellation of each filament
+    const n = kind === 'wall' ? 10 : kind === 'tendril' ? 9 : 16;   // tessellation of each strand
     const pts = curve.getPoints(n), out = [];
     for (let s = 0; s < pts.length - 1; s++) { const a = pts[s], b = pts[s + 1]; out.push(a.x, a.y, a.z, b.x, b.y, b.z); }
     return out;
@@ -136,10 +139,12 @@ export class Deeptime {
         p = new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph), rad * Math.cos(th));
       }
       const rr = p.length(); if (rr > this.R) continue;
-      if (r() > Math.max(0.12, 1 - Math.pow(rr / this.R, 1.4))) continue;
+      // radial thinning — denser toward the core, but flattened so the bright core
+      // doesn't swamp the extended web (the filaments should read all the way out)
+      if (r() > Math.max(0.2, 0.8 - 0.62 * Math.pow(rr / this.R, 1.2))) continue;
       pos[k * 3] = p.x; pos[k * 3 + 1] = p.y; pos[k * 3 + 2] = p.z;
-      const dc = distanceColor(rr / this.cmbR); c.setRGB(dc[0], dc[1], dc[2]).lerp(TINT, 0.5).multiplyScalar(0.72);
-      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; sz[k] = 0.6 + r() * 1.1; k++;
+      const dc = distanceColor(rr / this.cmbR); c.setRGB(dc[0], dc[1], dc[2]).lerp(TINT, 0.5).multiplyScalar(0.56);
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; sz[k] = 0.5 + r() * 0.85; k++;
     }
     this._fieldCount = k;
     const geo = new THREE.BufferGeometry();
@@ -276,12 +281,17 @@ export class Deeptime {
   enterGalaxy(desc, { count = 60000 } = {}) {
     if (!desc) return null;
     if (this.interior) this.exitGalaxy();
-    let morph = morphFromType(desc.type); if (morph === 'globular' || morph === 'open') morph = 'spiral';
+    // deep-time anchors already carry an exact morphology class — use it directly so
+    // all five types read distinctly (lenticulars & dwarves aren't collapsed away);
+    // fall back to type-string inference for anything unexpected.
+    let morph = MORPH_SET.has(desc.type) ? desc.type : morphFromType(desc.type);
+    if (morph === 'globular' || morph === 'open') morph = 'spiral';
     const R = 30;
     const cloud = structureCloud(morph, R, desc.seed % 100000, { count });
     cloud.count = cloud.count ?? cloud.positions.length / 3;
     const pcPerUnit = (desc.diameterKpc * 500) / R;
     this.interior = new GalaxyInterior(cloud, { pcPerUnit, name: desc.name, imageDerived: false });
+    this.interior.setTwinkle(this._cine.twinkle); this.interior.setShard(this._cine.shard);
     this.enteredGalaxy = desc;
     this._setUniverseVisible(false);
     this.group.add(this.interior.group);
@@ -306,7 +316,7 @@ export class Deeptime {
   }
 
   // ── camera views ─────────────────────────────────────────────────────────────
-  defaultView() { const d = this.R * 1.5; return { pos: new THREE.Vector3(d * 0.8, d * 0.5, d), target: new THREE.Vector3(0, 0, 0) }; }
+  defaultView() { const d = this.R * 3.0; return { pos: new THREE.Vector3(d * 0.8, d * 0.5, d), target: new THREE.Vector3(0, 0, 0) }; }
   galaxyView(desc) {
     const p = desc.pos || this.anchors[desc.i]?.pos || new THREE.Vector3();
     const off = Math.max(this.R * 0.06, 14) + (desc.diameterKpc || 40) * 0.02;
@@ -371,9 +381,16 @@ export class Deeptime {
   }
   galaxyList() { return this.anchors.map((g) => ({ i: g.i, name: g.name, tag: g.tag, type: g.type, home: g.home })); }
 
+  // twinkle / RGB-shard state for the galaxy interiors (driven by app.cine)
+  setTwinkle(twinkle, shard) {
+    this._cine = { twinkle: !!twinkle, shard: !!shard };
+    if (this.interior) { this.interior.setTwinkle(!!twinkle); this.interior.setShard(!!shard); }
+  }
+
   // ── LOD / frame update ────────────────────────────────────────────────────
   update(camera) {
-    if (!this.group.visible || this.interior) return;
+    if (!this.group.visible) return;
+    if (this.interior) { this.interior.tick(0.016); return; }
     this._t += 0.016;
     const camDist = camera.position.length();
     this.web.material.opacity = Math.max(0.08, Math.min(0.28, camDist / (this.R * 6)));

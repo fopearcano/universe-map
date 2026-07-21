@@ -48,6 +48,7 @@ export class Starfield {
         uTintAmt: { value: 0.0 },    // 0 = native colour, 1 = full tint
         uTime: { value: 0 },
         uTwinkle: { value: 1 },      // 0/1 — subtle brightness shimmer on bright stars
+        uShard: { value: 0 },        // 0/1 — animated RGB chromatic diffraction shards
       },
       vertexShader: /* glsl */ `
         attribute vec3 aColor;
@@ -64,6 +65,7 @@ export class Starfield {
         varying float vVisible;
         varying float vBright;
         varying float vTw;
+        varying float vPhase;
         void main() {
           vColor = mix(aColor, uTint, uTintAmt);
           vVisible = aVisible;
@@ -73,6 +75,7 @@ export class Starfield {
           // subtle atmospheric twinkle: a per-star phase (hashed from position) drives
           // a gentle brightness shimmer, strongest on the brightest stars, off when uTwinkle=0.
           float phase = fract(sin(dot(position.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          vPhase = phase;   // carried to the fragment stage for the animated shard flare
           vTw = 1.0 - uTwinkle * (0.10 + 0.22 * vBright) * (0.5 + 0.5 * sin(uTime * 2.6 + phase * 6.2831));
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           float dist = max(-mv.z, 0.001);
@@ -87,10 +90,13 @@ export class Starfield {
       `,
       fragmentShader: /* glsl */ `
         uniform float uGain;
+        uniform float uTime;
+        uniform float uShard;
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
         varying float vTw;
+        varying float vPhase;
         // one diffraction "cross" (horizontal + vertical + fainter diagonals) whose
         // arm length is passed in, so we can render it per-channel for RGB fringing.
         float spike(vec2 av, vec2 ar, float len) {
@@ -110,19 +116,35 @@ export class Starfield {
           // (R longest → B shortest) make the spikes fringe into colour toward the tips,
           // a cinematic prism/anamorphic flare. vBright is constant across the sprite,
           // so the branch lets the GPU skip the spike math for the (vast) faint majority.
+          // uShard turns this into a live "shard twinkle": the arms breathe and the
+          // RGB channels split apart on a per-star phase; a rotating flare adds sparkle.
           vec3 shardRGB = vec3(0.0);
           if (vBright > 0.001) {
-            vec2 av = abs(uv);
-            vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 0.70710678;
+            // per-star breathing pulse (0.6…1.0) and a slowly rotating shard cross
+            float pulse = uShard > 0.5 ? (0.6 + 0.4 * (0.5 + 0.5 * sin(uTime * 3.1 + vPhase * 6.2831))) : 1.0;
+            float rot = uShard * (0.35 * sin(uTime * 0.9 + vPhase * 6.2831));
+            float cs = cos(rot), sn = sin(rot);
+            vec2 ruv = mat2(cs, -sn, sn, cs) * uv;
+            vec2 av = abs(ruv);
+            vec2 r = vec2(ruv.x + ruv.y, ruv.x - ruv.y) * 0.70710678;
             vec2 ar = abs(r);
-            shardRGB = vec3(spike(av, ar, 0.55), spike(av, ar, 0.48), spike(av, ar, 0.42)) * vBright;
+            // wider base arms + stronger RGB channel split when the shard option is on
+            float grow = 1.0 + uShard * 0.35;
+            float split = 0.07 + uShard * 0.10;   // chromatic separation of the arm tips
+            float baseLen = 0.48 * grow * pulse;
+            shardRGB = vec3(
+              spike(av, ar, baseLen + split),
+              spike(av, ar, baseLen),
+              spike(av, ar, max(0.12, baseLen - split))
+            ) * vBright;
           }
           float shard = dot(shardRGB, vec3(0.3333));
-          float a = clamp(glow + shard * 0.8, 0.0, 1.0);
+          float shardGain = 0.8 + uShard * 0.7;   // brighter, livelier flare when enabled
+          float a = clamp(glow + shard * shardGain, 0.0, 1.0);
           if (a < 0.003) discard;
           // core keeps the star's own colour; the spikes fringe toward RGB at the tips
           vec3 spikeCol = mix(vColor, shardRGB, 0.6);
-          vec3 outCol = (vColor * (0.45 + 0.95 * glow) + spikeCol * shard) * vTw * uGain;
+          vec3 outCol = (vColor * (0.45 + 0.95 * glow) + spikeCol * shard * shardGain) * vTw * uGain;
           gl_FragColor = vec4(outCol, a);
         }
       `,
@@ -143,6 +165,7 @@ export class Starfield {
 
   setSizeScale(s) { this.material.uniforms.uSizeScale.value = s; }
   setTwinkle(on) { this.material.uniforms.uTwinkle.value = on ? 1 : 0; }
+  setShard(on) { this.material.uniforms.uShard.value = on ? 1 : 0; }
   // Per-layer visuals from the graphics panel: { size, gain, tint:[r,g,b], tintAmt }.
   setStyle(st = {}) {
     const u = this.material.uniforms;
