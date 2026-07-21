@@ -7,6 +7,7 @@
   "scripts": {
     "build:data": "node scripts/build-data.mjs",
     "build:cosmos": "node scripts/build-cosmos.mjs",
+    "build:deeptime": "node scripts/build-deeptime.mjs",
     "build:cmb": "node scripts/build-cmb.mjs",
     "build:extras": "node scripts/build-extras.mjs",
     "build:atlas": "node scripts/build-atlas.mjs",

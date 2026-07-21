@@ -138,8 +138,11 @@ export function initCodex(qtr, app) {
     if (qi) qi.oninput = (e) => { q = e.target.value; const recs = filtered(); overlay.querySelector('.cx-list').innerHTML = recs.slice(0, 400).map((r) => `<div class="cx-item ${r.id === selId ? 'on' : ''}" data-goto="${esc(r.id)}"><span class="cx-it-nm">${esc(r.name)}</span><span class="cx-it-ty">${esc(TYPE_LABEL[r.type] || r.type)}</span></div>`).join('') || '<div class="cx-empty">no matches</div>'; overlay.querySelector('.cx-count').textContent = `${recs.length} records`; overlay.querySelectorAll('.cx-list [data-goto]').forEach((el) => { el.onclick = () => { selId = el.dataset.goto; view = 'browse'; render(); scrollDetail(); }; }); };
   }
   function scrollDetail() { const r = overlay.querySelector('.cx-right'); if (r) r.scrollTop = 0; }
-  function open() { overlay.hidden = false; render(); }
+  function open(id) { if (id && qtr.get(id)) { selId = id; view = 'browse'; q = ''; activeType = 'all'; } overlay.hidden = false; render(); if (id) scrollDetail(); }
   function close() { overlay.hidden = true; }
+
+  // let other panels deep-link into a specific codex entry (e.g. a Deep-Time object)
+  if (app) app._openCodex = (id) => open(id);
 
   // keyboard: Esc closes
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) close(); });

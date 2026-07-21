@@ -34,14 +34,15 @@ async function main() {
     await catalog.load((f, m) => prog(f * 0.5, m));
     await cosmos.load((f, m) => prog(0.5 + f * 0.4, m));
     prog(0.92, 'clusters, structures & cosmic atlas');
-    const [clusters, structures, atlas, expeditions, tradeRoutes] = await Promise.all([
+    const [clusters, structures, atlas, expeditions, tradeRoutes, deeptime] = await Promise.all([
       fetch(durl('clusters.json')).then((r) => r.json()).catch(() => []),
       fetch(durl('structures.json')).then((r) => r.json()).catch(() => []),
       fetch(durl('atlas.json')).then((r) => r.json()).catch(() => ({ objects: [], categories: {} })),
       fetch(durl('expeditions.json')).then((r) => r.json()).catch(() => ({ expeditions: [] })),
       fetch(durl('trade-routes.json')).then((r) => r.json()).catch(() => ({ routes: [] })),
+      fetch(durl('deeptime.json')).then((r) => r.json()).catch(() => null),
     ]);
-    extras = { clusters, structures, atlas, expeditions, tradeRoutes };
+    extras = { clusters, structures, atlas, expeditions, tradeRoutes, deeptime };
   } catch (e) {
     bootLog.innerHTML = `<span style="color:#ff6b6b">failed to load data: ${e.message}</span>`;
     console.error(e);

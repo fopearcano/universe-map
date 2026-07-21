@@ -17,10 +17,11 @@ export function initInfoPanel(app) {
           : o.kind === 'interiorStar' ? renderInteriorStar(o)
             : o.kind === 'body' ? renderBody(o)
               : (o.kind === 'cluster' || o.kind === 'structure') ? renderExtra(o)
-              : (o.kind === 'dt-galaxy' || o.kind === 'dt-field' || o.kind === 'dt-star') ? renderDeeptime(o)
+              : (o.kind === 'dt-galaxy' || o.kind === 'dt-field' || o.kind === 'dt-star' || o.kind === 'dt-object' || o.kind === 'dt-event') ? renderDeeptime(o)
                 : renderCosmos(o);
     dock.querySelector('.info-close').onclick = () => app.clearSelection();
     const dtEnter = dock.querySelector('#i-dt-enter'); if (dtEnter) dtEnter.onclick = () => app.deeptimeEnterGalaxy(o.dtDesc);
+    const dtCodex = dock.querySelector('#i-dt-codex'); if (dtCodex) dtCodex.onclick = () => app._openCodex && app._openCodex(o.qtr);
     const fly = dock.querySelector('#i-fly');
     if (fly) fly.onclick = () => (o.kind === 'star' ? app.flyToStar(o.i) : app.flyToPos(app.selection.worldPos));
     const focusBtn = dock.querySelector('#i-focus'); if (focusBtn) focusBtn.onclick = () => app.setFocus();
@@ -146,14 +147,17 @@ function renderBody(o) {
 
 function renderDeeptime(o) {
   const isStar = o.kind === 'dt-star';
-  const swatch = isStar ? '#ffe6a0' : (o.kind === 'dt-galaxy' ? '#c9a0ff' : '#9fb0e8');
+  const isGalaxy = o.kind === 'dt-galaxy' || o.kind === 'dt-field';
+  const SW = { 'dt-star': '#ffe6a0', 'dt-galaxy': '#c9a0ff', 'dt-field': '#c9a0ff', 'dt-object': '#8fd0ff', 'dt-event': '#ffd27a' };
+  const swatch = SW[o.kind] || '#9fb0e8';
   // a galaxy (anchor or field) can be entered → fly inside its own star field
-  const enter = !isStar
-    ? '<button class="btn sm" id="i-dt-enter" title="fly inside this galaxy and explore its stars">⛶ enter galaxy</button>'
-    : '';
-  const note = `<div class="muted" style="margin-top:8px;line-height:1.5">Deep-Time · a far-future (~50 Gyr) universe. ${isStar ? 'A star inside a Deep-Time galaxy.' : 'Enter it to fly inside its star field.'}</div>`;
+  const enter = isGalaxy ? '<button class="btn sm" id="i-dt-enter" title="fly inside this galaxy and explore its stars">⛶ enter galaxy</button>' : '';
+  const codex = o.qtr ? '<button class="btn sm" id="i-dt-codex" title="open this object in the codex">◇ codex</button>' : '';
+  const lore = o.note
+    ? `<div class="muted" style="margin-top:8px;line-height:1.5">${esc(o.note)}</div>`
+    : `<div class="muted" style="margin-top:8px;line-height:1.5">Deep-Time · a far-future (~50 Gyr) universe. ${isStar ? 'A star inside a Deep-Time galaxy.' : 'Enter it to fly inside its star field.'}</div>`;
   return head(o.label, o.sub, swatch) + grid(o.rows || []) +
-    `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button><button class="btn sm" id="i-focus" title="orbit around this">◎ focus</button>${enter}</div>` + note;
+    `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button><button class="btn sm" id="i-focus" title="orbit around this">◎ focus</button>${enter}${codex}</div>` + lore;
 }
 
 function head(name, sub, swatch) {

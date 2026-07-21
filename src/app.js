@@ -88,7 +88,7 @@ export class App {
     // log-radial scale + Planck-ΛCDM rules as Cosmos, but procedurally generated:
     // a home supergalaxy, a cosmic web of galaxies condensed on filaments, and 100
     // navigable anchor galaxies you can fly inside (matrioska: universe → galaxy).
-    this.deeptime = cosmosData ? new Deeptime(this.scene.scene, cosmosData, { anchorCount: 100 }) : null;
+    this.deeptime = cosmosData ? new Deeptime(this.scene.scene, cosmosData, extras.deeptime) : null;
 
     // SYSTEM scale — the to-scale Solar System (Sun, planets, moons)
     this.solarSystem = new SolarSystem();
@@ -790,9 +790,9 @@ export class App {
   selectDeeptime(hit, { fly = false } = {}) {
     if (!hit) { this.clearSelection(); return; }
     const d = this.deeptime.describe(hit); if (!d) return;
-    const info = { kind: d.kind, label: d.label, sub: d.sub, rows: d.info, dtDesc: d.dtDesc };
+    // carry the codex link + lore note for objects/events, and the descriptor for galaxies
+    const info = { kind: d.kind, label: d.label, sub: d.sub, rows: d.info, dtDesc: d.dtDesc, qtr: d.qtr, note: d.note };
     // truePos is REAL parsecs (from describe); worldPos stays the display point.
-    // Carry the deeptime descriptor so a galaxy waypoint can later be descended into.
     this._setSelection({ kind: d.kind, worldPos: d.worldPos.clone(), truePos: (d.truePos || d.worldPos).clone(), dtGalaxy: d.dtDesc || null, info });
     if (fly) {
       const approach = hit.kind === 'dt-star' ? Math.max(2, this.deeptime.interior.extent() * 0.08)
@@ -2250,7 +2250,7 @@ export class App {
     };
     const dispatch = (hit, fly) => {
       if (!hit) { if (!fly) this.clearSelection(); return; }
-      if (hit.kind === 'dt-galaxy' || hit.kind === 'dt-field' || hit.kind === 'dt-star') this.selectDeeptime(hit, { fly });
+      if (hit.kind === 'dt-galaxy' || hit.kind === 'dt-field' || hit.kind === 'dt-star' || hit.kind === 'dt-object' || hit.kind === 'dt-event') this.selectDeeptime(hit, { fly });
       else if (hit.body != null) this.selectBody(hit.body, { fly });
       else if (hit.interiorStar != null) this.selectInteriorStar(hit.interiorStar, { fly });
       else if (hit.star != null) this.selectStar(hit.star, { fly });

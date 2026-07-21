@@ -19,7 +19,7 @@ export class GalaxyInterior {
     const sizes = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       const lum = 0.3 * this.colors[i * 3] + 0.6 * this.colors[i * 3 + 1] + 0.1 * this.colors[i * 3 + 2];
-      sizes[i] = 0.7 + lum * 2.4;
+      sizes[i] = 0.6 + lum * 1.9;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.positions.subarray(0, N * 3), 3));
@@ -46,7 +46,7 @@ export class GalaxyInterior {
           vec2 uv = gl_PointCoord - 0.5; float d = length(uv);
           if (d > 0.5) discard;
           float core = smoothstep(0.5, 0.0, d); float glow = pow(core, 2.0);
-          gl_FragColor = vec4(vC * (0.5 + 0.95 * glow), glow);
+          gl_FragColor = vec4(vC * (0.42 + 0.7 * glow), glow * 0.82);
         }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
