@@ -8,18 +8,18 @@ import { GalaxyInterior } from './galaxyInterior.js';
 // logarithmic-radial map + Planck-ΛCDM rules as COSMOS, but procedurally
 // re-grown and made richer than Cosmos: MORE EXTENDED (accelerating expansion —
 // R = cosmos.cmbR × extension) and MORE STRUCTURED. It is DATA-DRIVEN: a built
-// dataset (public/data/deeptime.json) supplies a large cosmic web (hundreds of
-// hubs, ~1.5k curved filaments, walls & tendrils), ~1000 navigable anchor galaxies
-// with far-future metadata, and a full catalogue of thousands of QTR deep-time
-// cosmic OBJECTS, hazard/frontier REGIONS and EVENTS — each cross-linked to its
-// codex entry. Only the dense ~300k-galaxy background field is procedural at
-// runtime. Still a MATRIOSKA scale: enter any galaxy to fly inside its own
+// dataset (public/data/deeptime.json) supplies a vast cosmic web (~1.8k hubs,
+// ~5.7k curved filaments, walls & tendrils), ~5000 navigable anchor galaxies with
+// far-future metadata, and a full catalogue of ~19k QTR deep-time cosmic OBJECTS,
+// hazard/frontier REGIONS and EVENTS — each cross-linked to its codex entry. Only
+// the dense ~800k-galaxy background field (strung tightly along the filaments) is
+// procedural at runtime. Still a MATRIOSKA scale: enter any galaxy to fly inside its own
 // (now varied, realistic) star field.
 // ────────────────────────────────────────────────────────────────────────────
 
 const GTYPES = ['spiral', 'elliptical', 'lenticular', 'irregular', 'dwarf'];
 const MORPH_SET = new Set(GTYPES);
-const FIELD = 230000;
+const FIELD = 360000;
 const TINT = new THREE.Color(0.62, 0.5, 0.86);
 
 // per-class rendering: [texture, colour, scale, blend('add'|'norm'), alpha]
@@ -111,7 +111,7 @@ export class Deeptime {
     this._filCurves.forEach((curve, idx) => { if (curve) pos.push(...this._buildweb_segs(curve, this.filaments[idx].kind)); });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
-    this.web = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4a8a, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.web = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x7a68c8, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.group.add(this.web);
   }
 
@@ -119,32 +119,37 @@ export class Deeptime {
   _buildField() {
     const r = rng(this.seed ^ 0x1234abcd);
     const pos = new Float32Array(FIELD * 3), col = new Float32Array(FIELD * 3), sz = new Float32Array(FIELD);
-    // favour inner filaments (denser web toward the core), skip any without a curve
-    const fW = this._filCurves.map((cv) => cv ? Math.exp(-cv.getPoint(0.5).length() / (this.R * 0.42)) : 0);
+    // gentle inner favouring, but flat enough that the web fills the whole volume
+    // (outer filaments get traced too) rather than piling galaxies into the core
+    const fW = this._filCurves.map((cv) => cv ? Math.exp(-cv.getPoint(0.5).length() / (this.R * 0.8)) : 0);
     const wSum = fW.reduce((a, b) => a + b, 0) || 1;
     const tmp = new THREE.Vector3(), c = new THREE.Color();
-    let k = 0, guard = 0;
+    let k = 0, guard = 0, px, py, pz;
     while (k < FIELD && guard++ < FIELD * 6) {
-      let p;
-      if (r() < 0.92 && wSum > 0) {
+      // the vast majority of galaxies string tightly along the curved filaments so the
+      // cosmic web reads clearly; a small fraction fills the voids faintly
+      if (r() < 0.96 && wSum > 0) {
         let x = r() * wSum, fi = 0; while (fi < fW.length - 1 && (x -= fW[fi]) > 0) fi++;
         const cv = this._filCurves[fi]; if (!cv) continue;
-        // sample ALONG the curved filament, denser near the nodes; thin thread
+        // sample ALONG the curved filament, denser near the nodes; tight thread
         let t = r(); t = t < 0.5 ? 0.5 * Math.pow(2 * t, 1.4) : 1 - 0.5 * Math.pow(2 - 2 * t, 1.4);
         cv.getPoint(t, tmp);
-        const thick = this.R * (0.005 + 0.028 * Math.pow(r(), 2));
-        p = tmp.clone().add(new THREE.Vector3(this._gauss(r, thick), this._gauss(r, thick), this._gauss(r, thick)));
+        const thick = this.R * (0.004 + 0.019 * Math.pow(r(), 2));
+        px = tmp.x + this._gauss(r, thick); py = tmp.y + this._gauss(r, thick); pz = tmp.z + this._gauss(r, thick);
       } else {
-        const rad = this.R * Math.cbrt(r()), u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
-        p = new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph), rad * Math.cos(th));
+        const rad = this.R * Math.cbrt(r()), u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v, s = Math.sin(th);
+        px = rad * s * Math.cos(ph); py = rad * s * Math.sin(ph); pz = rad * Math.cos(th);
       }
-      const rr = p.length(); if (rr > this.R) continue;
-      // radial thinning — denser toward the core, but flattened so the bright core
-      // doesn't swamp the extended web (the filaments should read all the way out)
-      if (r() > Math.max(0.2, 0.8 - 0.62 * Math.pow(rr / this.R, 1.2))) continue;
-      pos[k * 3] = p.x; pos[k * 3 + 1] = p.y; pos[k * 3 + 2] = p.z;
-      const dc = distanceColor(rr / this.cmbR); c.setRGB(dc[0], dc[1], dc[2]).lerp(TINT, 0.5).multiplyScalar(0.56);
-      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; sz[k] = 0.5 + r() * 0.85; k++;
+      const rr = Math.hypot(px, py, pz); if (rr > this.R) continue;
+      // radial thinning — only a gentle central bias so the web fills the volume
+      // fairly evenly (the filament-vs-void CONTRAST reads the structure, not a
+      // bright ball); kept high at the rim so filaments run all the way out
+      if (r() > Math.max(0.4, 0.62 - 0.22 * (rr / this.R))) continue;
+      pos[k * 3] = px; pos[k * 3 + 1] = py; pos[k * 3 + 2] = pz;
+      // small, sharp, semi-transparent points so dense threads read as filaments
+      // and the voids stay dark, rather than fogging into a solid ball
+      const dc = distanceColor(rr / this.cmbR); c.setRGB(dc[0], dc[1], dc[2]).lerp(TINT, 0.5).multiplyScalar(0.5);
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; sz[k] = 0.42 + r() * 0.6; k++;
     }
     this._fieldCount = k;
     const geo = new THREE.BufferGeometry();
@@ -152,7 +157,7 @@ export class Deeptime {
     geo.setAttribute('aColor', new THREE.BufferAttribute(col.subarray(0, k * 3), 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sz.subarray(0, k), 1));
     this.fieldWorld = pos.subarray(0, k * 3);
-    this.fieldPoints = new THREE.Points(geo, this._pointMat(0.5, { tex: 'glow', additive: false, alpha: 0.9 }));
+    this.fieldPoints = new THREE.Points(geo, this._pointMat(0.42, { tex: 'glow', additive: false, alpha: 0.5 }));
     this.fieldPoints.frustumCulled = false;
     this.group.add(this.fieldPoints);
   }
@@ -166,14 +171,15 @@ export class Deeptime {
       gpos[k * 3] = g.pos.x; gpos[k * 3 + 1] = g.pos.y; gpos[k * 3 + 2] = g.pos.z;
       const dc = distanceColor(g.pos.length() / this.cmbR); c.setRGB(dc[0], dc[1], dc[2]).lerp(new THREE.Color(1, 1, 1), g.home ? 0.5 : 0.15);
       gcol[k * 3] = c.r; gcol[k * 3 + 1] = c.g; gcol[k * 3 + 2] = c.b;
-      gsz[k] = (g.home ? 3.6 : 1.4) + Math.sqrt(g.diameterKpc) * 0.06;
+      // smaller anchor glows so 5000 galaxies trace the web instead of blobbing
+      gsz[k] = (g.home ? 3.2 : 0.9) + Math.sqrt(g.diameterKpc) * 0.045;
     });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(gpos, 3));
     geo.setAttribute('aColor', new THREE.BufferAttribute(gcol, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(gsz, 1));
     this.anchorWorld = gpos;
-    this.anchorPoints = new THREE.Points(geo, this._pointMat(1.0, { tex: 'glow' }));
+    this.anchorPoints = new THREE.Points(geo, this._pointMat(0.85, { tex: 'glow', alpha: 0.72 }));
     this.anchorPoints.frustumCulled = false;
     this.group.add(this.anchorPoints);
   }
@@ -193,13 +199,15 @@ export class Deeptime {
         o._w = p;
         pos[k * 3] = p.x; pos[k * 3 + 1] = p.y; pos[k * 3 + 2] = p.z;
         col[k * 3] = rgb[0]; col[k * 3 + 1] = rgb[1]; col[k * 3 + 2] = rgb[2];
-        sz[k] = 4 + o.size * 3.2;
+        // smaller sprites: with ~19k objects, big glows blob together and wash out
+        // the web — keep them as fine points that grow only on close approach
+        sz[k] = 1.5 + o.size * 1.0;
       });
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
       geo.setAttribute('aSize', new THREE.BufferAttribute(sz, 1));
-      const points = new THREE.Points(geo, this._pointMat(scale, { tex, additive: blend === 'add', alpha }));
+      const points = new THREE.Points(geo, this._pointMat(scale * 0.82, { tex, additive: blend === 'add', alpha: alpha * 0.7 }));
       points.frustumCulled = false;
       this.group.add(points);
       this.objectLayers[cls] = { points, world: pos, recs, pulse: cls === 'beacon-core' };
@@ -316,7 +324,7 @@ export class Deeptime {
   }
 
   // ── camera views ─────────────────────────────────────────────────────────────
-  defaultView() { const d = this.R * 3.0; return { pos: new THREE.Vector3(d * 0.8, d * 0.5, d), target: new THREE.Vector3(0, 0, 0) }; }
+  defaultView() { const d = this.R * 2.6; return { pos: new THREE.Vector3(d * 0.8, d * 0.5, d), target: new THREE.Vector3(0, 0, 0) }; }
   galaxyView(desc) {
     const p = desc.pos || this.anchors[desc.i]?.pos || new THREE.Vector3();
     const off = Math.max(this.R * 0.06, 14) + (desc.diameterKpc || 40) * 0.02;
@@ -393,7 +401,7 @@ export class Deeptime {
     if (this.interior) { this.interior.tick(0.016); return; }
     this._t += 0.016;
     const camDist = camera.position.length();
-    this.web.material.opacity = Math.max(0.08, Math.min(0.28, camDist / (this.R * 6)));
+    this.web.material.opacity = Math.max(0.16, Math.min(0.4, camDist / (this.R * 5.5)));
     // pulse the beacon cores
     const bl = this.objectLayers?.['beacon-core'];
     if (bl) bl.points.material.uniforms.uPulse.value = 0.75 + 0.4 * Math.sin(this._t * 2.2);

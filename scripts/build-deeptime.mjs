@@ -60,7 +60,7 @@ const ERAS = ['Oceanic', 'Eonic', 'Galactic', 'Chronal'];
 //        (control points that sag toward the barycentre and bow perpendicular —
 //        gravity, not right angles), with more control points on longer strands.
 //        The web reaches nearly to the (extended) horizon. -----------------------
-const HUBS = 440;
+const HUBS = 1800;
 const hubs = [];
 for (let i = 0; i < HUBS; i++) {
   // spread the nodes further out (less inner-bias) so the web extends toward the rim
@@ -98,7 +98,7 @@ for (let i = 0; i < HUBS; i++) {
   for (let k = 0; k < n && k < near.length; k++) { const [j, d2] = near[k]; if (d2 > (0.5) ** 2) continue; const kk = edgeKey(i, j); if (!edgeSet.has(kk)) { edgeSet.add(kk); edges.push([i, j, 'filament']); } }
 }
 // long "walls" — sheets bridging more distant hubs
-for (let w = 0; w < 60; w++) { const a = Math.floor(rnd() * HUBS), b = Math.floor(rnd() * HUBS); const kk = edgeKey(a, b); if (a !== b && !edgeSet.has(kk) && dist2(hubs[a].pos, hubs[b].pos) < 0.92 ** 2) { edgeSet.add(kk); edges.push([a, b, 'wall']); } }
+for (let w = 0; w < 320; w++) { const a = Math.floor(rnd() * HUBS), b = Math.floor(rnd() * HUBS); const kk = edgeKey(a, b); if (a !== b && !edgeSet.has(kk) && dist2(hubs[a].pos, hubs[b].pos) < 0.92 ** 2) { edgeSet.add(kk); edges.push([a, b, 'wall']); } }
 
 // a smooth curved control-point path between two endpoints (gravitational sag + a bow)
 function curvedPathPts(A, B, kind) {
@@ -138,7 +138,7 @@ function catmullPre(P, t) {
 const spineCount = filaments.length;
 for (let s = 0; s < spineCount; s++) {
   const f = filaments[s]; if (f.kind !== 'filament') continue;
-  const nT = rnd() < 0.5 ? 0 : (rnd() < 0.7 ? 1 : 2);
+  const nT = rnd() < 0.28 ? 0 : (rnd() < 0.55 ? 1 : rnd() < 0.85 ? 2 : 3);
   for (let k = 0; k < nT; k++) {
     const t = 0.2 + 0.6 * rnd(), anchor = catmullPre(f.pts, t);
     const dir = norm([gauss(1), gauss(1), gauss(1)]);
@@ -186,7 +186,7 @@ const inVoid = () => {
 const nearHorizon = () => { const u = rnd(), v = rnd(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v; const rf = 0.9 + 0.08 * rnd(); return V(rf * Math.sin(th) * Math.cos(ph), rf * Math.sin(th) * Math.sin(ph), rf * Math.cos(th)); };
 
 // ---- 2) anchors — the named, navigable galaxies ---------------------------
-const ANCHORS = 1000;
+const ANCHORS = 5000;
 const anchors = [];
 for (let i = 0; i < ANCHORS; i++) {
   let pos, type, name, gtag, diameterKpc, home = false;
@@ -207,21 +207,21 @@ for (let i = 0; i < ANCHORS; i++) {
 let oid = 0;
 const objects = [];
 const OBJ = [
-  { n: 640, cls: 'seam-well', place: () => atHub(0.02), size: () => 1.6 + rnd() * 1.8, qtr: 'obj-natural-seam-wells',
+  { n: 3200, cls: 'seam-well', place: () => atHub(0.02), size: () => 1.6 + rnd() * 1.8, qtr: 'obj-natural-seam-wells',
     name: () => nm() + ' Well', note: 'A natural seam-well — a black hole lit toward the seam 𝔍, its accretion structure a standing gate.' },
-  { n: 220, cls: 'kindled-well', place: () => add(pick(anchors.slice(1)).pos, jit(0.03)), size: () => 2.2 + rnd() * 1.4, qtr: 'obj-kindled-wells',
+  { n: 1100, cls: 'kindled-well', place: () => add(pick(anchors.slice(1)).pos, jit(0.03)), size: () => 2.2 + rnd() * 1.4, qtr: 'obj-kindled-wells',
     name: () => nm() + ' Gate', note: 'A kindled seam-well (Φ₄) — engineered: a black hole held open as an intra-universal gate.' },
-  { n: 950, cls: 'seam-pearl', place: () => onFilament(0.03), size: () => 0.7 + rnd() * 0.7, qtr: 'obj-seam-pearls',
+  { n: 4800, cls: 'seam-pearl', place: () => onFilament(0.03), size: () => 0.7 + rnd() * 0.7, qtr: 'obj-seam-pearls',
     name: () => tag('SP'), note: 'A seam-pearl — a condensed droplet of the seam, left where a crossing set.' },
-  { n: 480, cls: 'information-reef', place: () => onFilament(0.02), size: () => 1.2 + rnd() * 1.0, qtr: 'obj-information-reefs',
+  { n: 2400, cls: 'information-reef', place: () => onFilament(0.02), size: () => 1.2 + rnd() * 1.0, qtr: 'obj-information-reefs',
     name: () => nm() + ' Reef', note: 'An information reef — a shoal of dense mutual information where causal order frays.' },
-  { n: 700, cls: 'beacon-core', place: () => onFilament(0.06), size: () => 0.9 + rnd() * 0.5, qtr: 'obj-beacon-cores',
+  { n: 3600, cls: 'beacon-core', place: () => onFilament(0.06), size: () => 0.9 + rnd() * 0.5, qtr: 'obj-beacon-cores',
     name: () => tag('BC'), note: 'A beacon core — a pulsar the fleets anchor ΛL phase to; the backbone of shared time.' },
-  { n: 160, cls: 'formless-mouth', place: () => inVoid(), size: () => 2.0 + rnd() * 1.6, qtr: 'obj-the-formless-mouths',
+  { n: 800, cls: 'formless-mouth', place: () => inVoid(), size: () => 2.0 + rnd() * 1.6, qtr: 'obj-the-formless-mouths',
     name: () => nm() + ' Mouth', note: 'A rumoured Formless mouth — a Class-ω throat the Assembly denies exists; chased by one mythical ship.' },
-  { n: 340, cls: 'law-shard', place: () => nearHorizon(), size: () => 1.0 + rnd() * 1.2, qtr: 'obj-law-shards',
+  { n: 1700, cls: 'law-shard', place: () => nearHorizon(), size: () => 1.0 + rnd() * 1.2, qtr: 'obj-law-shards',
     name: () => tag('LS'), note: 'A law-shard — curvature-frontier debris where the effective constitution is subtly wrong.' },
-  { n: 180, cls: 'amplitude-twin', place: null, size: () => 0.9 + rnd() * 0.6, qtr: 'obj-amplitude-twins',
+  { n: 900, cls: 'amplitude-twin', place: null, size: () => 0.9 + rnd() * 0.6, qtr: 'obj-amplitude-twins',
     name: () => nm() + ' Twin', note: 'An amplitude twin — one object read as two, entangled across the web by a shared throat.' },
 ];
 for (const spec of OBJ) {
@@ -242,9 +242,9 @@ for (const spec of OBJ) {
 let rid = 0;
 const regions = [];
 const REG = [
-  { n: 40, cls: 'dead-sea', place: () => inVoid(), radius: () => 0.06 + rnd() * 0.06, qtr: 'hazard-dead', name: () => nm() + ' Still', note: 'The Dead-Sea — a becalmed patch of vacuum where a fleet can stall, unable to find purchase.' },
-  { n: 52, cls: 'squall', place: () => onFilament(0.05), radius: () => 0.04 + rnd() * 0.045, qtr: 'hazard-squall', name: () => nm() + ' Squall', note: 'A squall — violent vacuum fluctuation that batters a hull and throws a dive off its phase.' },
-  { n: 34, cls: 'refusal-zone', place: () => nearHorizon(), radius: () => 0.05 + rnd() * 0.055, qtr: 'obj-refusal-zones', name: () => nm() + ' Refusal', note: 'A refusal zone — the approach to the curvature limit Κ, where parallels bow apart and conservation leaks.' },
+  { n: 170, cls: 'dead-sea', place: () => inVoid(), radius: () => 0.06 + rnd() * 0.06, qtr: 'hazard-dead', name: () => nm() + ' Still', note: 'The Dead-Sea — a becalmed patch of vacuum where a fleet can stall, unable to find purchase.' },
+  { n: 220, cls: 'squall', place: () => onFilament(0.05), radius: () => 0.04 + rnd() * 0.045, qtr: 'hazard-squall', name: () => nm() + ' Squall', note: 'A squall — violent vacuum fluctuation that batters a hull and throws a dive off its phase.' },
+  { n: 150, cls: 'refusal-zone', place: () => nearHorizon(), radius: () => 0.05 + rnd() * 0.055, qtr: 'obj-refusal-zones', name: () => nm() + ' Refusal', note: 'A refusal zone — the approach to the curvature limit Κ, where parallels bow apart and conservation leaks.' },
 ];
 for (const spec of REG) for (let k = 0; k < spec.n; k++) { const p = spec.place(); if (!p) continue; regions.push({ id: `dtr-${rid++}`, cls: spec.cls, name: spec.name(), pos: V(...p), radius: round(spec.radius(), 3), qtr: spec.qtr, note: spec.note }); }
 
@@ -252,10 +252,10 @@ for (const spec of REG) for (let k = 0; k < spec.n; k++) { const p = spec.place(
 let eid = 0;
 const events = [];
 const EVT = [
-  { n: 260, cls: 'crossing', place: () => onFilament(0.03), qtr: 'term-the-crossing', name: () => nm() + ' Crossing', note: 'An Idrenes-bridge crossing — the routine dive between OCT rungs at phase-lock.' },
-  { n: 160, cls: 'seam-scar', place: () => onFilament(0.03), qtr: 'obj-seam-scars', name: () => tag('SC'), note: 'A seam-scar — the healed-over wake of a previous crossing; a hazard and an archaeological record.' },
-  { n: 60, cls: 'failed-condensation', place: () => atHub(0.03), qtr: 'term-failed-condensation', name: () => tag('FC'), note: 'A failed condensation — a mishandled phase-lock left a ship smeared across the arrivals it might have made.' },
-  { n: 90, cls: 'aeonic-edge', place: () => nearHorizon(), qtr: 'recon-conformal-cyclic-cosmology', name: () => nm() + ' Verge', note: 'An aeonic edge — a speculative conformal crossover toward the next aeon of this universe, read through Κ.' },
+  { n: 1300, cls: 'crossing', place: () => onFilament(0.03), qtr: 'term-the-crossing', name: () => nm() + ' Crossing', note: 'An Idrenes-bridge crossing — the routine dive between OCT rungs at phase-lock.' },
+  { n: 800, cls: 'seam-scar', place: () => onFilament(0.03), qtr: 'obj-seam-scars', name: () => tag('SC'), note: 'A seam-scar — the healed-over wake of a previous crossing; a hazard and an archaeological record.' },
+  { n: 300, cls: 'failed-condensation', place: () => atHub(0.03), qtr: 'term-failed-condensation', name: () => tag('FC'), note: 'A failed condensation — a mishandled phase-lock left a ship smeared across the arrivals it might have made.' },
+  { n: 450, cls: 'aeonic-edge', place: () => nearHorizon(), qtr: 'recon-conformal-cyclic-cosmology', name: () => nm() + ' Verge', note: 'An aeonic edge — a speculative conformal crossover toward the next aeon of this universe, read through Κ.' },
 ];
 for (const spec of EVT) for (let k = 0; k < spec.n; k++) { const p = spec.place(); if (!p) continue; events.push({ id: `dte-${eid++}`, cls: spec.cls, name: spec.name(), pos: V(...p), qtr: spec.qtr, note: spec.note }); }
 
