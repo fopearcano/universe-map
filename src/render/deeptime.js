@@ -331,18 +331,23 @@ export class Deeptime {
       const i = hit.i, wp = this.interior.starWorld(i);
       const distPc = this.interior.starDistPc(i);
       const name = `${this.interior.name.replace(/\s*\(.*\)/, '')}·S${(i % 99999).toString().padStart(5, '0')}`;
-      return { label: name, kind: 'dt-star', sub: `star · ${this.enteredGalaxy?.name || 'galaxy'}`, worldPos: wp.clone(),
+      // truePos = galaxy-core-relative parsecs (same convention as a Cosmos interior star)
+      return { label: name, kind: 'dt-star', sub: `star · ${this.enteredGalaxy?.name || 'galaxy'}`,
+        worldPos: wp.clone(), truePos: wp.clone().multiplyScalar(this.interior.pcPerUnit),
         info: [['galaxy', this.enteredGalaxy?.name || '—'], ['from core', `${(distPc / 1000).toFixed(2)} kpc`], ['scale', 'Deep-Time · interior']] };
     }
     const desc = hit.kind === 'dt-galaxy' ? this.anchorDesc(hit.i) : this.fieldDesc(hit.i);
-    const distPc = this._distPc(desc.pos.length());
+    const displayR = desc.pos.length();
+    const distPc = this._distPc(displayR);
+    // truePos = origin-relative parsecs; direction is exact, so invert the log radius
+    const truePos = displayR < 1e-9 ? new THREE.Vector3() : desc.pos.clone().normalize().multiplyScalar(distPc);
     const kindLabel = desc.home ? 'home supergalaxy' : (desc.anchor ? 'anchor galaxy · navigable' : 'galaxy · navigable');
     const rows = [
       ['type', desc.type], ['distance', fmtCosmoDist(distPc / 1e6)],
       ['diameter', `${Math.round(desc.diameterKpc)} kpc`], ['scale', 'Deep-Time · ~50 Gyr'],
     ];
     if (desc.anchor && !desc.home) rows.splice(1, 0, ['catalogue', desc.tag]);
-    return { label: desc.name, kind: 'dt-galaxy', sub: kindLabel, worldPos: desc.pos.clone(), info: rows, dtDesc: desc };
+    return { label: desc.name, kind: 'dt-galaxy', sub: kindLabel, worldPos: desc.pos.clone(), truePos, info: rows, dtDesc: desc };
   }
 
   labelItems() {

@@ -35,7 +35,10 @@ export const TOOLS = [
   },
   { type: 'function', function: { name: 'engage', description: 'Engage the autopilot and thread the seam 𝔍 along the current course (needs at least 2 stops).', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'stop_engine', description: 'Disengage the autopilot.', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'set_mode', description: 'Switch scale: "system" (the Solar System, to scale), "local" (true-scale stellar neighbourhood) or "cosmos" (the whole observable universe, log-radial).', parameters: { type: 'object', properties: { mode: { type: 'string', enum: ['system', 'local', 'cosmos'] } }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'set_mode', description: 'Switch scale: "system" (the Solar System, to scale), "local" (true-scale stellar neighbourhood), "cosmos" (the whole observable universe, log-radial) or "deeptime" (the far-future ~50 Gyr matrioska universe — home supergalaxy Aeon Hearth at the origin, a cosmic web, and 100 navigable anchor galaxies you can enter).', parameters: { type: 'object', properties: { mode: { type: 'string', enum: ['system', 'local', 'cosmos', 'deeptime'] } }, required: ['mode'] } } },
+  { type: 'function', function: { name: 'list_deeptime_galaxies', description: 'List the navigable ANCHOR galaxies of the DEEPTIME (~50 Gyr) universe — their procedurally-generated names (e.g. Aeon Hearth, Vael Reach) are NOT in search_sky, so use this to discover a target before plotting/entering one. Optionally filter by a name/tag substring.', parameters: { type: 'object', properties: { query: { type: 'string', description: 'optional name/tag filter' } } } } },
+  { type: 'function', function: { name: 'enter_galaxy', description: 'In DEEPTIME, fly INSIDE a named anchor galaxy to explore its own star field (a nested matrioska descent). Switches to the deeptime scale first.', parameters: { type: 'object', properties: { galaxy: { type: 'string', description: 'anchor galaxy name or tag, e.g. "Aeon Hearth" or "DG-1234"' } }, required: ['galaxy'] } } },
+  { type: 'function', function: { name: 'exit_galaxy', description: 'In DEEPTIME, rise back out of a galaxy interior to the universe overview.', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'solar_system_focus', description: 'In the SYSTEM scale, fly the camera to a Solar-System body by name and select it (switches to the SYSTEM scale first). Use for requests like "take me to Saturn" or "show me Jupiter’s moons".', parameters: { type: 'object', properties: { body: { type: 'string', description: 'Sun, a planet (Mercury…Neptune), a dwarf planet (Ceres, Pluto, Eris) or a moon (Io, Europa, Titan, Triton, Moon…)' } }, required: ['body'] } } },
   { type: 'function', function: { name: 'solar_system_info', description: 'Read the Solar System catalogue to ground answers about the planets/moons. With a body name → its facts, orbit (AU), period, eccentricity, inclination, radius and moon count. With no name → the list of bodies.', parameters: { type: 'object', properties: { body: { type: 'string', description: 'optional body name; omit to list all bodies' } } } } },
   { type: 'function', function: { name: 'solar_system_time', description: 'Control the SYSTEM-scale orbital animation: pause/resume the planets and set the time speed (1 = Earth orbits in ~10 s).', parameters: { type: 'object', properties: { pause: { type: 'boolean', description: 'true to freeze the planets, false to resume' }, speed: { type: 'number', description: 'time-speed multiplier, e.g. 0.25 slow · 1 normal · 4 fast' } } } } },
@@ -87,7 +90,10 @@ export async function runTool(app, qtr, name, args = {}) {
         app.engageRoute(); return { ok: true, engaged: true, ...app._agentSummary() };
       }
       case 'stop_engine': app.stopRoute(); return { ok: true, engaged: false };
-      case 'set_mode': { const m = ['system', 'local', 'cosmos'].includes(args.mode) ? args.mode : 'local'; app.setMode(m); return { ok: true, mode: m }; }
+      case 'set_mode': { const m = ['system', 'local', 'cosmos', 'deeptime'].includes(args.mode) ? args.mode : 'local'; app.setMode(m); return { ok: true, mode: m }; }
+      case 'list_deeptime_galaxies': return app.agentListDeeptimeGalaxies(args.query);
+      case 'enter_galaxy': return app.agentEnterDeeptimeGalaxy(args.galaxy);
+      case 'exit_galaxy': { app.deeptimeExitToOverview(); return { ok: true, level: 'overview' }; }
       case 'solar_system_focus': return app.agentSystemFocus(args.body);
       case 'solar_system_info': return app.agentSystemInfo(args.body);
       case 'solar_system_time': return app.agentSystemTime(args);
