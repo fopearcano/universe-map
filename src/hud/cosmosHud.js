@@ -82,6 +82,11 @@ export function buildCosmosLayers(app) {
       <button class="segbtn ${app.cosmos.procMode === 'match' ? 'on' : ''}" data-pc="match">match data</button>
     </div>
     <div class="muted" id="c-proc-note" style="margin:-2px 0 6px"></div>
+    <div class="seg" id="c-proc-density" ${app.cosmos.state.show.procedural ? '' : 'hidden'}>
+      <button class="segbtn ${app.cosmos.densityMode() === 'standard' ? 'on' : ''}" data-dn="standard">standard</button>
+      <button class="segbtn ${app.cosmos.densityMode() === 'ultra' ? 'on' : ''}" data-dn="ultra" title="personal high-density mode — needs a beefy GPU (3090+)">ultra · 3090+</button>
+    </div>
+    <div class="muted" id="c-proc-density-note" style="margin:-2px 0 6px"></div>
     <div class="toggle ${app.cosmos.state.show.cmb ? 'on' : ''}" data-l="cmb"><span>CMB radiation image <span class="muted">· off by default</span></span><span class="sw"></span></div>
     <div class="ctl" style="margin-top:10px">
       <label>CMB radiation opacity <span class="val" id="c-cmb-v">auto</span></label>
@@ -215,25 +220,41 @@ export function buildCosmosLayers(app) {
   const imagery = root.querySelector('[data-l="imagery"]');
   imagery.classList.toggle('on', !!app.showGalaxyImagery);
   imagery.onclick = () => { imagery.classList.toggle('on'); app.setGalaxyImagery(imagery.classList.contains('on')); };
-  // Procedural fill + its colour switch
+  // Procedural fill + its colour switch + density profile
   const proc = root.querySelector('[data-l="procedural"]');
   const procColor = root.querySelector('#c-proc-color');
   const procNote = root.querySelector('#c-proc-note');
+  const procDensity = root.querySelector('#c-proc-density');
+  const procDensityNote = root.querySelector('#c-proc-density-note');
+  const setDensityNote = () => {
+    procDensityNote.innerHTML = app.cosmos.densityMode() === 'ultra'
+      ? 'ultra · a much denser imagined universe — personal mode for a beefy GPU (RTX&nbsp;3090+)'
+      : 'standard · runs anywhere · switch to ultra only on a powerful GPU';
+  };
   const setNote = () => {
     if (!proc.classList.contains('on')) { procNote.textContent = ''; return; }
     const frac = app.cosmos.proceduralFraction();
     const dens = frac >= 0.99 ? 'at full survey density' : `at ${Math.round(frac * 100)}% of peak survey density`;
     procNote.textContent = `${fmt(app.cosmos.proceduralCount())} imagined objects completing the universe ${dens} · selectable & route-able (not real data)`;
   };
-  setNote();
+  setNote(); setDensityNote();
   proc.onclick = () => {
     proc.classList.toggle('on');
     const on = proc.classList.contains('on');
     app.setCosmosFilter({ show: { procedural: on } });
-    procColor.hidden = !on; setNote();
+    procColor.hidden = !on; procDensity.hidden = !on; setNote();
   };
   procColor.querySelectorAll('[data-pc]').forEach((b) => {
     b.onclick = () => { procColor.querySelectorAll('[data-pc]').forEach((x) => x.classList.toggle('on', x === b)); app.cosmos.setProceduralColor(b.dataset.pc); };
+  });
+  procDensity.querySelectorAll('[data-dn]').forEach((b) => {
+    b.onclick = () => {
+      if (b.classList.contains('on')) return;
+      procDensity.querySelectorAll('[data-dn]').forEach((x) => x.classList.toggle('on', x === b));
+      procDensityNote.textContent = 'regenerating the imagined universe…';
+      // let the note paint before the (synchronous) rebuild blocks the frame
+      requestAnimationFrame(() => requestAnimationFrame(() => { app.cosmos.setDensity(b.dataset.dn); setNote(); setDensityNote(); }));
+    };
   });
   const op = root.querySelector('#c-cmb-op'), opv = root.querySelector('#c-cmb-v');
   op.oninput = () => {

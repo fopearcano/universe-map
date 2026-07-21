@@ -12,6 +12,21 @@ const G2E = [
 ];
 const PC_TO_LY = 3.2615638;
 
+// Procedural-fill density profiles. `standard` is the default that runs anywhere;
+// `ultra` is a personal, opt-in mode for a beefy GPU (a 3090+ eats millions of
+// additive points without blinking) — it raises the object cap, over-fills each
+// sky cell past peak survey density, and spreads a larger share uniformly in
+// depth, so the imagined universe reads as denser and even more thoroughly
+// charted. The three knobs map one-to-one onto _buildProcedural's levers.
+const DENSITY_PROFILES = {
+  standard: { max: 700000, over: 1.3, uniform: 0.42 },
+  ultra: { max: 1600000, over: 1.85, uniform: 0.5 },
+};
+const readDensity = () => {
+  try { const v = localStorage.getItem('ui.density'); return DENSITY_PROFILES[v] ? v : 'standard'; }
+  catch { return 'standard'; }
+};
+
 // The cosmological world: galaxies, quasars, the Local Group, our galaxy's stars,
 // scale rings and the CMB shell, all placed on a logarithmic radial scale so the
 // whole observable universe (~93 Gly across) fits one navigable scene centred on
@@ -32,6 +47,7 @@ export class CosmosWorld {
       show: { twomrs: true, sdssGal: true, sdssQso: true, localGroup: true, starCore: true, bridge: true, cmb: false, procedural: true },
     };
     this.procMode = 'green'; // 'green' | 'match'
+    this.density = readDensity(); // 'standard' | 'ultra' (personal high-density mode)
 
     this.pointLayers = []; // { key, kind, count, data, points, worldPos:Float32 }
     this.ringTex = makeRingTexture();
@@ -41,11 +57,13 @@ export class CosmosWorld {
     this._buildLayer('sdssGal', 'galaxy', 2.1);
     this._buildLayer('sdssQso', 'quasar', 2.7);
     const superVoids = extras.supervoids || [];
-    this._buildProcedural([
+    // stash the resolved void list so setDensity() can rebuild the fill in place
+    this._procVoids = [
       // structures.json voids, minus any the curated supervoid list already covers
       ...(extras.structures || []).filter((s) => s.type === 'void' && !superVoids.some((v) => v.name === s.name)),
       ...superVoids,
-    ]);
+    ];
+    this._buildProcedural(this._procVoids);
     this._buildBridge();
     this._buildLocalGroup();
     this._buildRings();
@@ -67,7 +85,8 @@ export class CosmosWorld {
   // points are dropped into the real voids, so even under-surveyed regions grow
   // walls, filaments and cluster-nodes around empty voids. ----
   _buildProcedural(voids = []) {
-    const MAX = 700000;                 // hard cap for GPU + pick performance
+    const prof = DENSITY_PROFILES[this.density] || DENSITY_PROFILES.standard;
+    const MAX = prof.max;               // hard cap for GPU + pick performance
     const NB = 72, MB = 36;             // angular cells (lon × lat)
     let seed = 20240711;
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
@@ -110,7 +129,7 @@ export class CosmosWorld {
       const t = r1 > r0 ? (tr - r0) / (r1 - r0) : 0;
       return zGrid[i] + t * (zGrid[j] - zGrid[i]);
     };
-    const FILL_UNIFORM = 0.42;   // share drawn uniformly in display radius (fills the gap)
+    const FILL_UNIFORM = prof.uniform;   // share drawn uniformly in display radius (fills the gap)
     const sampleZ = () => {
       if (rnd() < FILL_UNIFORM) return Math.max(0.004, zFromR(Rlo + rnd() * (Rhi - Rlo)));
       const u = rnd(); let lo = 0, hi = ZBINS - 1;
@@ -129,9 +148,10 @@ export class CosmosWorld {
       const latC = ((bj + 0.5) / MB) * Math.PI - Math.PI / 2;
       const area = Math.max(0.06, Math.cos(latC));
       for (let bi = 0; bi < NB; bi++) {
-        // fill each cell to ~1.3× the densest real region, so the charted sky is a
-        // touch richer than the best-surveyed patches (a well-explored universe)
-        const def = Math.max(0, peak * area * 1.3 - grid[bj * NB + bi]);
+        // fill each cell past the densest real region (×prof.over), so the charted
+        // sky is a touch richer than the best-surveyed patches (a well-explored
+        // universe) — ultra mode pushes this further for a denser cosmos
+        const def = Math.max(0, peak * area * prof.over - grid[bj * NB + bi]);
         cellDeficit[bj * NB + bi] = def; ideal += def;
       }
     }
@@ -436,6 +456,25 @@ export class CosmosWorld {
   }
   proceduralCount() { return this._procCount || 0; }
   proceduralFraction() { return this._procFraction ?? 1; }
+  densityMode() { return this.density; }
+  // Rebuild the procedural fill at a new density profile (personal high-density
+  // mode). Tears down the old point cloud and regenerates in place — the choice
+  // persists in localStorage so it survives reloads. Returns the new object count.
+  setDensity(name) {
+    const next = DENSITY_PROFILES[name] ? name : 'standard';
+    if (next === this.density && this.procPoints) return this.proceduralCount();
+    this.density = next;
+    try { localStorage.setItem('ui.density', next); } catch { /* ignore */ }
+    if (this.procPoints) {
+      this.group.remove(this.procPoints);
+      this.procPoints.geometry.dispose();
+      if (this.procMat) this.procMat.dispose();
+      this.procPoints = null;
+    }
+    this._buildProcedural(this._procVoids || []);
+    this.setProceduralColor(this.procMode); // _buildProcedural resets colour to green
+    return this.proceduralCount();
+  }
 
   // ---- our galaxy's stars, log-radialised into a central core ----
   _buildStarCore() {
