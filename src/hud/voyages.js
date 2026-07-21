@@ -23,6 +23,17 @@ export function buildCosmosVoyageList(app) {
   wireExpeditions(list, app);
 }
 
+// DEEPTIME voyages — curated multi-galaxy journeys across the far-future cosmos.
+// Clicking loads the voyage into the NAV COMPUTER (ready to pick a drive & ENGAGE).
+export function buildDeeptimeVoyageList(app) {
+  const list = document.getElementById('tab-voyages');
+  const voyages = app.deeptimeVoyageList();
+  list.innerHTML = `<div class="muted" style="margin-bottom:10px">Chart a course across the deep-time universe — a journey through galaxies along the Ways of the Deep. Click one to load it into the NAV COMPUTER, then pick a DRIVE and ENGAGE.</div>` +
+    (voyages.length ? voyages.map((v) => card(v.id, 'deep-time voyage', v.stops.length, v.title, v.subtitle)).join('')
+      : '<div class="muted">No voyages available.</div>');
+  wire(list, (id) => app.startDeeptimeVoyage(id));
+}
+
 function card(id, kind, n, title, subtitle) {
   return `<div class="voyage-card" data-id="${id}">
     <div class="vk">${kind} · ${n} stops</div><h4>${esc(title)}</h4><p>${esc(subtitle)}</p></div>`;

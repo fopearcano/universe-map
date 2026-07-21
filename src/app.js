@@ -90,6 +90,7 @@ export class App {
     // a home supergalaxy, a cosmic web of galaxies condensed on filaments, and 100
     // navigable anchor galaxies you can fly inside (matrioska: universe → galaxy).
     this.deeptime = cosmosData ? new Deeptime(this.scene.scene, cosmosData, extras.deeptime) : null;
+    this._deeptimeRoutesOn = false;   // Ways-of-the-Deep overlay (off by default)
 
     // SYSTEM scale — the to-scale Solar System (Sun, planets, moons)
     this.solarSystem = new SolarSystem();
@@ -733,6 +734,7 @@ export class App {
       hideMap();
       this.deeptime.exitGalaxy();
       this.deeptime.setVisible(true);
+      this.deeptime.setRoutesVisible(this._deeptimeRoutesOn);
       this.labels.setStars(this.deeptime.labelItems());
       this.labels.setStatic([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
       if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
@@ -1903,6 +1905,68 @@ export class App {
 
   tradeRouteList() {
     return (this.tradeRoutes || []).map((r) => ({ id: r.id, name: r.name, category: r.category, group: r.group, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.resolvedStops }));
+  }
+
+  // ============ Ways of the Deep — DEEPTIME route network + voyages ============
+  setDeeptimeRoutes(on) {
+    this._deeptimeRoutesOn = !!on;
+    this.deeptime?.setRoutesVisible(this._deeptimeRoutesOn);
+    if (!this._deeptimeRoutesOn) this.deeptime?.clearRouteHighlight();
+    this.emit('deeptime-routes', { on: this._deeptimeRoutesOn, orders: this.deeptime?.routeNet?.orderState?.() });
+  }
+  setDeeptimeRouteOrder(order, on) { this.deeptime?.setRouteOrder(order, on); }
+  deeptimeRouteList() { return this.deeptime ? this.deeptime.routeList() : []; }
+  deeptimeVoyageList() { return this.deeptime ? this.deeptime.voyageList() : []; }
+
+  // resolve a deeptime anchor by index into a routable stop (carries dtGalaxy for descent)
+  _resolveDeeptimeIndex(i) {
+    const desc = this.deeptime?.anchorDesc(i); if (!desc) return null;
+    const r = desc.pos.length(), distPc = this.deeptime._distPc(r);
+    const { ra, dec } = r < 1e-9 ? { ra: 0, dec: 0 } : cartesianToRaDec(desc.pos.x, desc.pos.y, desc.pos.z);
+    return { label: desc.name, ra, dec, distLy: distPc * PC_TO_LY, deeptime: true, dtIndex: i, dtGalaxy: desc };
+  }
+
+  highlightDeeptimeRoute(id) {
+    if (this.mode !== 'deeptime') this.setMode('deeptime');
+    if (!this._deeptimeRoutesOn) this.setDeeptimeRoutes(true);
+    if (this.deeptime.interior) this.deeptimeExitToOverview();
+    this.deeptime.highlightRoute(id);
+    const box = this.deeptime.routeBox(id);
+    if (box) { const c = box.getCenter(new THREE.Vector3()); const rad = Math.max(this.deeptime.R * 0.06, box.getSize(new THREE.Vector3()).length() * 0.5); this.scene.flyTo(c, { camPos: c.clone().add(new THREE.Vector3(0.5, 0.35, 1).setLength(rad * 2.6 + 20)), dur: 1.4 }); }
+    return { ok: true };
+  }
+
+  // load a way / voyage into the NAV COMPUTER as a flyable deeptime course
+  loadDeeptimeRoute(id) {
+    const r = this.deeptime?.getRouteDef(id); if (!r) return { ok: false, error: `unknown deeptime route "${id}"` };
+    if (this.mode !== 'deeptime') this.setMode('deeptime');
+    if (this.deeptime.interior) this.deeptimeExitToOverview();
+    if (r.driveClass) this.agentSetDrive(r.driveClass);
+    const resolved = (r.stopIdx || []).map((i) => this._resolveDeeptimeIndex(i)).filter(Boolean);
+    if (resolved.length < 1) return { ok: false, error: 'no stops resolved' };
+    if (this.autopilot) this.stopRoute();
+    this.clearSelection(); this.clearRoute();
+    this.route = resolved.map((rr) => this._agentWaypoint(rr));
+    this._redrawRoute(); this.emit('route', this._routeSummary());
+    if (this.route.length) this._fitRouteView();
+    return { ok: true, route: r.name || r.title, ...this._agentSummary() };
+  }
+  startDeeptimeVoyage(id) { return this.loadDeeptimeRoute(id); }
+
+  // ---- Solaris.Ai control of the Ways / voyages ----
+  agentDeeptimeRoutes(on) {
+    if (this.mode !== 'deeptime') this.setMode('deeptime');
+    this.setDeeptimeRoutes(on !== false);
+    return { ok: true, routes_shown: this._deeptimeRoutesOn, ways: this.deeptimeRouteList().length };
+  }
+  agentDeeptimeVoyage(nameOrId) {
+    if (!this.deeptime) return { ok: false, error: 'deeptime unavailable' };
+    const voys = this.deeptime.voyageList();
+    if (!nameOrId) return { ok: true, voyages: voys.map((v) => ({ id: v.id, title: v.title, stops: v.stops.length })) };
+    const q = String(nameOrId).toLowerCase();
+    const v = voys.find((x) => x.id === nameOrId || x.title.toLowerCase() === q) || voys.find((x) => x.title.toLowerCase().includes(q));
+    if (!v) return { ok: false, error: `no deeptime voyage "${nameOrId}"`, voyages: voys.map((x) => x.title) };
+    return { ok: true, voyage: v.title, ...this.startDeeptimeVoyage(v.id) };
   }
 
   // Load a preset expedition into the route (mode-aware), ready to ENGAGE.

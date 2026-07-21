@@ -1,6 +1,7 @@
 import { cartesianToRaDec, fmtRA, fmtDec, fmtNum, PC_TO_LY } from '../util/astro.js';
 import { buildLocalFilters } from './filters.js';
-import { buildLocalVoyageList, buildCosmosVoyageList } from './voyages.js';
+import { buildLocalVoyageList, buildCosmosVoyageList, buildDeeptimeVoyageList } from './voyages.js';
+import { DT_ORDERS } from '../data/deeptimeRoutes.js';
 import { buildCosmosFilters, buildCosmosLayers } from './cosmosHud.js';
 import { buildAtlasBrowser } from './atlasBrowser.js';
 import { cinematicSection, wireCinematic } from './cinematic.js';
@@ -78,6 +79,10 @@ function buildDock(app) {
     const note = (id, txt) => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="muted" style="line-height:1.6">${txt}</div>`; };
     note('tab-voyages', 'Expeditions apply to the LOCAL & COSMOS scales. Press <b>1</b> or <b>2</b> to leave the SYSTEMS scale.');
     note('tab-layers', 'Overlays apply to the LOCAL & COSMOS scales.');
+  } else if (app.mode === 'deeptime') {
+    const note = (id, txt) => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="muted" style="line-height:1.6">${txt}</div>`; };
+    note('tab-filters', 'Pick & enter navigable galaxies from the ⧗ Deep-Time panel (top). The <b>VOYAGES</b> tab charts journeys; <b>LAYERS</b> holds the ⟿ Ways of the Deep route network.');
+    buildDeeptimeVoyageList(app); buildDeeptimeLayers(app);
   } else {
     buildLocalFilters(app); buildLocalVoyageList(app); buildLocalLayers(app);
   }
@@ -204,6 +209,58 @@ function buildLocalLayers(app) {
   });
   wireCinematic(root, app);
   root.querySelector('#l-home').onclick = () => app.home();
+}
+
+// DEEPTIME Layers: the ⟿ Ways of the Deep route-network overlay + browser.
+function buildDeeptimeLayers(app) {
+  const root = document.getElementById('tab-layers'); if (!root) return;
+  const routes = app.deeptimeRouteList();
+  const count = {}; for (const r of routes) count[r.order] = (count[r.order] || 0) + 1;
+  const on = {}; for (const o of DT_ORDERS) on[o.key] = true;
+  const MAX = 400;
+  root.innerHTML = `
+    <div class="muted" style="margin-bottom:10px">The far-future travel network, laid over the cosmic web — fleets crossing between galaxies along the <b>Ways of the Deep</b>, each branch coloured by its trunk out of the home supergalaxy. Enter a galaxy and it also draws its own interior courier lanes.</div>
+    <div class="toggle ${app._deeptimeRoutesOn ? 'on' : ''}" data-dtways><span>Ways of the Deep <span class="muted">· ⟿ route network</span></span><span class="sw"></span></div>
+    <div class="ways-box" id="dt-ways" ${app._deeptimeRoutesOn ? '' : 'hidden'}>
+      <div class="ways-h muted">${fmtNum(routes.length)} charted ways · ${DT_ORDERS.length} orders</div>
+      <details class="ways-groups"><summary>▾ orders <span class="muted" id="dt-gsum"></span></summary>
+        <div class="ways-gmenu">${DT_ORDERS.map((o) => `<label class="ways-gc"><input type="checkbox" data-order="${o.key}" checked> ${esc(o.label)} <span class="muted">${fmtNum(count[o.key] || 0)}</span></label>`).join('')}</div>
+      </details>
+      <input class="ways-search" id="dt-ways-search" type="text" placeholder="search ${fmtNum(routes.length)} ways by name, operator, kind…" />
+      <div class="ways-count muted" id="dt-ways-count"></div>
+      <div class="ways-list" id="dt-ways-list"></div>
+    </div>
+    ${cinematicSection(app)}`;
+
+  const box = root.querySelector('#dt-ways');
+  const listEl = root.querySelector('#dt-ways-list');
+  const countEl = root.querySelector('#dt-ways-count');
+  const gsum = root.querySelector('#dt-gsum');
+  let text = '';
+  const dot = (c) => `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`;
+  const render = () => {
+    const matches = routes.filter((r) => on[r.order] && (!text || `${r.name} ${r.kind} ${r.operator} ${r.orderLabel}`.toLowerCase().includes(text)));
+    const shown = matches.slice(0, MAX);
+    listEl.innerHTML = shown.map((r) => `<div class="ways-row" data-way="${r.id}" title="${esc(r.lore)}">
+        <div class="ways-r1"><span class="ways-dot" style="background:${dot(r.color)}"></span><span class="ways-name">${esc(r.name)}</span><button class="ways-load" data-load="${r.id}" title="load into NAV COMPUTER">▶</button></div>
+        <div class="ways-r2 muted">${esc(r.orderLabel)} · ${esc(r.operator)} · Class ${esc(r.driveClass)} · ${esc(r.traffic)}</div></div>`).join('');
+    countEl.textContent = `${fmtNum(matches.length)} shown${matches.length > MAX ? ` (first ${MAX})` : ''}`;
+    const nOn = DT_ORDERS.filter((o) => on[o.key]).length;
+    if (gsum) gsum.textContent = nOn === DT_ORDERS.length ? 'all' : `${nOn}/${DT_ORDERS.length}`;
+  };
+
+  const ways = root.querySelector('[data-dtways]');
+  ways.onclick = () => { ways.classList.toggle('on'); const v = ways.classList.contains('on'); app.setDeeptimeRoutes(v); box.hidden = !v; if (v) render(); };
+  root.querySelectorAll('[data-order]').forEach((cb) => { cb.onchange = () => { on[cb.dataset.order] = cb.checked; app.setDeeptimeRouteOrder(cb.dataset.order, cb.checked); render(); }; });
+  root.querySelector('#dt-ways-search').oninput = (e) => { text = e.target.value.toLowerCase().trim(); render(); };
+  listEl.onclick = (e) => {
+    const loadBtn = e.target.closest('.ways-load'); if (loadBtn) { app.loadDeeptimeRoute(loadBtn.dataset.load); return; }
+    const rw = e.target.closest('.ways-row'); if (!rw) return;
+    listEl.querySelectorAll('.ways-row').forEach((x) => x.classList.remove('sel')); rw.classList.add('sel');
+    app.highlightDeeptimeRoute(rw.dataset.way);
+  };
+  wireCinematic(root, app);
+  if (app._deeptimeRoutesOn) render();
 }
 
 function initTelemetry(app) {

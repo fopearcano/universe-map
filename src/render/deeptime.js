@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { distanceColor, fmtCosmoDist } from '../util/cosmology.js';
 import { structureCloud, morphFromType } from './morphology.js';
 import { GalaxyInterior } from './galaxyInterior.js';
+import { DeeptimeRoutes } from './deeptimeRoutes.js';
+import { generateDeeptimeRoutes } from '../data/deeptimeRoutes.js';
 
 // ────────────────────────────────────────────────────────────────────────────
 // The DEEPTIME scale — the far-future (~50 Gyr) universe, on the SAME
@@ -56,6 +58,11 @@ function rng(seed) {
   return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+function hslToRgb(h, s, l) {
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+  const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+  return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
+}
 
 export class Deeptime {
   constructor(scene, cosmosData, data, { seed = 0xDEE9714E } = {}) {
@@ -75,6 +82,8 @@ export class Deeptime {
     this.interior = null;
     this.enteredGalaxy = null;
     this._cine = { twinkle: false, shard: false };   // twinkle/shard state applied to interiors
+    this._routesOn = false;                          // the Ways-of-the-Deep overlay
+    this.interiorRoutes = null;
 
     // hubs + curved filaments as world Vector3s (dataset positions normalised to R)
     this.hubs = (data?.hubs || []).map((h) => V3(h.pos).multiplyScalar(this.R));
@@ -93,6 +102,42 @@ export class Deeptime {
     this._buildEvents();
     this._buildHorizon();
     this._buildRings();
+    this._buildRoutes();
+  }
+
+  // ── Ways of the Deep — the intergalactic route network ──────────────────────
+  _buildRoutes() {
+    const pool = (this.anchors || []).map((g) => ({ i: g.i, name: g.name, pos: [g.pos.x, g.pos.y, g.pos.z], home: g.home, driveClass: g.driveClass }));
+    const { routes, voyages } = generateDeeptimeRoutes(pool, { seed: (this.seed ^ 0x0FF1CE) >>> 0, count: 3000 });
+    this.routeDefs = routes;
+    this.voyageDefs = voyages;
+    this.routeNet = new DeeptimeRoutes(routes);
+    this.routeNet.setVisible(false);
+    this.group.add(this.routeNet.group);
+  }
+
+  // a small radial route network inside a galaxy interior (courier lanes from the core)
+  _buildInteriorRoutes() {
+    if (!this.interior) return;
+    const p = this.interior.positions, n = this.interior.count;
+    // pick the brightest ~180 stars as nodes (evenly sampled from the front of the buffer)
+    const M = Math.min(180, n), step = Math.max(1, Math.floor(n / M)), nodes = [];
+    for (let i = 0; i < n && nodes.length < M; i += step) nodes.push([p[i * 3], p[i * 3 + 1], p[i * 3 + 2], Math.hypot(p[i * 3], p[i * 3 + 1], p[i * 3 + 2])]);
+    const routes = [];
+    // each node links inward to a nearer node → a radial tree from the galactic core
+    for (let a = 0; a < nodes.length; a++) {
+      let best = -1, bd = Infinity;
+      for (let b = 0; b < nodes.length; b++) if (b !== a && nodes[b][3] < nodes[a][3]) {
+        const d = (nodes[a][0] - nodes[b][0]) ** 2 + (nodes[a][1] - nodes[b][1]) ** 2 + (nodes[a][2] - nodes[b][2]) ** 2;
+        if (d < bd) { bd = d; best = b; }
+      }
+      if (best < 0) continue;
+      const hue = (a * 0.61803398875) % 1, col = hslToRgb(hue, 0.92, 0.58);
+      routes.push({ id: `dtir-${a}`, order: 'bridge', color: col, positions: [[nodes[a][0], nodes[a][1], nodes[a][2]], [nodes[best][0], nodes[best][1], nodes[best][2]]] });
+    }
+    this.interiorRoutes = new DeeptimeRoutes(routes);
+    this.interiorRoutes.setVisible(this._routesOn);
+    this.interior.group.add(this.interiorRoutes.group);
   }
 
   _distPc(displayR) { return Math.pow(10, displayR / this.decadeUnit); }
@@ -303,9 +348,11 @@ export class Deeptime {
     this.enteredGalaxy = desc;
     this._setUniverseVisible(false);
     this.group.add(this.interior.group);
+    this._buildInteriorRoutes();
     return this.interior;
   }
   exitGalaxy() {
+    if (this.interiorRoutes) { this.interiorRoutes.dispose(); this.interiorRoutes = null; }
     if (this.interior) { this.group.remove(this.interior.group); this.interior.dispose(); this.interior = null; }
     this.enteredGalaxy = null;
     this._setUniverseVisible(true);
@@ -313,6 +360,7 @@ export class Deeptime {
   _setUniverseVisible(v) {
     const layers = [this.web, this.fieldPoints, this.anchorPoints, this.rings, this.horizon, this._twinLines, this.regionPoints, this.eventPoints, ...Object.values(this.objectLayers || {}).map((l) => l.points)];
     for (const o of layers) if (o) o.visible = v;
+    if (this.routeNet) this.routeNet.setVisible(v && this._routesOn);
   }
 
   anchorDesc(i) { const g = this.anchors[i]; return g && { name: g.name, tag: g.tag, type: g.type, seed: g.seed, diameterKpc: g.diameterKpc, pos: g.pos.clone(), i, anchor: true, home: g.home, era: g.era, species: g.species, driveClass: g.driveClass, massMsun: g.massMsun }; }
@@ -388,6 +436,27 @@ export class Deeptime {
     return out;
   }
   galaxyList() { return this.anchors.map((g) => ({ i: g.i, name: g.name, tag: g.tag, type: g.type, home: g.home })); }
+
+  // ── Ways of the Deep — overlay control + browse data ────────────────────────
+  setRoutesVisible(v) {
+    this._routesOn = !!v;
+    if (this.interior) { if (this.interiorRoutes) this.interiorRoutes.setVisible(this._routesOn); }
+    else if (this.routeNet) this.routeNet.setVisible(this._routesOn);
+  }
+  routesVisible() { return this._routesOn; }
+  setRouteOrder(order, on) { this.routeNet?.setOrderVisible(order, on); }
+  highlightRoute(id) { this.routeNet?.highlight(id); }
+  clearRouteHighlight() { this.routeNet?.clearHighlight(); }
+  routeList() {
+    return (this.routeDefs || []).map((r) => ({ id: r.id, name: r.name, order: r.order, orderLabel: r.orderLabel, kind: r.kind, operator: r.operator, driveClass: r.driveClass, traffic: r.traffic, lore: r.lore, stops: r.stops, color: r.color }));
+  }
+  voyageList() { return (this.voyageDefs || []).map((v) => ({ id: v.id, title: v.title, subtitle: v.subtitle, stops: v.stops, order: v.order })); }
+  getRouteDef(id) { return (this.routeDefs || []).find((r) => r.id === id) || (this.voyageDefs || []).find((v) => v.id === id); }
+  routeBox(id) {
+    const r = this.getRouteDef(id); if (!r) return null;
+    const box = new THREE.Box3(); for (const p of r.positions) box.expandByPoint(V3(p));
+    return box;
+  }
 
   // twinkle / RGB-shard state for the galaxy interiors (driven by app.cine)
   setTwinkle(twinkle, shard) {
