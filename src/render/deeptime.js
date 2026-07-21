@@ -261,16 +261,32 @@ export class Deeptime {
   // ── materials ────────────────────────────────────────────────────────────
   _pointMat(scale) {
     return new THREE.ShaderMaterial({
-      uniforms: { uTex: { value: this._glow }, uScale: { value: scale }, uDim: { value: 0 } },
+      uniforms: {
+        uTex: { value: this._glow }, uScale: { value: scale }, uDim: { value: 0 },
+        uSizeUser: { value: 1 }, uGain: { value: 1 },              // graphics panel: size + glow
+        uTint: { value: new THREE.Color(1, 1, 1) }, uTintAmt: { value: 0 },
+      },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: `
-        attribute vec3 aColor; attribute float aSize; varying vec3 vC; uniform float uScale;
-        void main(){ vC=aColor; vec4 mv=modelViewMatrix*vec4(position,1.0);
-          gl_PointSize = aSize*uScale*(300.0/max(-mv.z,1.0)); gl_Position=projectionMatrix*mv; }`,
+        attribute vec3 aColor; attribute float aSize; varying vec3 vC;
+        uniform float uScale, uSizeUser, uTintAmt; uniform vec3 uTint;
+        void main(){ vC=mix(aColor, uTint, uTintAmt); vec4 mv=modelViewMatrix*vec4(position,1.0);
+          gl_PointSize = aSize*uScale*uSizeUser*(300.0/max(-mv.z,1.0)); gl_Position=projectionMatrix*mv; }`,
       fragmentShader: `
-        varying vec3 vC; uniform sampler2D uTex; uniform float uDim;
-        void main(){ vec4 t=texture2D(uTex, gl_PointCoord); gl_FragColor=vec4(vC, t.a*(1.0-0.72*uDim)); }`,
+        varying vec3 vC; uniform sampler2D uTex; uniform float uDim, uGain;
+        void main(){ vec4 t=texture2D(uTex, gl_PointCoord); gl_FragColor=vec4(vC*uGain, t.a*(1.0-0.72*uDim)); }`,
     });
+  }
+  // Per-layer visuals from the graphics panel, applied to both point clouds:
+  // { size, gain, tint:[r,g,b], tintAmt }.
+  setStyle(st = {}) {
+    for (const p of [this.groupPoints, this.galaxyPoints]) {
+      const u = p?.material?.uniforms; if (!u) continue;
+      if (st.size != null) u.uSizeUser.value = st.size;
+      if (st.gain != null) u.uGain.value = st.gain;
+      if (Array.isArray(st.tint)) u.uTint.value.setRGB(st.tint[0], st.tint[1], st.tint[2]);
+      if (st.tintAmt != null) u.uTintAmt.value = st.tintAmt;
+    }
   }
   _glowTexture() {
     const s = 64, cv = document.createElement('canvas'); cv.width = cv.height = s;

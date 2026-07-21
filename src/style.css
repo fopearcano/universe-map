@@ -685,6 +685,38 @@ kbd { display: inline-block; min-width: 14px; text-align: center; padding: 1px 5
   font-family: var(--mono); pointer-events: none;
 }
 #trackpanel[hidden] { display: none; }
+
+/* ---- GRAPHICS tools panel ---- */
+#gfxpanel {
+  position: fixed; right: 14px; top: 96px; z-index: 16; width: 268px; max-height: calc(100vh - 130px);
+  display: flex; flex-direction: column;
+  background: rgba(8,10,18,0.5); border: 1px solid rgba(150,140,220,0.4); border-radius: 10px;
+  backdrop-filter: blur(6px); box-shadow: 0 8px 28px rgba(0,0,0,0.4); font-family: var(--mono);
+}
+.gfx-h { cursor: move; touch-action: none; display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.gfx-t { color: #b9a8ff; font-size: 10px; letter-spacing: 0.16em; }
+.gfx-x { width: auto; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 2px; }
+.gfx-x:hover { color: var(--cyan); }
+.gfx-body { padding: 9px 12px 12px; overflow-y: auto; }
+.gfx-sec-t { color: #b9a8ff; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin: 2px 0 7px; }
+.gfx-presets { display: flex; flex-wrap: wrap; gap: 5px; }
+.gfx-preset { flex: 1 0 auto; padding: 5px 9px; font-family: var(--mono); font-size: 10px; color: var(--dim);
+  background: none; border: 1px solid var(--line-strong); border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.gfx-preset:hover { color: var(--ink); border-color: #8f7fe0; }
+.gfx-preset.on { color: #08060f; border-color: #b9a8ff; background: #b9a8ff; }
+.gfx-preset.gfx-reset { color: var(--dim); }
+.gfx-row { margin: 7px 0; }
+.gfx-row label { display: flex; justify-content: space-between; align-items: baseline; font-size: 10px; color: var(--ink); margin-bottom: 3px; }
+.gfx-row input[type=range] { width: 100%; accent-color: #b9a8ff; }
+.gfx-row select { padding: 4px 6px; font-size: 11px; }
+.gfx-v { color: #b9a8ff; font-size: 10px; }
+.gfx-sub { color: var(--dim); font-size: 9px; margin-top: 1px; }
+.gfx-tone { margin: 0; }
+.gfx-tint { display: flex; align-items: center; gap: 8px; }
+.gfx-tint input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line-strong); border-radius: 4px; background: none; cursor: pointer; }
+.gfx-tint input[type=range] { flex: 1; accent-color: #b9a8ff; min-width: 0; }
+#gfx-lreset { margin-top: 4px; }
 .tp-h { color: var(--green); font-size: 10px; letter-spacing: 0.14em; display: flex; justify-content: space-between; align-items: baseline; }
 .tp-leg { color: var(--dim); font-size: 9px; }
 .tp-idle { margin-top: 6px; font-size: 10px; }

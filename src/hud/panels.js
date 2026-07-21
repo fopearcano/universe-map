@@ -49,6 +49,8 @@ export function initPanels(app) {
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'track', sel: '#trackpanel', icon: '◎', label: 'Track', handle: '.tp-h',
       show: () => app.setTrackPanel(true), hide: () => app.setTrackPanel(false) },
+    { key: 'gfx', sel: '#gfxpanel', icon: '◧', label: 'Graphics', handle: '.gfx-h',
+      show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'navcom', sel: '#navcom-ai', icon: '✦', label: 'Solaris.Ai', handle: '.na-head', bar: false,
       show: (el) => { if (el.hidden && navBtn) navBtn.click(); }, hide: (el) => { if (!el.hidden && navBtn) navBtn.click(); } },
   ];

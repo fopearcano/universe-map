@@ -473,6 +473,8 @@ export class CosmosWorld {
     }
     this._buildProcedural(this._procVoids || []);
     this.setProceduralColor(this.procMode); // _buildProcedural resets colour to green
+    // the rebuilt material starts neutral — restore any per-layer style the user set
+    if (this._layerStyleCache?.proc) this.setLayerStyle('proc', this._layerStyleCache.proc);
     return this.proceduralCount();
   }
 
@@ -540,6 +542,10 @@ export class CosmosWorld {
       uniforms: {
         uSize: { value: size },
         uSizeScale: { value: 1 },
+        uSizeUser: { value: 1 },                   // per-layer user size (graphics panel)
+        uGain: { value: 1 },                       // per-layer brightness / glow gain
+        uTint: { value: new THREE.Color(1, 1, 1) },// per-layer colour tint
+        uTintAmt: { value: 0 },                    // 0 = native colour, 1 = full tint
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
         uZMax: { value: 6 },
         uProc: { value: 0 },                       // 1 = tint uniform green (procedural fill)
@@ -547,14 +553,14 @@ export class CosmosWorld {
       },
       vertexShader: /* glsl */`
         attribute vec3 aColor; attribute float aZ; attribute float aSize;
-        uniform float uSize, uSizeScale, uPixelRatio, uZMax, uProc;
-        uniform vec3 uProcColor;
+        uniform float uSize, uSizeScale, uSizeUser, uPixelRatio, uZMax, uProc, uTintAmt;
+        uniform vec3 uProcColor, uTint;
         varying vec3 vColor; varying float vHide;
         void main(){
-          vColor = mix(aColor, uProcColor, uProc);
+          vColor = mix(mix(aColor, uProcColor, uProc), uTint, uTintAmt);
           vHide = aZ > uZMax ? 1.0 : 0.0;
           vec4 mv = modelViewMatrix * vec4(position,1.0);
-          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * aSize * uSizeScale * uPixelRatio);
+          gl_PointSize = (vHide > 0.5 ? 0.0 : uSize * aSize * uSizeScale * uSizeUser * uPixelRatio);
           gl_Position = projectionMatrix * mv;
         }`,
       // Soft round points — no diffraction shards here. aSize on the real catalogue
@@ -563,16 +569,42 @@ export class CosmosWorld {
       // LOCAL star field (starfield.js) where apparent magnitude actually exists.
       fragmentShader: /* glsl */`
         varying vec3 vColor; varying float vHide;
+        uniform float uGain;
         void main(){
           if(vHide > 0.5) discard;
           vec2 uv = gl_PointCoord - 0.5;
           float d = length(uv);
           if(d > 0.5) discard;
           float a = smoothstep(0.5, 0.08, d);
-          gl_FragColor = vec4(vColor, a * 0.9);
+          gl_FragColor = vec4(vColor * uGain, a * 0.9);
         }`,
       transparent: true, depthWrite: false, blending: THREE.NormalBlending,
     });
+  }
+
+  // Resolve a graphics-panel layer key to its shared point material.
+  _layerMat(key) {
+    switch (key) {
+      case 'starcore': return this.starCore?.material;
+      case 'proc': return this.procMat;
+      case 'bridge': return this.bridgeMat;
+      case 'twomrs': return this.pointLayers.find((l) => l.key === 'twomrs')?.mat;
+      case 'sdssgal': return this.pointLayers.find((l) => l.key === 'sdssGal')?.mat;
+      case 'sdssqso': return this.pointLayers.find((l) => l.key === 'sdssQso')?.mat;
+      default: return null;
+    }
+  }
+  // Per-layer visuals: { size, gain, tint:[r,g,b], tintAmt }. Cached so a rebuilt
+  // layer (e.g. the procedural fill after a density change) can re-read its style.
+  setLayerStyle(key, st = {}) {
+    this._layerStyleCache = this._layerStyleCache || {};
+    this._layerStyleCache[key] = { ...(this._layerStyleCache[key] || {}), ...st };
+    const m = this._layerMat(key); if (!m) return;
+    const u = m.uniforms;
+    if (st.size != null) u.uSizeUser.value = st.size;
+    if (st.gain != null) u.uGain.value = st.gain;
+    if (Array.isArray(st.tint)) u.uTint.value.setRGB(st.tint[0], st.tint[1], st.tint[2]);
+    if (st.tintAmt != null) u.uTintAmt.value = st.tintAmt;
   }
 
   _buildLocalGroup() {

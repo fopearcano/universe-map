@@ -42,6 +42,10 @@ export class Starfield {
       uniforms: {
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
         uSizeScale: { value: 1.0 },
+        uSizeUser: { value: 1.0 },   // per-layer user size (graphics panel)
+        uGain: { value: 1.0 },       // per-layer brightness / glow gain
+        uTint: { value: new THREE.Color(1, 1, 1) },
+        uTintAmt: { value: 0.0 },    // 0 = native colour, 1 = full tint
         uTime: { value: 0 },
         uTwinkle: { value: 1 },      // 0/1 — subtle brightness shimmer on bright stars
       },
@@ -51,14 +55,17 @@ export class Starfield {
         attribute float aVisible;
         uniform float uPixelRatio;
         uniform float uSizeScale;
+        uniform float uSizeUser;
         uniform float uTime;
         uniform float uTwinkle;
+        uniform float uTintAmt;
+        uniform vec3 uTint;
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
         varying float vTw;
         void main() {
-          vColor = aColor;
+          vColor = mix(aColor, uTint, uTintAmt);
           vVisible = aVisible;
           // aSize encodes apparent magnitude (brighter star ⇒ bigger). Gate the
           // diffraction shards to the brightest, ramping in from aSize≈3 (~mag 2.5).
@@ -70,7 +77,7 @@ export class Starfield {
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
           float dist = max(-mv.z, 0.001);
           float att = 190.0 / dist;
-          float px = aSize * (0.55 + att) * uSizeScale * uPixelRatio;
+          float px = aSize * (0.55 + att) * uSizeScale * uSizeUser * uPixelRatio;
           px = clamp(px, 1.0 * uPixelRatio, 21.0 * uPixelRatio);
           // give the brightest a little extra room so the shards can radiate
           px *= 1.0 + 0.7 * vBright;
@@ -79,6 +86,7 @@ export class Starfield {
         }
       `,
       fragmentShader: /* glsl */ `
+        uniform float uGain;
         varying vec3 vColor;
         varying float vVisible;
         varying float vBright;
@@ -114,7 +122,7 @@ export class Starfield {
           if (a < 0.003) discard;
           // core keeps the star's own colour; the spikes fringe toward RGB at the tips
           vec3 spikeCol = mix(vColor, shardRGB, 0.6);
-          vec3 outCol = (vColor * (0.45 + 0.95 * glow) + spikeCol * shard) * vTw;
+          vec3 outCol = (vColor * (0.45 + 0.95 * glow) + spikeCol * shard) * vTw * uGain;
           gl_FragColor = vec4(outCol, a);
         }
       `,
@@ -135,6 +143,14 @@ export class Starfield {
 
   setSizeScale(s) { this.material.uniforms.uSizeScale.value = s; }
   setTwinkle(on) { this.material.uniforms.uTwinkle.value = on ? 1 : 0; }
+  // Per-layer visuals from the graphics panel: { size, gain, tint:[r,g,b], tintAmt }.
+  setStyle(st = {}) {
+    const u = this.material.uniforms;
+    if (st.size != null) u.uSizeUser.value = st.size;
+    if (st.gain != null) u.uGain.value = st.gain;
+    if (Array.isArray(st.tint)) u.uTint.value.setRGB(st.tint[0], st.tint[1], st.tint[2]);
+    if (st.tintAmt != null) u.uTintAmt.value = st.tintAmt;
+  }
   tick(dt) { this.material.uniforms.uTime.value += dt; }
 
   applyFilter(f = {}) {

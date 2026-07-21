@@ -27,6 +27,22 @@ import { resolveSimbad, growFromCatalogue, fetchAngularSize } from './data/remot
 // decades vs the inner region — the "constant-real-speed" feel on the log map.
 const FLIGHT_OUTER_SLOWDOWN = 6;
 
+// Graphics defaults (neutral look) + one-click look presets. Each preset sets the
+// whole render state at once: bloom (on / strength / threshold / radius), star
+// twinkle, tone-map mode and the colour grade (exposure / contrast / saturation /
+// vignette). resetGraphics() restores GFX_DEFAULTS.
+const GFX_DEFAULTS = {
+  bloom: true, twinkle: true, tone: false, glow: 0.5, threshold: 0.78, radius: 0.24,
+  exposure: 1.0, contrast: 1.0, saturation: 1.0, vignette: 0.0, tonemap: 'none',
+};
+const GFX_PRESETS = {
+  deepspace:   { bloom: true, twinkle: true, glow: 0.75, threshold: 0.82, radius: 0.38, exposure: 0.92, contrast: 1.12, saturation: 0.92, vignette: 0.55, tonemap: 'aces', tone: true },
+  neon:        { bloom: true, twinkle: true, glow: 1.20, threshold: 0.50, radius: 0.50, exposure: 1.08, contrast: 1.18, saturation: 1.60, vignette: 0.32, tonemap: 'none', tone: false },
+  documentary: { bloom: true, twinkle: false, glow: 0.35, threshold: 0.80, radius: 0.20, exposure: 1.00, contrast: 1.00, saturation: 1.02, vignette: 0.12, tonemap: 'aces', tone: true },
+  bright:      { bloom: true, twinkle: true, glow: 0.40, threshold: 0.72, radius: 0.22, exposure: 1.28, contrast: 0.98, saturation: 1.08, vignette: 0.00, tonemap: 'reinhard', tone: false },
+  mono:        { bloom: true, twinkle: true, glow: 0.60, threshold: 0.78, radius: 0.30, exposure: 1.02, contrast: 1.20, saturation: 0.00, vignette: 0.40, tonemap: 'aces', tone: true },
+};
+
 // marker colours by type
 const MARK_COLOR = {
   open: [0.6, 0.82, 1.0], globular: [1.0, 0.82, 0.42],
@@ -104,8 +120,25 @@ export class App {
     this._glyphAtlas = makeGlyphAtlas(); // shared icon atlas for every marker layer
     this.showCustom = true;
     this.showScaleBar = true;   // TRUE-SCALE ribbon (cosmos)
-    // cinematic render options (persisted): bloom glow, star twinkle, filmic tone map
-    this.cine = (() => { const def = { bloom: true, twinkle: true, tone: false, glow: 0.5 }; try { return { ...def, ...(JSON.parse(localStorage.getItem('ui.cine')) || {}) }; } catch { return def; } })();
+    // cinematic + graphics render options (persisted): bloom glow, star twinkle,
+    // tone mapping, and colour grade (exposure / contrast / saturation / vignette)
+    this.cine = (() => {
+      const def = {
+        bloom: true, twinkle: true, tone: false, glow: 0.5,
+        threshold: 0.78, radius: 0.24,                                  // bloom shape
+        exposure: 1.0, contrast: 1.0, saturation: 1.0, vignette: 0.0,   // colour grade
+        tonemap: 'none',                                                // none|aces|reinhard|cineon
+      };
+      try {
+        const c = { ...def, ...(JSON.parse(localStorage.getItem('ui.cine')) || {}) };
+        // migrate the old boolean "tone" toggle into the tone-map selector
+        if (c.tonemap == null) c.tonemap = c.tone ? 'aces' : 'none';
+        c.tone = c.tonemap === 'aces';
+        return c;
+      } catch { return def; }
+    })();
+    // per-layer visual overrides (persisted): { <key>: {size, gain, tint:[r,g,b]|null, tintAmt} }
+    this.layerStyle = (() => { try { return JSON.parse(localStorage.getItem('ui.layerstyle')) || {}; } catch { return {}; } })();
     this.localCustom = null; this.cosmosCustom = null;
 
     this._buildMarkers();
@@ -1590,21 +1623,92 @@ export class App {
   setRouteNetworkCategory(cat, on) { if (this.routeNetwork) this.routeNetwork.setCategoryVisible(cat, on); }
   setScaleBar(on) { this.showScaleBar = !!on; this.emit('scalebar', this.showScaleBar); }
 
-  // Cinematic render options (bloom glow / star twinkle / filmic tone map), persisted.
-  _applyCine() { this.scene.setBloom(this.cine.bloom); this.scene.setBloomParams({ strength: this.cine.glow }); this.starfield.setTwinkle(this.cine.twinkle); this.scene.setToneMap(this.cine.tone); }
+  // Cinematic + graphics render options, persisted. Applies the full state:
+  // bloom (on / strength / threshold / radius), star twinkle, tone-map mode, and
+  // the colour grade (exposure / contrast / saturation / vignette).
+  _applyCine() {
+    const c = this.cine;
+    this.scene.setBloom(c.bloom);
+    this.scene.setBloomParams({ strength: c.glow, threshold: c.threshold, radius: c.radius });
+    this.starfield.setTwinkle(c.twinkle);
+    this.scene.setToneMapMode(c.tonemap);
+    this.scene.setGrade({ exposure: c.exposure, contrast: c.contrast, saturation: c.saturation, vignette: c.vignette });
+    this._applyLayerStyles();
+  }
+  _saveCine() { try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ } }
   setCinematic(key, on) {
     this.cine[key] = !!on;
     if (key === 'bloom') this.scene.setBloom(on);
     else if (key === 'twinkle') this.starfield.setTwinkle(on);
-    else if (key === 'tone') this.scene.setToneMap(on);
-    try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ }
+    else if (key === 'tone') { this.cine.tonemap = on ? 'aces' : 'none'; this.scene.setToneMapMode(this.cine.tonemap); }
+    this.cine.preset = 'custom';
+    this._saveCine(); this.emit('graphics', this.cine);
   }
   // Glow (bloom) strength slider — 0.1 (subtle) … 1.6 (blazing).
   setGlow(v) {
     this.cine.glow = Math.max(0.1, Math.min(1.6, +v || 0.5));
     this.scene.setBloomParams({ strength: this.cine.glow });
-    try { localStorage.setItem('ui.cine', JSON.stringify(this.cine)); } catch { /* ignore */ }
+    this.cine.preset = 'custom'; this._saveCine(); this.emit('graphics', this.cine);
   }
+  // Bloom shape: threshold (what glows, 0…1) and radius (halo spread, 0…1.2).
+  setBloomThreshold(v) {
+    this.cine.threshold = Math.max(0, Math.min(1, +v));
+    this.scene.setBloomParams({ threshold: this.cine.threshold });
+    this.cine.preset = 'custom'; this._saveCine(); this.emit('graphics', this.cine);
+  }
+  setBloomRadius(v) {
+    this.cine.radius = Math.max(0, Math.min(1.2, +v));
+    this.scene.setBloomParams({ radius: this.cine.radius });
+    this.cine.preset = 'custom'; this._saveCine(); this.emit('graphics', this.cine);
+  }
+  // Tone-map mode: 'none' | 'aces' | 'reinhard' | 'cineon'.
+  setToneMapMode(mode) {
+    this.cine.tonemap = mode; this.cine.tone = mode === 'aces';
+    this.scene.setToneMapMode(mode);
+    this.cine.preset = 'custom'; this._saveCine(); this.emit('graphics', this.cine);
+  }
+  // Colour grade (partial): { exposure, contrast, saturation, vignette }.
+  setGrade(partial = {}) {
+    for (const k of ['exposure', 'contrast', 'saturation', 'vignette']) if (partial[k] != null) this.cine[k] = +partial[k];
+    this.scene.setGrade(this.cine);
+    this.cine.preset = 'custom'; this._saveCine(); this.emit('graphics', this.cine);
+  }
+  // One-click look presets — set the whole render state at once.
+  applyGraphicsPreset(name) {
+    const p = GFX_PRESETS[name]; if (!p) return;
+    Object.assign(this.cine, p, { preset: name });
+    this._applyCine(); this._saveCine(); this.emit('graphics', this.cine);
+  }
+  // Reset every graphics control (grade + bloom + tone + per-layer) to defaults.
+  resetGraphics() {
+    Object.assign(this.cine, GFX_DEFAULTS, { preset: 'custom' });
+    this.layerStyle = {};
+    try { localStorage.removeItem('ui.layerstyle'); } catch { /* ignore */ }
+    this._applyCine(); this._saveCine(); this.emit('graphics', this.cine);
+  }
+
+  // ---- per-layer visuals: size, brightness (glow gain) and tint per catalogue ----
+  // Layer keys resolve to the right render target in each mode (cosmos catalogues,
+  // the LOCAL star field, the DEEPTIME point clouds). Overrides persist so a tuned
+  // look survives reloads; a rebuilt layer re-reads them via _applyLayerStyles().
+  _applyLayerStyles() {
+    for (const [key, st] of Object.entries(this.layerStyle || {})) this._applyOneLayerStyle(key, st);
+  }
+  _applyOneLayerStyle(key, st) {
+    if (!st) return;
+    if (key === 'stars') { this.starfield?.setStyle?.(st); return; }
+    if (key === 'dt') { this.deeptime?.setStyle?.(st); return; }
+    this.cosmos?.setLayerStyle?.(key, st);
+  }
+  setLayerStyle(key, partial = {}) {
+    const cur = this.layerStyle[key] || {};
+    const st = { ...cur, ...partial };
+    this.layerStyle[key] = st;
+    this._applyOneLayerStyle(key, st);
+    try { localStorage.setItem('ui.layerstyle', JSON.stringify(this.layerStyle)); } catch { /* ignore */ }
+    this.emit('graphics', this.cine);
+  }
+  getLayerStyle(key) { return this.layerStyle[key] || {}; }
 
   // Highlight a route on the overlay, label it, and frame it in view.
   highlightTradeRoute(id) {

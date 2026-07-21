@@ -8,6 +8,7 @@ import { initInfoPanel } from './hud/infoPanel.js';
 import { initVoyagePlayer, initExpeditionCruise } from './hud/voyages.js';
 import { initNavChart } from './hud/navchart.js';
 import { initDeeptimeNav } from './hud/deeptimeNav.js';
+import { initGraphics } from './hud/graphics.js';
 import { initStudio } from './hud/studio.js';
 import { buildAtlasBrowser } from './hud/atlasBrowser.js';
 import { QtrData } from './data/qtrData.js';
@@ -60,6 +61,7 @@ async function main() {
   initNavChart(app);
   initStudio(app);
   initDeeptimeNav(app);        // the DEEPTIME group navigator (top-centre, deeptime mode)
+  initGraphics(app);           // the GRAPHICS tools panel (post-FX, presets, per-layer)
   // keep the atlas browser in sync when the user's library changes
   app.on('custom', () => buildAtlasBrowser(app));
 
