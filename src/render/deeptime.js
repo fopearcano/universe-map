@@ -73,9 +73,14 @@ export class Deeptime {
     this.interior = null;
     this.enteredGalaxy = null;
 
-    // hubs/filaments as world Vector3s (dataset positions are normalised to R)
+    // hubs + curved filaments as world Vector3s (dataset positions normalised to R)
     this.hubs = (data?.hubs || []).map((h) => V3(h.pos).multiplyScalar(this.R));
     this.filaments = data?.filaments || [];
+    // one smooth Catmull-Rom curve per filament (drawn + sampled for the field)
+    this._filCurves = this.filaments.map((f) => {
+      const pts = (f.pts || []).map((p) => V3(p).multiplyScalar(this.R));
+      return pts.length >= 2 ? new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.5) : null;
+    });
 
     this._buildWeb();
     this._buildField();
@@ -91,15 +96,16 @@ export class Deeptime {
   _truePos(worldPos) { const r = worldPos.length(); return r < 1e-9 ? new THREE.Vector3() : worldPos.clone().normalize().multiplyScalar(this._distPc(r)); }
   _fieldSeed(i) { return (Math.imul(this.seed ^ 0xF1E1D5, i + 1) ^ (i * 2654435761)) >>> 0; }
 
-  // ── cosmic web ─────────────────────────────────────────────────────────────
+  // ── cosmic web — smooth curved filaments (Catmull-Rom), walls fainter ───────
+  _buildweb_segs(curve, kind) {
+    const n = kind === 'wall' ? 14 : 22;                 // tessellation of each filament
+    const pts = curve.getPoints(n), out = [];
+    for (let s = 0; s < pts.length - 1; s++) { const a = pts[s], b = pts[s + 1]; out.push(a.x, a.y, a.z, b.x, b.y, b.z); }
+    return out;
+  }
   _buildWeb() {
-    const pos = [], r = rng(this.seed);
-    for (const [i, j, kind] of this.filaments) {
-      const a = this.hubs[i], b = this.hubs[j]; if (!a || !b) continue;
-      const seg = 7, mid = a.clone().lerp(b, 0.5).addScaledVector(new THREE.Vector3(r() - 0.5, r() - 0.5, r() - 0.5), this.R * (kind === 'wall' ? 0.05 : 0.11));
-      let prev = a;
-      for (let s = 1; s <= seg; s++) { const t = s / seg; const p = a.clone().multiplyScalar((1 - t) * (1 - t)).addScaledVector(mid, 2 * (1 - t) * t).addScaledVector(b, t * t); pos.push(prev.x, prev.y, prev.z, p.x, p.y, p.z); prev = p; }
-    }
+    const pos = [];
+    this._filCurves.forEach((curve, idx) => { if (curve) pos.push(...this._buildweb_segs(curve, this.filaments[idx].kind)); });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     this.web = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x5a4a8a, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -110,17 +116,21 @@ export class Deeptime {
   _buildField() {
     const r = rng(this.seed ^ 0x1234abcd);
     const pos = new Float32Array(FIELD * 3), col = new Float32Array(FIELD * 3), sz = new Float32Array(FIELD);
-    const fW = this.filaments.map(([i, j]) => Math.exp(-((this.hubs[i]?.length() || 0) + (this.hubs[j]?.length() || 0)) * 0.5 / (this.R * 0.42)));
+    // favour inner filaments (denser web toward the core), skip any without a curve
+    const fW = this._filCurves.map((cv) => cv ? Math.exp(-cv.getPoint(0.5).length() / (this.R * 0.42)) : 0);
     const wSum = fW.reduce((a, b) => a + b, 0) || 1;
-    const c = new THREE.Color();
+    const tmp = new THREE.Vector3(), c = new THREE.Color();
     let k = 0, guard = 0;
     while (k < FIELD && guard++ < FIELD * 6) {
       let p;
-      if (r() < 0.9 && this.filaments.length) {
+      if (r() < 0.92 && wSum > 0) {
         let x = r() * wSum, fi = 0; while (fi < fW.length - 1 && (x -= fW[fi]) > 0) fi++;
-        const [a, b] = this.filaments[fi]; if (!this.hubs[a] || !this.hubs[b]) continue;
-        const t = r(), thick = this.R * (0.006 + 0.03 * Math.pow(r(), 2));
-        p = this.hubs[a].clone().lerp(this.hubs[b], t).add(new THREE.Vector3(this._gauss(r, thick), this._gauss(r, thick), this._gauss(r, thick)));
+        const cv = this._filCurves[fi]; if (!cv) continue;
+        // sample ALONG the curved filament, denser near the nodes; thin thread
+        let t = r(); t = t < 0.5 ? 0.5 * Math.pow(2 * t, 1.4) : 1 - 0.5 * Math.pow(2 - 2 * t, 1.4);
+        cv.getPoint(t, tmp);
+        const thick = this.R * (0.005 + 0.028 * Math.pow(r(), 2));
+        p = tmp.clone().add(new THREE.Vector3(this._gauss(r, thick), this._gauss(r, thick), this._gauss(r, thick)));
       } else {
         const rad = this.R * Math.cbrt(r()), u = r(), v = r(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
         p = new THREE.Vector3(rad * Math.sin(th) * Math.cos(ph), rad * Math.sin(th) * Math.sin(ph), rad * Math.cos(th));

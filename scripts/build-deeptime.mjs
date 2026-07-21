@@ -50,50 +50,110 @@ const GTYPES = ['spiral', 'elliptical', 'lenticular', 'irregular', 'dwarf'];
 const SPECIES = ['Neo-Sapiens Federates', 'Bio-Digital Symbionts', 'High-Gravity Compact Toolmakers', 'Oceanic Cephaliform Engineers', 'Low-Gravity Tall Gliders', 'Colonial Photosynthetic Minds', 'Regressive Human Offshoots', 'Ammonia-World Chemotroph Intellects', '—'];
 const ERAS = ['Oceanic', 'Eonic', 'Galactic', 'Chronal'];
 
-// ---- 1) the cosmic web: hubs (nodes) + filaments + walls ------------------
-const HUBS = 54;
+// ---- 1) the cosmic web — nodes, filaments and walls, modelled on the real
+//        large-scale structure: a minimum-spanning-tree spine (guarantees one
+//        connected web) + short-range extra links (the loops and branches real
+//        surveys show), every filament a SMOOTH CURVED path (control points that
+//        sag toward the barycentre and bow perpendicular — gravity, not right
+//        angles), varying thickness at the nodes. ------------------------------
+const HUBS = 92;
 const hubs = [];
 for (let i = 0; i < HUBS; i++) {
-  // cosmologically-spaced shells, biased inward (dense core, thinning out)
-  const rf = Math.min(0.98, 0.06 + 0.92 * Math.pow(rnd(), 1.35));
+  const rf = Math.min(0.98, 0.05 + 0.93 * Math.pow(rnd(), 1.3));   // inner-biased shells
   const u = rnd(), v = rnd(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
   const p = V(rf * Math.sin(th) * Math.cos(ph), rf * Math.sin(th) * Math.sin(ph) * 0.82, rf * Math.cos(th));
-  const supercluster = rnd() < 0.16;         // a few dense supercluster nodes
+  const supercluster = rnd() < 0.15;
   hubs.push({ i, pos: p, rf: round(rf, 3), supercluster });
 }
-// filaments: each hub to its 2–3 nearest; plus a few long "wall" cross-links
-const filaments = [];
-const seen = new Set();
-const key = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
-for (let i = 0; i < HUBS; i++) {
-  const near = hubs.map((h) => [h.i, len([hubs[i].pos[0] - h.pos[0], hubs[i].pos[1] - h.pos[1], hubs[i].pos[2] - h.pos[2]])]).filter(([j]) => j !== i).sort((a, b) => a[1] - b[1]);
-  const n = 2 + (rnd() < 0.5 ? 1 : 0);
-  for (let k = 0; k < n; k++) { const j = near[k][0]; if (!seen.has(key(i, j))) { seen.add(key(i, j)); filaments.push([i, j, 'filament']); } }
-}
-for (let w = 0; w < 10; w++) {           // sheet-like walls between farther nodes
-  const a = Math.floor(rnd() * HUBS); const b = Math.floor(rnd() * HUBS);
-  if (a !== b && !seen.has(key(a, b))) { seen.add(key(a, b)); filaments.push([a, b, 'wall']); }
-}
+const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const norm = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
-// placement helpers along the web
-const onFilament = (jitter = 0.02) => { const [a, b] = pick(filaments); const t = 0.12 + 0.76 * rnd(); return add(lerp(hubs[a].pos, hubs[b].pos, t), jit(jitter)); };
+// edges = a minimum spanning tree (Prim) + extra near links (loops/branches)
+const edgeKey = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
+const edgeSet = new Set();
+const edges = [];             // [a, b, kind]
+const inTree = new Array(HUBS).fill(false);
+inTree[0] = true;
+const frontier = []; // {d, a, b}
+const pushFrontier = (a) => { for (let b = 0; b < HUBS; b++) if (!inTree[b] && b !== a) frontier.push({ d: dist2(hubs[a].pos, hubs[b].pos), a, b }); };
+pushFrontier(0);
+while (edges.length < HUBS - 1 && frontier.length) {
+  frontier.sort((x, y) => x.d - y.d);
+  let e = null; while (frontier.length) { const c = frontier.shift(); if (!inTree[c.b]) { e = c; break; } }
+  if (!e) break;
+  inTree[e.b] = true; edgeSet.add(edgeKey(e.a, e.b)); edges.push([e.a, e.b, 'filament']); pushFrontier(e.b);
+}
+// extra links: each hub to its 1–3 nearest neighbours (loops); some long "walls"
+for (let i = 0; i < HUBS; i++) {
+  const near = hubs.map((h) => [h.i, dist2(hubs[i].pos, h.pos)]).filter(([j]) => j !== i).sort((a, b) => a[1] - b[1]);
+  const n = 1 + (rnd() < 0.6 ? 1 : 0) + (rnd() < 0.3 ? 1 : 0);
+  for (let k = 0; k < n; k++) { const [j, d2] = near[k]; if (d2 > (0.42) ** 2) continue; const kk = edgeKey(i, j); if (!edgeSet.has(kk)) { edgeSet.add(kk); edges.push([i, j, 'filament']); } }
+}
+for (let w = 0; w < 14; w++) { const a = Math.floor(rnd() * HUBS), b = Math.floor(rnd() * HUBS); const kk = edgeKey(a, b); if (a !== b && !edgeSet.has(kk) && dist2(hubs[a].pos, hubs[b].pos) < 0.7 ** 2) { edgeSet.add(kk); edges.push([a, b, 'wall']); } }
+
+// a smooth curved control-point path for each edge (gravitational sag + a bow)
+function curvedPath(a, b, kind) {
+  const A = hubs[a].pos, B = hubs[b].pos, d = sub(B, A), L = len(d);
+  const dir = norm(d);
+  // a stable perpendicular basis
+  let up = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const e1 = norm(cross(dir, up)), e2 = norm(cross(dir, e1));
+  const nSeg = Math.max(2, Math.min(6, Math.round(L / (0.14))));   // more control points on longer filaments
+  const bow = L * (kind === 'wall' ? 0.05 : 0.10 + rnd() * 0.12);   // perpendicular bow magnitude
+  const bph1 = rnd() * Math.PI * 2, bph2 = rnd() * Math.PI * 2;
+  const pts = [A.slice()];
+  for (let s = 1; s < nSeg; s++) {
+    const t = s / nSeg, base = lerp(A, B, t), envelope = Math.sin(Math.PI * t); // 0 at ends, max middle
+    const o1 = bow * envelope * Math.cos(bph1) + gauss(L * 0.03);
+    const o2 = bow * envelope * Math.sin(bph2) + gauss(L * 0.03);
+    // gravitational sag: pull the midsection gently toward the origin (mass)
+    const sag = -0.06 * envelope;
+    const p = [
+      base[0] + e1[0] * o1 + e2[0] * o2 + base[0] * sag,
+      base[1] + e1[1] * o1 + e2[1] * o2 + base[1] * sag,
+      base[2] + e1[2] * o1 + e2[2] * o2 + base[2] * sag,
+    ];
+    pts.push(V(...p));
+  }
+  pts.push(B.slice());
+  return pts;
+}
+const filaments = edges.map(([a, b, kind]) => ({ a, b, kind, pts: curvedPath(a, b, kind) }));
+
+// piecewise Catmull-Rom over a control-point array; t in [0,1] across the whole path
+function catmull(P, t) {
+  const n = P.length; if (n < 2) return P[0];
+  const seg = Math.min(n - 2, Math.floor(t * (n - 1))); const lt = t * (n - 1) - seg;
+  const p0 = P[Math.max(0, seg - 1)], p1 = P[seg], p2 = P[seg + 1], p3 = P[Math.min(n - 1, seg + 2)];
+  const t2 = lt * lt, t3 = t2 * lt; const out = [];
+  for (let k = 0; k < 3; k++) out[k] = 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * lt + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3);
+  return out;
+}
+const sampleFil = (fil, t) => catmull(fil.pts, t);
+
+// placement helpers along the CURVED web
+const filWeight = filaments.map((f) => Math.exp(-(hubs[f.a].pos && len(lerp(hubs[f.a].pos, hubs[f.b].pos, 0.5))) / 0.42)); // inner filaments favoured
+const wSum = filWeight.reduce((s, x) => s + x, 0) || 1;
+const pickFil = () => { let x = rnd() * wSum, i = 0; while (i < filaments.length - 1 && (x -= filWeight[i]) > 0) i++; return filaments[i]; };
+const onFilament = (jitter = 0.02) => { const f = pickFil(); const t = 0.1 + 0.8 * rnd(); return add(sampleFil(f, t), jit(jitter)); };
 const atHub = (jitter = 0.015, superOnly = false) => { const pool = superOnly ? hubs.filter((h) => h.supercluster) : hubs; const h = pick(pool.length ? pool : hubs); return add(h.pos, jit(jitter)); };
-const inVoid = () => { // a point away from any filament (drop into the emptier regions)
+const inVoid = () => {
   let best = null, bestD = -1;
   for (let tries = 0; tries < 8; tries++) {
-    const rf = 0.25 + 0.6 * rnd(); const u = rnd(), v = rnd(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
+    const rf = 0.25 + 0.6 * rnd(), u = rnd(), v = rnd(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v;
     const p = V(rf * Math.sin(th) * Math.cos(ph), rf * Math.sin(th) * Math.sin(ph), rf * Math.cos(th));
     let dmin = Infinity;
-    for (const [a, b] of filaments) { const d = distToSeg(p, hubs[a].pos, hubs[b].pos); if (d < dmin) dmin = d; }
+    for (const f of filaments) for (let s = 0; s <= 4; s++) { const q = sampleFil(f, s / 4); const d = dist2(p, q); if (d < dmin) dmin = d; }
     if (dmin > bestD) { bestD = dmin; best = p; }
   }
   return best;
 };
 const nearHorizon = () => { const u = rnd(), v = rnd(), th = Math.acos(2 * u - 1), ph = 2 * Math.PI * v; const rf = 0.9 + 0.08 * rnd(); return V(rf * Math.sin(th) * Math.cos(ph), rf * Math.sin(th) * Math.sin(ph), rf * Math.cos(th)); };
-function distToSeg(p, a, b) { const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; const ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]]; const t = Math.max(0, Math.min(1, (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / (ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2 || 1))); const c = [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t]; return len([p[0] - c[0], p[1] - c[1], p[2] - c[2]]); }
 
-// ---- 2) anchors — the 120 named, navigable galaxies -----------------------
-const ANCHORS = 120;
+// ---- 2) anchors — the named, navigable galaxies ---------------------------
+const ANCHORS = 150;
 const anchors = [];
 for (let i = 0; i < ANCHORS; i++) {
   let pos, type, name, gtag, diameterKpc, home = false;
@@ -114,21 +174,21 @@ for (let i = 0; i < ANCHORS; i++) {
 let oid = 0;
 const objects = [];
 const OBJ = [
-  { n: 42, cls: 'seam-well', place: () => atHub(0.02), size: () => 1.6 + rnd() * 1.8, qtr: 'obj-natural-seam-wells',
+  { n: 64, cls: 'seam-well', place: () => atHub(0.02), size: () => 1.6 + rnd() * 1.8, qtr: 'obj-natural-seam-wells',
     name: () => nm() + ' Well', note: 'A natural seam-well — a black hole lit toward the seam 𝔍, its accretion structure a standing gate.' },
-  { n: 14, cls: 'kindled-well', place: () => add(pick(anchors.slice(1)).pos, jit(0.03)), size: () => 2.2 + rnd() * 1.4, qtr: 'obj-kindled-wells',
+  { n: 22, cls: 'kindled-well', place: () => add(pick(anchors.slice(1)).pos, jit(0.03)), size: () => 2.2 + rnd() * 1.4, qtr: 'obj-kindled-wells',
     name: () => nm() + ' Gate', note: 'A kindled seam-well (Φ₄) — engineered: a black hole held open as an intra-universal gate.' },
-  { n: 60, cls: 'seam-pearl', place: () => onFilament(0.03), size: () => 0.7 + rnd() * 0.7, qtr: 'obj-seam-pearls',
+  { n: 95, cls: 'seam-pearl', place: () => onFilament(0.03), size: () => 0.7 + rnd() * 0.7, qtr: 'obj-seam-pearls',
     name: () => tag('SP'), note: 'A seam-pearl — a condensed droplet of the seam, left where a crossing set.' },
-  { n: 30, cls: 'information-reef', place: () => onFilament(0.02), size: () => 1.2 + rnd() * 1.0, qtr: 'obj-information-reefs',
+  { n: 48, cls: 'information-reef', place: () => onFilament(0.02), size: () => 1.2 + rnd() * 1.0, qtr: 'obj-information-reefs',
     name: () => nm() + ' Reef', note: 'An information reef — a shoal of dense mutual information where causal order frays.' },
-  { n: 45, cls: 'beacon-core', place: () => onFilament(0.06), size: () => 0.9 + rnd() * 0.5, qtr: 'obj-beacon-cores',
+  { n: 70, cls: 'beacon-core', place: () => onFilament(0.06), size: () => 0.9 + rnd() * 0.5, qtr: 'obj-beacon-cores',
     name: () => tag('BC'), note: 'A beacon core — a pulsar the fleets anchor ΛL phase to; the backbone of shared time.' },
-  { n: 10, cls: 'formless-mouth', place: () => inVoid(), size: () => 2.0 + rnd() * 1.6, qtr: 'obj-the-formless-mouths',
+  { n: 16, cls: 'formless-mouth', place: () => inVoid(), size: () => 2.0 + rnd() * 1.6, qtr: 'obj-the-formless-mouths',
     name: () => nm() + ' Mouth', note: 'A rumoured Formless mouth — a Class-ω throat the Assembly denies exists; chased by one mythical ship.' },
-  { n: 22, cls: 'law-shard', place: () => nearHorizon(), size: () => 1.0 + rnd() * 1.2, qtr: 'obj-law-shards',
+  { n: 34, cls: 'law-shard', place: () => nearHorizon(), size: () => 1.0 + rnd() * 1.2, qtr: 'obj-law-shards',
     name: () => tag('LS'), note: 'A law-shard — curvature-frontier debris where the effective constitution is subtly wrong.' },
-  { n: 12, cls: 'amplitude-twin', place: null, size: () => 0.9 + rnd() * 0.6, qtr: 'obj-amplitude-twins',
+  { n: 18, cls: 'amplitude-twin', place: null, size: () => 0.9 + rnd() * 0.6, qtr: 'obj-amplitude-twins',
     name: () => nm() + ' Twin', note: 'An amplitude twin — one object read as two, entangled across the web by a shared throat.' },
 ];
 for (const spec of OBJ) {

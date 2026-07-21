@@ -41,7 +41,9 @@ export function initPanels(app) {
   // already opened from the ✦ NAVCOM AI button in the top bar, so it isn't
   // duplicated here.
   const REG = [
-    { key: 'route', sel: '#routepanel', icon: '❋', label: 'NavCom', handle: '.rp-top',
+    // the NAV COMPUTER panel is draggable, but its toolbar button is dropped
+    // (bar:false) — the panel opens itself when a course is plotted
+    { key: 'route', sel: '#routepanel', icon: '❋', label: 'NavCom', handle: '.rp-top', bar: false,
       show: () => app._navcomShow?.(), hide: () => app._navcomHide?.() },
     { key: 'leftdock', sel: '#leftdock', icon: '⚙', label: 'Controls', handle: '.pnl-grip',
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
@@ -49,6 +51,9 @@ export function initPanels(app) {
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'track', sel: '#trackpanel', icon: '◎', label: 'Track', handle: '.tp-h',
       show: () => app.setTrackPanel(true), hide: () => app.setTrackPanel(false) },
+    // the DEEPTIME galaxy navigator: draggable + hideable (only relevant in deeptime mode)
+    { key: 'deeptime', sel: '#deeptimenav', icon: '⧗', label: 'Deep-Time', handle: '.dtn-crumb',
+      show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'gfx', sel: '#gfxpanel', icon: '◧', label: 'Graphics', handle: '.gfx-h',
       show: (el) => el.classList.remove('pnl-off'), hide: (el) => el.classList.add('pnl-off') },
     { key: 'navcom', sel: '#navcom-ai', icon: '✦', label: 'Solaris.Ai', handle: '.na-head', bar: false,

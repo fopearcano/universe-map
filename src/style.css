@@ -147,7 +147,7 @@ aside {
 .pnl-off { display: none !important; }
 .pnl-drag { opacity: 0.92; box-shadow: 0 16px 44px rgba(0,0,0,0.6) !important; }
 /* header strips that act as drag handles */
-.pnl-grip, .na-head, .rp-top, .tp-h, #leftdock .tabs { cursor: move; touch-action: none; }
+.pnl-grip, .na-head, .rp-top, .tp-h, #leftdock .tabs, .dtn-crumb { cursor: move; touch-action: none; }
 /* the tracking panel is click-through except for its header, so it can be dragged */
 #trackpanel .tp-h { pointer-events: auto; }
 .pnl-grip {
