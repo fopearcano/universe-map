@@ -132,15 +132,36 @@ function fmtAtlasDist(ly) {
 function renderBody(o) {
   const [r, g, b] = o.color || [0.8, 0.82, 0.9];
   const swatch = `rgb(${(r * 255) | 0},${(g * 255) | 0},${(b * 255) | 0})`;
-  const sub = o.kind === 'moon' ? `moon of ${o.moonOf}` : o.kind === 'star' ? 'the Sun · G2V' : o.kind === 'dwarf' ? 'dwarf planet' : 'planet';
+  const k = o.bodyKind || o.kind;
+  const KIND = { moon: `moon of ${o.moonOf}`, star: o.spectral ? `${o.spectral} star` : 'star', dwarf: 'dwarf planet',
+    tno: 'trans-Neptunian object', asteroid: 'asteroid', comet: 'comet', planet: o.type ? `planet · ${o.type}` : 'planet' };
+  const sub = KIND[k] || o.type || 'body';
+  const fmtP = (p) => p == null ? null : p >= 1 ? `${p >= 100 ? Math.round(p) : p.toFixed(p >= 10 ? 1 : 2)} yr` : `${Math.round(p * 365.25)} d`;
+  const fmtRot = (h) => h == null ? null : Math.abs(h) >= 48 ? `${(Math.abs(h) / 24).toFixed(1)} d${h < 0 ? ' (retrograde)' : ''}` : `${Math.abs(h).toFixed(1)} h${h < 0 ? ' (retro)' : ''}`;
+  const num = (n) => Number(n).toLocaleString('en-US');
   const rows = [];
-  if (o.a != null) rows.push(['Orbit', `${o.a} AU`, 'hl']);
-  if (o.period != null) rows.push(['Period', o.period >= 1 ? `${o.period} yr` : `${Math.round(o.period * 365.25)} d`]);
+  // orbit
+  if (o.a != null) rows.push(['Orbit (a)', `${o.a} AU`, 'hl']);
+  if (o.aKm != null) rows.push(['Orbit (a)', `${num(Math.round(o.aKm))} km`, 'hl']);
+  if (o.period != null) rows.push(['Period', fmtP(o.period)]);
   if (o.e != null) rows.push(['Eccentricity', o.e.toFixed(3)]);
   if (o.inc != null) rows.push(['Inclination', `${o.inc}°`]);
-  if (o.radiusKm != null) rows.push(['Radius', `${Math.round(o.radiusKm).toLocaleString('en-US')} km`]);
-  if (o.moons) rows.push(['Major moons', String(o.moons)]);
-  const facts = `<div class="atlas-facts">${esc(o.facts)}</div>`;
+  // physical
+  if (o.radiusKm != null) rows.push(['Radius', `${num(Math.round(o.radiusKm))} km`]);
+  if (o.massMe != null) rows.push(['Mass', o.massMe >= 100 ? `${(o.massMe / 317.8).toFixed(2)} M♃` : `${o.massMe.toFixed(o.massMe < 0.01 ? 5 : 3)} M⊕`]);
+  if (o.density != null) rows.push(['Density', `${o.density.toFixed(2)} g/cm³`]);
+  if (o.gravity != null) rows.push(['Surface gravity', `${o.gravity.toFixed(o.gravity < 1 ? 3 : 2)} g`]);
+  if (o.escape != null) rows.push(['Escape velocity', `${o.escape.toFixed(o.escape < 10 ? 2 : 1)} km/s`]);
+  if (o.rotation != null) rows.push(['Rotation', fmtRot(o.rotation)]);
+  if (o.tilt != null) rows.push(['Axial tilt', `${o.tilt}°`]);
+  if (o.tempK != null) rows.push([k === 'star' ? 'Surface temp' : 'Temperature', `${num(Math.round(o.tempK))} K · ${Math.round(o.tempK - 273.15)}°C`]);
+  if (o.albedo != null) rows.push(['Albedo', o.albedo.toFixed(2)]);
+  if (o.lum != null) rows.push(['Luminosity', `${o.lum} L☉`]);
+  if (o.atmosphere) rows.push(['Atmosphere', o.atmosphere]);
+  if (o.composition) rows.push(['Composition', o.composition]);
+  if (o.moons != null && o.moons > 0) rows.push(['Moons', String(o.moons)]);
+  if (o.discovered != null) rows.push(['Discovered', String(o.discovered)]);
+  const facts = o.facts ? `<div class="atlas-facts">${esc(o.facts)}</div>` : '';
   return head(o.name, sub, swatch) + grid(rows) + facts +
     `<div class="info-actions"><button class="btn sm" id="i-fly">➤ fly to</button><button class="btn sm" id="i-focus" title="orbit around this body">◎ focus</button></div>`;
 }

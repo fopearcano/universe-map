@@ -11,6 +11,7 @@ import { StructureShapes } from './render/structures.js';
 import { computeSupervoids, VoidShapes } from './render/voids.js';
 import { RouteNetwork } from './render/routeNetwork.js';
 import { SolarSystem } from './render/solarSystem.js';
+import { systemList as systemsList, makeProcSystem } from './data/systems.js';
 import { generateRoutes } from './data/routeGen.js';
 import { routeGroup } from './data/routeGroups.js';
 import { DRIVES, driveById, nearestDriveBySc, DEFAULT_DRIVE, fmtDriveSpeed } from './data/drives.js';
@@ -745,8 +746,9 @@ export class App {
       this.labels.setStatic([]); this.labels.setStars([]); this.labels.setMarkers([]); this.labels.setVoyage([]);
       if (this.sectorGridGroup) this.sectorGridGroup.visible = false;
       const v = this.solarSystem.defaultView();
-      this.scene.controls.maxDistance = 3000;
+      this.scene.controls.maxDistance = this.solarSystem.extent() * 14;
       this.scene.setView(v.pos, v.target);
+      this.emit('system', { id: this.solarSystem.currentId(), name: this.solarSystem.currentName(), layers: this.solarSystem.layerState() });
     } else if (mode === 'cosmos') {
       this.solarSystem.setVisible(false);
       this.starfield.points.visible = false;
@@ -906,11 +908,37 @@ export class App {
   // the selection marker & panel track the live mesh (see the loop).
   selectBody(i, { fly = false } = {}) {
     const info = this.solarSystem.info(i); if (!info) return;
-    info.kind = 'body';
+    info.bodyKind = info.kind; info.kind = 'body';   // keep real kind for the panel sub-label
     const worldPos = this.solarSystem.worldPos(i);
     this._setSelection({ kind: 'body', bodyIndex: i, worldPos: worldPos.clone(), truePos: worldPos.clone(), info });
     if (fly) this.scene.flyTo(worldPos.clone(), { approach: Math.max(2.5, worldPos.length() * 0.12) });
   }
+
+  // ── SYSTEMS scale: switch/generate systems + toggle object layers ────────────
+  systemList() { return systemsList(); }
+  setSystem(id) {
+    if (this.mode !== 'system') this.setMode('system');
+    this.clearSelection();
+    this.solarSystem.setSystem(id);
+    const ss = this.solarSystem;
+    this.scene.controls.maxDistance = ss.extent() * 14;
+    const v = ss.defaultView(); this.scene.setView(v.pos, v.target);
+    this.emit('system', { id: ss.currentId(), name: ss.currentName(), layers: ss.layerState() });
+    return { id: ss.currentId(), name: ss.currentName() };
+  }
+  generateProcSystem() {
+    this._procSeed = ((this._procSeed || 0x5eed) * 1664525 + 1013904223) >>> 0;
+    const sys = makeProcSystem(this._procSeed);
+    if (this.mode !== 'system') this.setMode('system');
+    this.clearSelection();
+    this.solarSystem.setSystem(sys);
+    const ss = this.solarSystem;
+    this.scene.controls.maxDistance = ss.extent() * 14;
+    const v = ss.defaultView(); this.scene.setView(v.pos, v.target);
+    this.emit('system', { id: ss.currentId(), name: ss.currentName(), layers: ss.layerState(), proc: true });
+    return { id: ss.currentId(), name: ss.currentName() };
+  }
+  setSystemLayer(key, on) { this.solarSystem.setLayerVisible(key, on); }
 
   selectObject(hit, { fly = false } = {}) {
     if (!hit) { this.clearSelection(); return; }
@@ -1602,14 +1630,21 @@ export class App {
     return { ok: true, inside: desc?.name, type: desc?.type, stars: this.deeptime.interior?.count || 0 };
   }
 
-  // ---- Solaris.Ai control of the SYSTEM scale (Solar System) ----
-  // Fly to a Solar-System body by name, switching to the SYSTEM scale first.
+  // ---- Solaris.Ai control of the SYSTEMS scale (star systems) ----
+  // Fly to a body by name in the current system, switching to the SYSTEMS scale first.
   agentSystemFocus(name) {
     const i = this.solarSystem.findByName(name);
-    if (i < 0) return { ok: false, error: `no Solar-System body named "${name}"`, bodies: this.solarSystem.names() };
+    if (i < 0) return { ok: false, error: `no body named "${name}" in ${this.solarSystem.currentName()}`, bodies: this.solarSystem.names() };
     if (this.mode !== 'system') this.setMode('system');
     this.selectBody(i, { fly: true });
     return { ok: true, flew_to: this.solarSystem.nodes[i].name, ...this.solarSystem.info(i) };
+  }
+  // Switch the shown star system (id from system_list) or generate a procedural one.
+  agentSystemSelect(id) {
+    if (String(id || '').toLowerCase() === 'generate' || id === 'proc') return { ok: true, ...this.generateProcSystem(), bodies: this.solarSystem.names() };
+    const known = this.systemList().find((s) => s.id === id || s.name.toLowerCase() === String(id || '').toLowerCase());
+    if (!known) return { ok: false, error: `no system "${id}"`, systems: this.systemList() };
+    return { ok: true, ...this.setSystem(known.id), bodies: this.solarSystem.names() };
   }
   // Facts/orbit for a body, or the list of bodies when no name is given.
   agentSystemInfo(name) {
@@ -2427,7 +2462,7 @@ export class App {
     this.emit('frame', {
       mode: (this._inGalaxy || dtInterior) ? 'galaxy' : this.mode, camPos: cam.position, camRadius: cam.position.length(), dir, fov: cam.fov,
       visible: this.mode === 'local' ? this.starfield.visibleCount : (this.mode === 'cosmos' ? this.cosmos.visibleCount() : 0),
-      sys: this.mode === 'system' ? { bodies: this.solarSystem.nodes.length, rangeAu: cam.position.length() / this.solarSystem.AU } : null,
+      sys: this.mode === 'system' ? { name: this.solarSystem.currentName(), bodies: this.solarSystem.nodes.length, rangeAu: cam.position.length() / this.solarSystem.AU } : null,
       shipLy,
       decadeUnit: this.cosmos?.decadeUnit || 3, cmbR: this.cosmos?.cmbR || 30,
       focus: this.focus ? this.focus.label : null,

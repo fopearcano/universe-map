@@ -10,6 +10,8 @@ export function initHUD(app) {
   initTabs();
   buildDock(app);
   app.on('mode', () => buildDock(app));
+  // rebuild the SYSTEMS panel when the selected system changes (body list, layers)
+  app.on('system', () => { if (app.mode === 'system') buildSystemPanel(app); });
   initTelemetry(app);
   initFps();
   initHoverTip(app);
@@ -74,7 +76,7 @@ function buildDock(app) {
   } else if (app.mode === 'system') {
     buildSystemPanel(app);
     const note = (id, txt) => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="muted" style="line-height:1.6">${txt}</div>`; };
-    note('tab-voyages', 'Expeditions apply to the LOCAL & COSMOS scales. Press <b>1</b> or <b>2</b> to leave the Solar System.');
+    note('tab-voyages', 'Expeditions apply to the LOCAL & COSMOS scales. Press <b>1</b> or <b>2</b> to leave the SYSTEMS scale.');
     note('tab-layers', 'Overlays apply to the LOCAL & COSMOS scales.');
   } else {
     buildLocalFilters(app); buildLocalVoyageList(app); buildLocalLayers(app);
@@ -85,14 +87,40 @@ function buildDock(app) {
   document.querySelectorAll('.tabpanel').forEach((p, i) => p.classList.toggle('active', i === 0));
 }
 
-// The SYSTEM-mode filters tab: a picker for the Sun, planets & dwarf planets.
+// The SYSTEMS-mode filters tab: a system selector, orbital-animation controls,
+// per-class layer toggles, and a grouped picker for every body in the system.
+const SYS_LAYER_DEFS = [
+  ['planets', 'Planets'], ['dwarfs', 'Dwarf planets'], ['moons', 'Moons'],
+  ['asteroids', 'Asteroid belt'], ['kuiper', 'Kuiper belt'], ['comets', 'Comets'],
+  ['trojans', 'Trojans'], ['oort', 'Oort cloud'], ['orbits', 'Orbit paths'], ['labels', 'Labels'],
+];
+const SYS_GROUP_ORDER = [['star', 'Star'], ['planet', 'Planets'], ['dwarf', 'Dwarf planets'],
+  ['kuiper', 'Trans-Neptunian'], ['asteroid', 'Asteroids'], ['comet', 'Comets'], ['moon', 'Moons']];
+
 function buildSystemPanel(app) {
-  const root = document.getElementById('tab-filters');
+  const root = document.getElementById('tab-filters'); if (!root) return;
   const ss = app.solarSystem;
-  const rows = ss.nodes.map((n, i) => ({ n, i })).filter(({ n }) => n.kind !== 'moon');
-  const sw = (i) => { const c = ss.info(i).color || [0.8, 0.8, 0.9]; return `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`; };
+  const list = app.systemList();
+  const curId = ss.currentId();
+  const isProc = String(curId || '').startsWith('proc:');
+  const sw = (i) => { const c = ss.info(i)?.color || [0.8, 0.8, 0.9]; return `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`; };
+  const bodies = ss.bodyList();
+  const lay = ss.layerState();
+
+  // group the pickable bodies by class, in a sensible order
+  const groups = SYS_GROUP_ORDER.map(([key, label]) => ({ key, label, items: bodies.filter((n) => (key === 'star' ? n.kind === 'star' : n.group === key)) })).filter((g) => g.items.length);
+
   root.innerHTML = `
-    <div class="muted" style="margin-bottom:10px">The Solar System, to scale — orbits are real (in AU); bodies are size-exaggerated so they stay visible. Planets revolve and moons circle them; click a world to fly to it.</div>
+    <div class="muted" style="margin-bottom:10px">Star systems, to scale — orbits are real (in AU, auto-framed); bodies are size-exaggerated so they stay visible. Pick a system, toggle object layers, and click a body to fly to it.</div>
+    <div class="sys-pick">
+      <select id="sys-sel" title="choose a star system">
+        <optgroup label="Real systems">
+          ${list.map((s) => `<option value="${esc(s.id)}" ${s.id === curId ? 'selected' : ''}>${esc(s.name)}${s.tag ? ' · ' + esc(s.tag) : ''}</option>`).join('')}
+        </optgroup>
+        ${isProc ? `<optgroup label="Generated"><option value="${esc(curId)}" selected>${esc(ss.currentName())} · procedural</option></optgroup>` : ''}
+      </select>
+      <button class="btn sm" id="sys-gen" title="generate a fresh procedural star system">⟳ generate</button>
+    </div>
     <div class="sys-time">
       <button class="btn sm" id="sys-pause"></button>
       <span class="sys-speed">
@@ -101,10 +129,30 @@ function buildSystemPanel(app) {
         <span class="sys-speed-v" id="sys-speed-v"></span>
       </span>
     </div>
-    <div class="sys-list">${rows.map(({ n, i }) => `<button class="sys-row" data-i="${i}"><span class="sys-sw" style="background:${sw(i)}"></span><span class="sys-nm">${esc(n.name)}</span><span class="muted">${esc(n.kind)}</span></button>`).join('')}</div>
+    <div class="hr"></div>
+    <div class="muted" style="margin-bottom:8px">Object layers</div>
+    <div class="sys-layers">
+      ${SYS_LAYER_DEFS.map(([k, l]) => `<div class="toggle sys-lay ${lay[k] !== false ? 'on' : ''}" data-lay="${k}"><span>${l}</span><span class="sw"></span></div>`).join('')}
+    </div>
     <div class="hr"></div>
     <button class="btn" id="sys-home">⊙ frame the whole system</button>
-    <div class="muted" style="margin-top:12px;line-height:1.6">Sun + ${rows.length - 1} worlds · ${ss.nodes.length} bodies incl. moons.<br>Keys <b>1</b> · <b>2</b> · <b>3</b> switch LOCAL · COSMOS · SYSTEM.</div>`;
+    <div class="sys-groups">
+      ${groups.map((g) => `<div class="sys-grp-t">${esc(g.label)} <span class="muted">· ${g.items.length}</span></div>
+        <div class="sys-list">${g.items.map((n) => `<button class="sys-row" data-i="${n.i}"><span class="sys-sw" style="background:${sw(n.i)}"></span><span class="sys-nm">${esc(n.name)}</span><span class="muted">${esc(n.moonOf ? 'moon' : n.kind)}</span></button>`).join('')}</div>`).join('')}
+    </div>
+    <div class="muted" style="margin-top:12px;line-height:1.6">${esc(ss.currentName())} · ${bodies.length} catalogued bodies.<br>Keys <b>1</b> · <b>2</b> · <b>3</b> switch LOCAL · COSMOS · SYSTEMS.</div>`;
+
+  // ---- system selector + generate ----
+  const sel = root.querySelector('#sys-sel');
+  if (sel) sel.onchange = () => app.setSystem(sel.value);
+  root.querySelector('#sys-gen').onclick = () => app.generateProcSystem();
+
+  // ---- layer toggles ----
+  root.querySelectorAll('.sys-lay').forEach((el) => {
+    el.onclick = () => { el.classList.toggle('on'); app.setSystemLayer(el.dataset.lay, el.classList.contains('on')); };
+  });
+
+  // ---- body picker ----
   root.querySelectorAll('.sys-row').forEach((b) => { b.onclick = () => app.selectBody(+b.dataset.i, { fly: true }); });
   root.querySelector('#sys-home').onclick = () => { const v = ss.defaultView(); app.scene.setView(v.pos, v.target); };
 
@@ -184,7 +232,7 @@ function initTelemetry(app) {
     } else if (f.mode === 'system') {
       const au = f.sys ? f.sys.rangeAu : 0;
       el.innerHTML = [
-        cell('SYSTEM', 'Sol'),
+        cell('SYSTEM', esc(f.sys?.name || 'Sol')),
         cell('BODIES', fmtNum(f.sys ? f.sys.bodies : 0)),
         cell('RANGE', `${au.toFixed(au < 10 ? 2 : au < 100 ? 1 : 0)} AU`),
         cell('FOV', `${f.fov.toFixed(0)}°`), focus,
